@@ -1,0 +1,25 @@
+# SENTINEL AI - Docker Compose Configuration
+# Sprint 0: Adım 0.2 - Service definitions placeholder
+
+version: '3.8'
+
+services:
+  # Service 1: Llama 3 Local LLM
+  llama-service:
+    build: ./docker/llama
+    ports:
+      - "8001:8001"
+    volumes:
+      - ./models:/root/.ollama  # Model cache - her seferinde indirmemek için
+
+  # Service 2: API Backend
+  api-service:
+    build: ./docker/api
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env
+    depends_on:
+      - llama-service
+
+

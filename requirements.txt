@@ -1,0 +1,10 @@
+# SENTINEL AI - Python Dependencies
+# Sprint 0: Initial setup (Adım 0.3)
+
+PyQt6
+pydantic
+openai
+python-dotenv
+defusedxml
+
+
