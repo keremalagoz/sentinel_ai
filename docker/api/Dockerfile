@@ -17,3 +17,5 @@ EXPOSE 8000
 # Will be replaced with FastAPI in Sprint 2
 CMD ["python", "-c", "import http.server; import socketserver; handler = http.server.SimpleHTTPRequestHandler; httpd = socketserver.TCPServer(('', 8000), handler); print('SENTINEL API placeholder running on port 8000'); httpd.serve_forever()"]
 
+
+

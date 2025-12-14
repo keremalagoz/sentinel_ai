@@ -14,3 +14,5 @@ EXPOSE 11434
 # Entrypoint: Start Ollama and pull model
 ENTRYPOINT ["/bin/bash", "/pull_model.sh"]
 
+
+

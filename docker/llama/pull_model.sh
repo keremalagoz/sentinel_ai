@@ -32,3 +32,5 @@ echo "=========================================="
 # Keep container running by waiting for Ollama process
 wait $OLLAMA_PID
 
+
+
