@@ -1,188 +1,193 @@
-# 📊 SENTINEL AI - Proje Durum Raporu
+# SENTINEL AI - Proje Durum Raporu
 
-## Faz 1 Tamamlandı ✅
+**Tarih:** 4 Ocak 2026  
+**Ekip:** Kerem (AI/Data/Backend) & Yiğit (System/UI/Security)
 
 ---
 
-## 📁 Proje Yapısı
+## Tamamlanan Sprintler
+
+### Sprint 0: Proje Altyapısı ✅
+
+| Görev | Sorumlu | Durum |
+|-------|---------|-------|
+| Klasör yapısı | Kerem | ✅ |
+| Git branch yapısı (main, develop, dev_kerem, dev_yigit) | Kerem | ✅ |
+| Docker Llama servisi | Kerem | ✅ |
+| Docker API servisi | Kerem | ✅ |
+| requirements.txt | Yiğit | ✅ |
+| README.md | Kerem | ✅ |
+
+### Sprint 1: Akıllı Süreç Motoru ✅
+
+| Görev | Sorumlu | Durum |
+|-------|---------|-------|
+| AdvancedProcessManager | Yiğit | ✅ |
+| Terminal View | Yiğit | ✅ |
+| Styles (tema, renkler) | Yiğit | ✅ |
+| Interactive Patterns | Yiğit | ✅ |
+| Session Loglama | Yiğit | ✅ |
+
+### Sprint 2: Hibrit AI Komut Motoru ✅
+
+| Görev | Sorumlu | Durum |
+|-------|---------|-------|
+| JSON Şemaları (schemas.py) | Kerem | ✅ |
+| AI Orchestrator (orchestrator.py) | Kerem | ✅ |
+| Docker Tools Container | Kerem | ✅ |
+| Docker Runner Helper | Kerem | ✅ |
+| main.py (GUI entegrasyonu) | Yiğit | ⏳ Bekliyor |
+
+---
+
+## Mevcut Dosya Yapısı
 
 ```
 sentinel_root/
+├── main.py                      ← Yiğit yazacak
+├── requirements.txt             ✅
+├── README.md                    ✅
+├── docker-compose.yml           ✅
+├── son_durum.md                 ✅
+│
 ├── src/
-│   ├── core/
-│   │   ├── process_manager.py    ← QProcess tabanlı komut motoru
-│   │   ├── adapters/             ← Nmap, Gobuster adaptörleri (Faz 4)
-│   │   └── models.py             ← Pydantic veri modelleri (Faz 4)
-│   ├── ui/
-│   │   ├── terminal_view.py      ← Ana terminal arayüzü
-│   │   └── styles.py             ← Tasarım sistemi (renkler, stiller)
-│   ├── ai/                       ← Yapay zeka modülleri (Faz 2)
-│   ├── plugins/                  ← Araç eklentileri (Faz 6)
+│   ├── ai/                      ← Kerem'in alanı
+│   │   ├── schemas.py           ✅ JSON şemaları
+│   │   └── orchestrator.py      ✅ Hibrit AI motoru
+│   │
+│   ├── core/                    
+│   │   ├── process_manager.py   ✅ Yiğit
+│   │   ├── docker_runner.py     ✅ Kerem
+│   │   └── adapters/            ⏳ Sprint 4
+│   │
+│   ├── ui/                      ← Yiğit'in alanı
+│   │   ├── terminal_view.py     ✅
+│   │   └── styles.py            ✅
+│   │
+│   ├── plugins/                 ⏳ Sprint 6
+│   │
 │   └── tests/
-│       ├── test_sprint1.py       ← Terminal test uygulaması
-│       └── interactive_test.py   ← İnteraktif prompt testi
+│       ├── test_sprint1.py      ✅
+│       ├── interactive_test.py  ✅
+│       └── test_integration.py  ✅ Örnek entegrasyon
+│
 ├── docker/
-│   ├── llama/                    ← Llama 3 LLM servisi
-│   └── api/                      ← API servisi
-├── temp/                         ← Session logları
-├── docs/                         ← Proje dökümanları
-├── requirements.txt              ← Python bağımlılıkları
-├── docker-compose.yml            ← Docker yapılandırması
-└── main.py                       ← Uygulama giriş noktası
+│   ├── llama/                   ✅ Llama 3 servisi
+│   ├── api/                     ✅ API backend
+│   └── tools/                   ✅ Güvenlik araçları
+│
+├── docs/
+│   └── Detaylı Fazlandırılmış.pdf
+│
+└── temp/                        Session logları
 ```
 
 ---
 
-## ✅ Tamamlanan Aşamalar
+## Docker Servisleri
 
-### Sprint 0: Altyapı ve Kurulum
-
-| Görev | Durum | Sorumlu |
-|-------|-------|---------|
-| Klasör hiyerarşisi oluşturma | ✅ | Kerem |
-| Docker servisleri (Llama 3, API) | ✅ | Kerem |
-| `requirements.txt` tanımlama | ✅ | Yiğit |
-| Git branch yapısı (main, develop, dev_*) | ✅ | Ortak |
-
-**Bağımlılıklar:**
-- PyQt6 >= 6.6.0
-- pydantic >= 2.5.0
-- openai >= 1.6.0
-- python-dotenv >= 1.0.0
-- defusedxml >= 0.7.1
+| Container | Durum | Port | İçerik |
+|-----------|-------|------|--------|
+| sentinel-llama | ✅ Çalışıyor | 8001 | Llama 3 AI (8B model) |
+| sentinel-api | ✅ Çalışıyor | 8000 | API Backend |
+| sentinel-tools | ✅ Çalışıyor | - | Nmap, Gobuster, Nikto, Hydra |
 
 ---
 
-### Sprint 1: Akıllı Süreç Motoru (The Engine)
+## Yapılmadı / Bekleyen Görevler
 
-#### 1.1 Advanced Process Manager (`process_manager.py`)
+### Sprint 2 (Eksikler)
 
-| Özellik | Açıklama |
-|---------|----------|
-| **QProcess Entegrasyonu** | UI donmadan asenkron komut çalıştırma |
-| **Sinyal Sistemi** | `sig_output_stream`, `sig_process_finished`, `sig_auth_failed` |
-| **UTF-8 Decoding** | Nmap gibi araçların garip karakterlerini tolere etme |
-| **Session Loglama** | Her komut `temp/session_YYYYMMDD_HHMMSS.txt` dosyasına kaydedilir |
-| **Hızlı Durdurma** | `kill()` ile anında process sonlandırma |
+| Görev | Sorumlu | Not |
+|-------|---------|-----|
+| main.py yazımı | Yiğit | GUI entegrasyonu gerekli |
+| UI donma sorunu | Yiğit | QThread ile async AI çağrısı |
 
-#### 1.2 Terminal Arayüzü (`terminal_view.py`)
+### Sprint 3: Güvenlik, Yetki ve Temizlik
 
-| Özellik | Açıklama |
-|---------|----------|
-| **Modern Tasarım** | GitHub Dark temalı, profesyonel görünüm |
-| **Renkli Çıktılar** | stdout (beyaz), stderr (kırmızı), sistem mesajları (mavi/yeşil) |
-| **Komut Geçmişi** | ↑/↓ ok tuşları ile önceki komutlara erişim |
-| **Durum Badge'leri** | Ready, Running, Secure, Done, Stopped |
-| **Entegre Action Bar** | Yes/No soruları için gömülü butonlar |
+| Görev | Sorumlu | Durum |
+|-------|---------|-------|
+| Pkexec Wrapper | Yiğit | ⏳ (process_manager'da temel var) |
+| Yetki Reddi Yönetimi | Yiğit | ⏳ (temel var) |
+| Secure Cleaner (cleaner.py) | Yiğit | ❌ Yapılmadı |
 
-#### 1.3 İnteraktif Mod Sistemi (`styles.py` - InteractivePatterns)
+### Sprint 4: Veri Adaptasyonu ve Parsing
 
-| Mod | Tetikleyici | Davranış |
-|-----|-------------|----------|
-| **MODE_PASSWORD** | `password:`, `parola:`, `şifre:` | Input maskeleme (•••), güvenli mod |
-| **MODE_YESNO** | `[y/n]`, `continue?`, `confirm` | Action butonları göster |
-| **MODE_RUNNING** | Komut çalışırken | Stop butonu aktif |
-| **MODE_IDLE** | Boşta | Normal input modu |
+| Görev | Sorumlu | Durum |
+|-------|---------|-------|
+| Pydantic Veri Modeli (models.py) | Kerem | ❌ Yapılmadı |
+| XML Repair fonksiyonu | Kerem | ❌ Yapılmadı |
+| Nmap Adapter (nmap_adapter.py) | Kerem | ❌ Yapılmadı |
+| UI Tablo Gösterimi (results_view.py) | Yiğit | ❌ Yapılmadı |
 
-**Regex Özellikleri:**
-- Sadece satır sonundaki promptları yakalar (`$`)
-- Maksimum 40 karakter toleransı (`.{0,40}`)
-- Case insensitive
+### Sprint 5: Öneri Motoru
 
----
+| Görev | Sorumlu | Durum |
+|-------|---------|-------|
+| Maskeleme Servisi (masking.py) | Kerem | ❌ (Şema hazır) |
+| Öneri Şeması | Kerem | ✅ (schemas.py'da var) |
+| UI Öneri Paneli | Yiğit | ❌ Yapılmadı |
 
-## 🛠️ Teknik Detaylar
+### Sprint 6: Plugin Sistemi ve Final Build
 
-### Sinyal/Slot Mimarisi
-
-```
-AdvancedProcessManager
-├── sig_output_stream(text, channel) → TerminalView._on_output()
-├── sig_process_finished(code, path) → TerminalView._on_finished()
-└── sig_auth_failed()                → TerminalView._on_auth_failed()
-
-TerminalView
-└── sig_command_requested(text)      → TestWindow._on_command_requested()
-```
-
-### UI State Machine
-
-```
-       ┌─────────────────────────────────────────┐
-       │                                         │
-       ▼                                         │
-┌───────────┐   Komut    ┌───────────┐          │
-│   IDLE    │ ─────────► │  RUNNING  │          │
-│  (Ready)  │            │ (Running) │          │
-└───────────┘            └───────────┘          │
-       ▲                      │                 │
-       │     ┌────────────────┼────────────────┐│
-       │     │                │                ││
-       │     ▼                ▼                ││
-       │ ┌───────────┐   ┌───────────┐         ││
-       │ │ PASSWORD  │   │  YESNO    │         ││
-       │ │ (Secure)  │   │ (Confirm) │         ││
-       │ └───────────┘   └───────────┘         ││
-       │     │                │                ││
-       └─────┴────────────────┴────────────────┘│
-                    Process Bitti               │
-                         └──────────────────────┘
-```
+| Görev | Sorumlu | Durum |
+|-------|---------|-------|
+| Plugin Interface (interfaces.py) | Yiğit | ❌ Yapılmadı |
+| Plugin Manager (plugin_manager.py) | Yiğit | ❌ Yapılmadı |
+| Linux Build (pyinstaller) | Kerem | ❌ Yapılmadı |
 
 ---
 
-## 🚀 Mevcut Durum
+## Sıradaki Adımlar
 
-| Bileşen | Durum | Not |
-|---------|-------|-----|
-| Process Manager | ✅ Production Ready | Tüm testler geçti |
-| Terminal UI | ✅ Production Ready | Görsel cilalama tamamlandı |
-| Interactive Patterns | ✅ Çalışıyor | Regex optimizasyonu yapıldı |
-| Docker Services | ✅ Hazır | Kerem tarafından yapılandırıldı |
-| Session Logging | ✅ Aktif | temp/ klasörüne yazılıyor |
+### Yiğit İçin
 
----
+1. **main.py yazımı** - AI ve Docker entegrasyonlu ana pencere
+   - Örnek: `src/tests/test_integration.py`
+   
+2. **UI donma çözümü** - AI çağrısını QThread ile async yap
 
-## 🎯 Sıradaki Hedef: Faz 2 (Yapay Zeka Entegrasyonu)
+3. **Sprint 3** - Secure Cleaner
 
-### Kerem'in Görevleri:
-- [ ] `src/ai/schemas.py` - JSON şemaları (tool, arguments, risk_level)
-- [ ] `src/ai/orchestrator.py` - Karar motoru (Local vs Cloud)
-- [ ] AI → Process Manager entegrasyonu
+### Kerem İçin
 
-### Yiğit'in Görevleri:
-- [ ] AI yanıtlarını terminal UI'a bağlama
-- [ ] Komut onay mekanizması (AI'nın önerdiği komutu kullanıcıya gösterme)
+1. **Sprint 4** - Nmap adapter ve XML parsing
 
-### Ortak:
-- [ ] `main.py` - Uygulama giriş noktası (orchestrator + terminal)
-- [ ] End-to-end test senaryoları
+2. **Sprint 5** - Maskeleme servisi
+
+3. Son olarak Linux build
 
 ---
 
-## 📋 Git Durumu
-
-| Branch | Durum | Son Commit |
-|--------|-------|------------|
-| main | ✅ Güncel | Sprint 0 + 1 merge edildi |
-| develop | ✅ Senkronize | Test aşamasında |
-| dev_yigit | ✅ Aktif | Terminal UI final |
-| dev_kerem | ⏳ Bekliyor | Faz 2 için hazır |
-
----
-
-## 🧪 Test Komutları
+## Test Komutları
 
 ```bash
-# Terminal test uygulamasını çalıştır
-python src/tests/test_sprint1.py
+# Docker servislerini başlat
+docker compose up -d
 
-# İnteraktif prompt testi
-python src/tests/interactive_test.py
+# Test uygulamasını çalıştır
+python src/tests/test_integration.py
+
+# Container durumunu kontrol et
+docker ps
+
+# Nmap testi (Docker içinde)
+docker exec sentinel-tools nmap --version
 ```
 
 ---
 
-*Son Güncelleme: 29 Aralık 2024*
-*Yiğit (System/UI/Security) & Kerem (AI/Data/Backend)*
+## Git Durumu
 
+| Branch | Son Durum |
+|--------|-----------|
+| main | Sprint 0 + 1 |
+| develop | Sprint 0 + 1 |
+| dev_kerem | Sprint 0 + 1 + 2 (AI modülleri) |
+| dev_yigit | Sprint 0 + 1 |
+
+**Not:** dev_kerem'deki değişiklikler henüz develop'a merge edilmedi.
+
+---
+
+*Son Güncelleme: 4 Ocak 2026*

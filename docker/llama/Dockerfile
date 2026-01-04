@@ -5,7 +5,7 @@
 FROM ollama/ollama:latest
 
 # Copy the model pull script
-COPY pull_model.sh /pull_model.sh
+COPY docker/llama/pull_model.sh /pull_model.sh
 RUN chmod +x /pull_model.sh
 
 # Expose Ollama default port

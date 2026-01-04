@@ -288,6 +288,21 @@ Eğer komut üretemiyorsan command=null yap."""
         
         return response.choices[0].message.content
     
+    def _extract_json(self, text: str) -> str:
+        """
+        Text içinden JSON objesini çıkar.
+        
+        Local LLM bazen yanıtın başına/sonuna text ekler.
+        Bu fonksiyon { } arasındaki JSON'u bulur.
+        """
+        # İlk { ve son } arasını bul
+        start = text.find('{')
+        end = text.rfind('}')
+        
+        if start != -1 and end != -1 and end > start:
+            return text[start:end + 1]
+        return text
+    
     def _parse_response(self, raw_response: str, engine: str) -> AIResponse:
         """
         AI yanıtını parse et ve doğrula.
@@ -295,8 +310,11 @@ Eğer komut üretemiyorsan command=null yap."""
         JSON formatına uymayan yanıtlar için fallback uygular.
         """
         try:
+            # JSON'u text içinden çıkar
+            json_str = self._extract_json(raw_response)
+            
             # JSON parse
-            data = json.loads(raw_response)
+            data = json.loads(json_str)
             
             # Pydantic ile doğrula
             if data.get("command"):
@@ -336,7 +354,7 @@ Eğer komut üretemiyorsan command=null yap."""
         return {
             "local": {
                 "available": self._local_available,
-                "model": "llama3:8b-instruct-q4_K_M",
+                "model": "llama3",
                 "url": os.getenv("LLAMA_SERVICE_URL", "http://localhost:8001")
             },
             "cloud": {
