@@ -1,0 +1,26 @@
+# SENTINEL AI - Git Attributes
+# Line ending normalization
+
+# Auto detect text files and normalize line endings
+* text=auto
+
+# Force LF for shell scripts (Linux'ta çalışacak)
+*.sh text eol=lf
+
+# Force LF for Dockerfiles
+Dockerfile text eol=lf
+
+# Force LF for Python files
+*.py text eol=lf
+
+# Force LF for YAML/YML
+*.yml text eol=lf
+*.yaml text eol=lf
+
+# Binary files (don't touch)
+*.pdf binary
+*.png binary
+*.jpg binary
+*.ico binary
+
+

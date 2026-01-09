@@ -9,7 +9,9 @@ services:
   # Service 1: Llama 3 Local LLM (Port 8001)
   # ============================================
   llama-service:
-    build: ./docker/llama
+    build:
+      context: .
+      dockerfile: docker/llama/Dockerfile
     container_name: sentinel-llama
     ports:
       - "8001:11434"  # External:Internal (Ollama default is 11434)
@@ -28,7 +30,9 @@ services:
   # Service 2: API Backend (Port 8000)
   # ============================================
   api-service:
-    build: ./docker/api
+    build:
+      context: .
+      dockerfile: docker/api/Dockerfile
     container_name: sentinel-api
     ports:
       - "8000:8000"
@@ -39,6 +43,21 @@ services:
     depends_on:
       - llama-service
     restart: unless-stopped
+
+  # ============================================
+  # Service 3: Security Tools (Nmap, Gobuster, etc.)
+  # ============================================
+  tools-service:
+    build:
+      context: .
+      dockerfile: docker/tools/Dockerfile
+    container_name: sentinel-tools
+    volumes:
+      - ./temp:/app/output  # Scan results
+    network_mode: host  # Direct network access for scanning
+    restart: unless-stopped
+    stdin_open: true
+    tty: true
 
 # Named volume for model persistence
 volumes:
