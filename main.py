@@ -17,7 +17,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from PyQt6.QtWidgets import (
     QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
-    QLineEdit, QLabel, QPushButton, QFrame, QMessageBox, QSplitter
+    QLineEdit, QLabel, QPushButton, QFrame, QMessageBox
 )
 from PyQt6.QtCore import Qt, QThread, pyqtSignal, pyqtSlot
 from PyQt6.QtGui import QFont
@@ -76,6 +76,7 @@ class SentinelMainWindow(QMainWindow):
         self._process_manager = AdvancedProcessManager(self)
         self._orchestrator = get_orchestrator()
         self._ai_worker: AIWorker = None
+        self._pending_command = None  # AI'dan gelen onay bekleyen komut
         
         # Pencere ayarları
         self.setWindowTitle("SENTINEL AI - Hibrit Güvenlik Test Aracı")

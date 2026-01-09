@@ -1,6 +1,6 @@
 # SENTINEL AI - Proje Durum Raporu
 
-**Tarih:** 4 Ocak 2026  
+**Tarih:** 9 Ocak 2026  
 **Ekip:** Kerem (AI/Data/Backend) & Yiğit (System/UI/Security)
 
 ---
@@ -36,7 +36,7 @@
 | AI Orchestrator (orchestrator.py) | Kerem | ✅ |
 | Docker Tools Container | Kerem | ✅ |
 | Docker Runner Helper | Kerem | ✅ |
-| main.py (GUI entegrasyonu) | Yiğit | ⏳ Bekliyor |
+| main.py (GUI entegrasyonu) | Yiğit | ✅ |
 
 ---
 
@@ -44,7 +44,7 @@
 
 ```
 sentinel_root/
-├── main.py                      ← Yiğit yazacak
+├── main.py                      ✅ Sprint 2.3 tamamlandı
 ├── requirements.txt             ✅
 ├── README.md                    ✅
 ├── docker-compose.yml           ✅
