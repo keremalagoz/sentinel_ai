@@ -94,68 +94,84 @@ sentinel_root/
 
 ---
 
-## Yapılmadı / Bekleyen Görevler
-
-### Sprint 2 (Eksikler)
-
-| Görev | Sorumlu | Not |
-|-------|---------|-----|
-| main.py yazımı | Yiğit | GUI entegrasyonu gerekli |
-| UI donma sorunu | Yiğit | QThread ile async AI çağrısı |
+## 🎯 Aktif Sprint: Sprint 3
 
 ### Sprint 3: Güvenlik, Yetki ve Temizlik
 
-| Görev | Sorumlu | Durum |
-|-------|---------|-------|
-| Pkexec Wrapper | Yiğit | ⏳ (process_manager'da temel var) |
-| Yetki Reddi Yönetimi | Yiğit | ⏳ (temel var) |
-| Secure Cleaner (cleaner.py) | Yiğit | ❌ Yapılmadı |
+| Görev | Sorumlu | Durum | Açıklama |
+|-------|---------|-------|----------|
+| Pkexec Wrapper Geliştirme | Yiğit | ⏳ | process_manager'da temel var, genişletilecek |
+| Yetki Reddi Yönetimi | Yiğit | ⏳ | Hata mesajları ve retry mekanizması |
+| Secure Cleaner (cleaner.py) | Yiğit | ❌ | Güvenli dosya/session temizleme |
+| Input Validation | Yiğit | ❌ | Kullanıcı girdisi sanitizasyonu |
+
+---
+
+## Bekleyen Sprintler
 
 ### Sprint 4: Veri Adaptasyonu ve Parsing
 
-| Görev | Sorumlu | Durum |
-|-------|---------|-------|
-| Pydantic Veri Modeli (models.py) | Kerem | ❌ Yapılmadı |
-| XML Repair fonksiyonu | Kerem | ❌ Yapılmadı |
-| Nmap Adapter (nmap_adapter.py) | Kerem | ❌ Yapılmadı |
-| UI Tablo Gösterimi (results_view.py) | Yiğit | ❌ Yapılmadı |
+| Görev | Sorumlu | Durum | Açıklama |
+|-------|---------|-------|----------|
+| Pydantic Veri Modeli (models.py) | Kerem | ❌ | ScanResult, Host, Port, Service modelleri |
+| XML Repair fonksiyonu | Kerem | ❌ | Kesik XML çıktılarını düzeltme |
+| Nmap Adapter (nmap_adapter.py) | Kerem | ❌ | XML → Pydantic dönüşümü |
+| UI Tablo Gösterimi (results_view.py) | Yiğit | ❌ | Parse edilmiş sonuçları tablo olarak göster |
 
 ### Sprint 5: Öneri Motoru
 
-| Görev | Sorumlu | Durum |
-|-------|---------|-------|
-| Maskeleme Servisi (masking.py) | Kerem | ❌ (Şema hazır) |
-| Öneri Şeması | Kerem | ✅ (schemas.py'da var) |
-| UI Öneri Paneli | Yiğit | ❌ Yapılmadı |
+| Görev | Sorumlu | Durum | Açıklama |
+|-------|---------|-------|----------|
+| Maskeleme Servisi (masking.py) | Kerem | ❌ | IP/hostname maskeleme (loglarda) |
+| Öneri Şeması | Kerem | ✅ | schemas.py'da SuggestionSchema var |
+| Öneri Üretici (suggestion_engine.py) | Kerem | ❌ | Bulgulara göre sonraki adım önerileri |
+| UI Öneri Paneli | Yiğit | ❌ | Önerileri kartlar halinde göster |
 
 ### Sprint 6: Plugin Sistemi ve Final Build
 
-| Görev | Sorumlu | Durum |
-|-------|---------|-------|
-| Plugin Interface (interfaces.py) | Yiğit | ❌ Yapılmadı |
-| Plugin Manager (plugin_manager.py) | Yiğit | ❌ Yapılmadı |
-| Linux Build (pyinstaller) | Kerem | ❌ Yapılmadı |
+| Görev | Sorumlu | Durum | Açıklama |
+|-------|---------|-------|----------|
+| Plugin Interface (interfaces.py) | Yiğit | ❌ | Abstract base class tanımları |
+| Plugin Manager (plugin_manager.py) | Yiğit | ❌ | Plugin yükleme/çalıştırma |
+| Örnek Plugin | Yiğit | ❌ | Gobuster veya Nikto plugin'i |
+| Linux Build (pyinstaller) | Kerem | ❌ | Dağıtılabilir executable |
+| Dokümantasyon | Kerem | ❌ | Kullanım kılavuzu |
 
 ---
 
 ## Sıradaki Adımlar
 
-### Yiğit İçin
+### 🔵 Yiğit İçin (Sprint 3)
 
-1. **main.py yazımı** - AI ve Docker entegrasyonlu ana pencere
-   - Örnek: `src/tests/test_integration.py`
-   
-2. **UI donma çözümü** - AI çağrısını QThread ile async yap
+1. **Secure Cleaner (cleaner.py)** - Öncelik: YÜKSEK
+   - `temp/` klasöründeki eski session dosyalarını güvenli silme
+   - Belirli süre geçmiş logları otomatik temizleme
+   - Hassas veri içeren dosyaları güvenli silme (shred benzeri)
 
-3. **Sprint 3** - Secure Cleaner
+2. **Pkexec Wrapper Geliştirme** - Öncelik: ORTA
+   - Yetki reddi durumunda kullanıcıya bilgilendirme
+   - Retry mekanizması
+   - Timeout yönetimi
 
-### Kerem İçin
+3. **Input Validation** - Öncelik: ORTA
+   - Hedef IP/hostname validasyonu
+   - Komut argümanları sanitizasyonu
+   - XSS/Injection önleme
 
-1. **Sprint 4** - Nmap adapter ve XML parsing
+### 🟢 Kerem İçin (Sprint 4 Hazırlık)
 
-2. **Sprint 5** - Maskeleme servisi
+1. **models.py Tasarımı** - Öncelik: YÜKSEK
+   - `ScanResult`, `Host`, `Port`, `Service` Pydantic modelleri
+   - Nmap XML yapısına uygun alan tanımları
 
-3. Son olarak Linux build
+2. **nmap_adapter.py** - Öncelik: YÜKSEK
+   - defusedxml ile güvenli XML parsing
+   - Kesik XML repair fonksiyonu
+   - XML → Pydantic model dönüşümü
+
+3. **masking.py Başlangıç** - Öncelik: DÜŞÜK
+   - IP adresi maskeleme (192.168.1.100 → 192.168.X.X)
+   - Hostname maskeleme
 
 ---
 
@@ -181,13 +197,13 @@ docker exec sentinel-tools nmap --version
 
 | Branch | Son Durum |
 |--------|-----------|
-| main | Sprint 0 + 1 |
-| develop | Sprint 0 + 1 |
-| dev_kerem | Sprint 0 + 1 + 2 (AI modülleri) |
-| dev_yigit | Sprint 0 + 1 |
+| main | Sprint 0 + 1 (PR bekliyor) |
+| develop | Sprint 0 + 1 + 2 ✅ |
+| dev_kerem | Sprint 0 + 1 + 2 |
+| dev_yigit | Sprint 0 + 1 + 2 ✅ |
 
-**Not:** dev_kerem'deki değişiklikler henüz develop'a merge edilmedi.
+**Not:** develop → main PR açıldı (#5), merge bekliyor.
 
 ---
 
-*Son Güncelleme: 4 Ocak 2026*
+*Son Güncelleme: 9 Ocak 2026*
