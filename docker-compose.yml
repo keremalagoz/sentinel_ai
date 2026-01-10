@@ -19,7 +19,19 @@ services:
       - ollama_models:/root/.ollama  # Model cache - persist between restarts
     environment:
       - OLLAMA_HOST=0.0.0.0  # Allow external connections
+      - OLLAMA_GPU_LAYERS=99  # Force all layers to GPU
+      - NVIDIA_VISIBLE_DEVICES=all  # Force GPU visibility
+      - NVIDIA_DRIVER_CAPABILITIES=compute,utility  # Enable CUDA
     restart: unless-stopped
+    # GPU Access - Multiple methods for compatibility
+    runtime: nvidia  # Primary method
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:11434/api/tags"]
       interval: 30s
