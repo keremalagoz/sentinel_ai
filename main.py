@@ -11,6 +11,7 @@
 
 import sys
 import os
+import subprocess
 
 # Proje root'unu path'e ekle
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -86,6 +87,52 @@ class SentinelMainWindow(QMainWindow):
         self._setup_ui()
         self._connect_signals()
         self._check_services()
+
+    def closeEvent(self, event):
+        """Temizlik - thread'leri durdur, Docker ve WSL'i arka planda kapat."""
+        # AI Worker çalışıyorsa durdur
+        if self._ai_worker and self._ai_worker.isRunning():
+            self._ai_worker.quit()
+            self._ai_worker.wait(1000)
+        
+        # Process çalışıyorsa durdur
+        if self._process_manager.is_running():
+            self._process_manager.stop_process()
+        
+        # Docker kapatma seçenekleri
+        if os.name == 'nt':
+            startupinfo = subprocess.STARTUPINFO()
+            startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
+            
+            # Kullanıcıya sor
+            reply = QMessageBox.question(
+                self, 
+                "Docker Temizliği", 
+                "Docker Motoru (VmmemWSL) tamamen kapatılsın mı?\n\n"
+                "✅ Evet: RAM (~2GB) temizlenir. Sonraki açılış uzun sürer.\n"
+                "❌ Hayır: Sadece servisler durur. Sonraki açılış hızlı olur.",
+                QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+                QMessageBox.StandardButton.No
+            )
+            
+            if reply == QMessageBox.StandardButton.Yes:
+                # Tam temizlik: Fişi çek!
+                # Vakit kaybetmeden ve takılmadan direkt öldür.
+                # docker compose down'ı beklemek bazen takılıyor.
+                cmd = ["cmd", "/c", "taskkill /IM \"Docker Desktop.exe\" /F & wsl --shutdown"]
+            else:
+                # Standart temizlik: Sadece Docker down
+                cmd = ["docker", "compose", "down"]
+
+            # Arka planda çalıştır
+            subprocess.Popen(
+                cmd,
+                cwd=os.getcwd(),
+                startupinfo=startupinfo,
+                creationflags=subprocess.CREATE_NO_WINDOW
+            )
+        
+        event.accept()
     
     def _setup_ui(self):
         """UI bileşenlerini oluştur."""
@@ -512,11 +559,28 @@ def main():
     app = QApplication(sys.argv)
     app.setStyle("Fusion")
     
-    # Docker uyarısı
-    if not is_container_running():
-        print("⚠️  sentinel-tools container çalışmıyor!")
-        print("   Güvenlik araçları için: docker compose up -d")
-        print("   Devam ediliyor...\n")
+    print("🛡️  SENTINEL AI başlatılıyor...")
+    print("   Docker servisleri başlatılıyor (Bekleyiniz)...")
+    
+    # Docker servislerini başlat ve BEKLE
+    if os.name == 'nt':
+        try:
+            startupinfo = subprocess.STARTUPINFO()
+            startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
+            subprocess.run(
+                ["docker", "compose", "up", "-d"],
+                cwd=os.getcwd(),
+                startupinfo=startupinfo,
+                creationflags=subprocess.CREATE_NO_WINDOW,
+                check=True  # Hata varsa exception fırlat
+            )
+            print("✅ Docker servisleri hazır.")
+        except subprocess.CalledProcessError:
+            print("❌ Docker başlatılamadı! Lütfen Docker Desktop'ın açık olduğundan emin olun.")
+            # İsterseniz burada sys.exit() diyerek uygulamayı kapatabiliriz
+            # ama belki kullanıcı local tool kullanmak ister diye devam ediyoruz.
+        except Exception as e:
+            print(f"❌ Beklenmedik hata: {str(e)}")
     
     window = SentinelMainWindow()
     window.show()
