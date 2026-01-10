@@ -1,6 +1,6 @@
 # SENTINEL AI - Proje Durum Raporu
 
-**Tarih:** 9 Ocak 2026  
+**Tarih:** 11 Ocak 2026  
 **Ekip:** Kerem (AI/Data/Backend) & Yiğit (System/UI/Security)
 
 ---
@@ -13,7 +13,7 @@
 |-------|---------|-------|
 | Klasör yapısı | Kerem | ✅ |
 | Git branch yapısı (main, develop, dev_kerem, dev_yigit) | Kerem | ✅ |
-| Docker Llama servisi | Kerem | ✅ |
+| Docker Llama servisi (GPU Enabled 🚀) | Kerem/Yiğit | ✅ |
 | Docker API servisi | Kerem | ✅ |
 | requirements.txt | Yiğit | ✅ |
 | README.md | Kerem | ✅ |
@@ -44,10 +44,10 @@
 
 ```
 sentinel_root/
-├── main.py                      ✅ Sprint 2.3 tamamlandı
+├── main.py                      ✅ ExecutionManager Entegre
 ├── requirements.txt             ✅
 ├── README.md                    ✅
-├── docker-compose.yml           ✅
+├── docker-compose.yml           ✅ GPU Support & Runtime: nvidia
 ├── son_durum.md                 ✅
 │
 ├── src/
@@ -56,9 +56,11 @@ sentinel_root/
 │   │   └── orchestrator.py      ✅ Hibrit AI motoru
 │   │
 │   ├── core/                    
-│   │   ├── process_manager.py   ✅ Yiğit
-│   │   ├── docker_runner.py     ✅ Kerem
-│   │   └── adapters/            ⏳ Sprint 4
+│   │   ├── execution_manager.py ✅ YENİ (Sprint 3 Core)
+│   │   ├── cleaner.py           ✅ YENİ (Sprint 3 Core)
+│   │   ├── validators.py        ✅ YENİ (Sprint 3 Core)
+│   │   ├── process_manager.py   ✅ Güncellendi
+│   │   └── docker_runner.py     ✅ (Legacy support)
 │   │
 │   ├── ui/                      ← Yiğit'in alanı
 │   │   ├── terminal_view.py     ✅
@@ -69,7 +71,7 @@ sentinel_root/
 │   └── tests/
 │       ├── test_sprint1.py      ✅
 │       ├── interactive_test.py  ✅
-│       └── test_integration.py  ✅ Örnek entegrasyon
+│       └── validate_sprint3.py  ✅ Sprint 3 Validation Suite
 │
 ├── docker/
 │   ├── llama/                   ✅ Llama 3 servisi
@@ -88,7 +90,7 @@ sentinel_root/
 
 | Container | Durum | Port | İçerik |
 |-----------|-------|------|--------|
-| sentinel-llama | ✅ Çalışıyor | 8001 | Llama 3 AI (8B model) |
+| sentinel-llama | ✅ Çalışıyor | 8001 | Llama 3 AI (8B model) - **GPU ENABLED** |
 | sentinel-api | ✅ Çalışıyor | 8000 | API Backend |
 | sentinel-tools | ✅ Çalışıyor | - | Nmap, Gobuster, Nikto, Hydra |
 
@@ -100,10 +102,12 @@ sentinel_root/
 
 | Görev | Sorumlu | Durum | Açıklama |
 |-------|---------|-------|----------|
-| Pkexec Wrapper Geliştirme | Yiğit | ⏳ | process_manager'da temel var, genişletilecek |
-| Yetki Reddi Yönetimi | Yiğit | ⏳ | Hata mesajları ve retry mekanizması |
-| Secure Cleaner (cleaner.py) | Yiğit | ❌ | Güvenli dosya/session temizleme |
-| Input Validation | Yiğit | ❌ | Kullanıcı girdisi sanitizasyonu |
+| ExecutionManager | Yiğit | ✅ | Docker/Native mod yönetimi & Pkexec logic |
+| Secure Cleaner (cleaner.py) | Yiğit | ✅ | Güvenli dosya temizleme, Whitelist, Shredding |
+| Input Validation | Yiğit | ✅ | IP/Domain validasyonu, Shell injection check |
+| ProcessManager Update | Yiğit | ✅ | Yeni core modüllerle entegrasyon |
+| UI Security Indicators | Yiğit | ⏳ | Terminalde 'ROOT' ikonu, kilit işareti vb. |
+| Settings Menu (Security) | Yiğit | ⏳ | "Temizlik Sıklığı" vb. güvenlik ayarları |
 
 ---
 
@@ -122,7 +126,7 @@ sentinel_root/
 
 | Görev | Sorumlu | Durum | Açıklama |
 |-------|---------|-------|----------|
-| Maskeleme Servisi (masking.py) | Kerem | ❌ | IP/hostname maskeleme (loglarda) |
+| Maskeleme Servisi (masking.py) | Kerem | ❌ | IP/hostname maskeleme |
 | Öneri Şeması | Kerem | ✅ | schemas.py'da SuggestionSchema var |
 | Öneri Üretici (suggestion_engine.py) | Kerem | ❌ | Bulgulara göre sonraki adım önerileri |
 | UI Öneri Paneli | Yiğit | ❌ | Önerileri kartlar halinde göster |
@@ -131,65 +135,27 @@ sentinel_root/
 
 | Görev | Sorumlu | Durum | Açıklama |
 |-------|---------|-------|----------|
-| Plugin Interface (interfaces.py) | Yiğit | ❌ | Abstract base class tanımları |
-| Plugin Manager (plugin_manager.py) | Yiğit | ❌ | Plugin yükleme/çalıştırma |
-| Örnek Plugin | Yiğit | ❌ | Gobuster veya Nikto plugin'i |
-| Linux Build (pyinstaller) | Kerem | ❌ | Dağıtılabilir executable |
-| Dokümantasyon | Kerem | ❌ | Kullanım kılavuzu |
+| Plugin Structure | Yiğit | ❌ | Interface ve Manager |
+| Linux Build | Kerem | ❌ | PyInstaller |
 
 ---
 
 ## Sıradaki Adımlar
 
-### 🔵 Yiğit İçin (Sprint 3)
+### 🔵 Yiğit İçin (Sprint 3 Kalanlar)
 
-1. **Secure Cleaner (cleaner.py)** - Öncelik: YÜKSEK
-   - `temp/` klasöründeki eski session dosyalarını güvenli silme
-   - Belirli süre geçmiş logları otomatik temizleme
-   - Hassas veri içeren dosyaları güvenli silme (shred benzeri)
+1. **UI Security Indicators** - Öncelik: ORTA
+   - TerminalView'da, komut root yetkisi gerektiriyorsa (örn: nmap -sS) küçük bir kırmızı kilit veya kalkan ikonu göster.
+   - Kullanıcıya "Bu komut yönetici yetkisiyle çalışacak" uyarısı ver.
 
-2. **Pkexec Wrapper Geliştirme** - Öncelik: ORTA
-   - Yetki reddi durumunda kullanıcıya bilgilendirme
-   - Retry mekanizması
-   - Timeout yönetimi
-
-3. **Input Validation** - Öncelik: ORTA
-   - Hedef IP/hostname validasyonu
-   - Komut argümanları sanitizasyonu
-   - XSS/Injection önleme
+2. **Settings Menu** - Öncelik: DÜŞÜK
+   - Basit bir ayarlar penceresi.
+   - Cleaner ayarları (Gün sayısı, Auto-clean on exit).
 
 ### 🟢 Kerem İçin (Sprint 4 Hazırlık)
 
 1. **models.py Tasarımı** - Öncelik: YÜKSEK
-   - `ScanResult`, `Host`, `Port`, `Service` Pydantic modelleri
-   - Nmap XML yapısına uygun alan tanımları
-
-2. **nmap_adapter.py** - Öncelik: YÜKSEK
-   - defusedxml ile güvenli XML parsing
-   - Kesik XML repair fonksiyonu
-   - XML → Pydantic model dönüşümü
-
-3. **masking.py Başlangıç** - Öncelik: DÜŞÜK
-   - IP adresi maskeleme (192.168.1.100 → 192.168.X.X)
-   - Hostname maskeleme
-
----
-
-## Test Komutları
-
-```bash
-# Docker servislerini başlat
-docker compose up -d
-
-# Test uygulamasını çalıştır
-python src/tests/test_integration.py
-
-# Container durumunu kontrol et
-docker ps
-
-# Nmap testi (Docker içinde)
-docker exec sentinel-tools nmap --version
-```
+   - Nmap XML çıktılarını karşılayacak Pydantic modelleri.
 
 ---
 
@@ -197,13 +163,11 @@ docker exec sentinel-tools nmap --version
 
 | Branch | Son Durum |
 |--------|-----------|
-| main | Sprint 0 + 1 (PR bekliyor) |
-| develop | Sprint 0 + 1 + 2 ✅ |
-| dev_kerem | Sprint 0 + 1 + 2 |
-| dev_yigit | Sprint 0 + 1 + 2 ✅ |
-
-**Not:** develop → main PR açıldı (#5), merge bekliyor.
+| main | Sprint 0 + 1 |
+| develop | Sprint 0 + 1 + 2 + **3(Core)** ✅ |
+| dev_kerem | Sprint 0 + 1 + 2 + GPU Hotfix |
+| dev_yigit | Sprint 0 + 1 + 2 + **3(Core)** ✅ |
 
 ---
 
-*Son Güncelleme: 9 Ocak 2026*
+*Son Güncelleme: 11 Ocak 2026*
