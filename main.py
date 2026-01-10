@@ -24,11 +24,11 @@ from PyQt6.QtCore import Qt, QThread, pyqtSignal, pyqtSlot
 from PyQt6.QtGui import QFont
 
 from src.core.process_manager import AdvancedProcessManager
-from src.core.docker_runner import get_docker_command, is_container_running
 from src.ui.terminal_view import TerminalView
 from src.ui.styles import Colors, Fonts
 from src.ai.orchestrator import get_orchestrator
 from src.ai.schemas import AIResponse, RiskLevel
+from src.core.cleaner import get_cleaner
 
 
 # =============================================================================
@@ -98,6 +98,13 @@ class SentinelMainWindow(QMainWindow):
         # Process çalışıyorsa durdur
         if self._process_manager.is_running():
             self._process_manager.stop_process()
+            
+        # Geçici dosyaları temizle (Secure Cleaner)
+        try:
+            deleted = get_cleaner().cleanup_old_sessions(days=3)
+            print(f"🧹 Temizlik: {deleted} eski session silindi.")
+        except Exception as e:
+            print(f"🧹 Temizlik hatası: {e}")
         
         # Docker kapatma seçenekleri
         if os.name == 'nt':
@@ -510,13 +517,8 @@ class SentinelMainWindow(QMainWindow):
         # Hedef placeholder'ı değiştir
         args = [arg.replace("{target}", target) if target else arg for arg in cmd.arguments]
         
-        # Docker'da mı çalıştıracağız?
-        if is_container_running():
-            command, docker_args = get_docker_command(cmd.tool, args)
-            self._process_manager.start_process(command, docker_args, requires_root=False)
-        else:
-            # Docker yoksa direkt çalıştır (Linux'ta)
-            self._process_manager.start_process(cmd.tool, args, requires_root=cmd.requires_root)
+        # Komutu çalıştır (ProcessManager -> ExecutionManager otomatik halleder)
+        self._process_manager.start_process(cmd.tool, args, requires_root=cmd.requires_root)
         
         self._approval_panel.setVisible(False)
         self._pending_command = None
@@ -538,12 +540,8 @@ class SentinelMainWindow(QMainWindow):
         tool = parts[0]
         args = parts[1:] if len(parts) > 1 else []
         
-        # Docker'da çalıştır (eğer çalışıyorsa)
-        if is_container_running():
-            cmd, docker_args = get_docker_command(tool, args)
-            self._process_manager.start_process(cmd, docker_args)
-        else:
-            self._process_manager.start_process(tool, args)
+        # Komutu çalıştır (ExecutionManager otomatik yönlendirir)
+        self._process_manager.start_process(tool, args)
 
 
 # =============================================================================

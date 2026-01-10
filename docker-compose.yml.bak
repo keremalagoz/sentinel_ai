@@ -1,0 +1,65 @@
+# SENTINEL AI - Docker Compose Configuration
+# Sprint 0.2: Full service definitions
+# Usage: docker-compose up -d
+
+version: '3.8'
+
+services:
+  # ============================================
+  # Service 1: Llama 3 Local LLM (Port 8001)
+  # ============================================
+  llama-service:
+    build:
+      context: .
+      dockerfile: docker/llama/Dockerfile
+    container_name: sentinel-llama
+    ports:
+      - "8001:11434"  # External:Internal (Ollama default is 11434)
+    volumes:
+      - ollama_models:/root/.ollama  # Model cache - persist between restarts
+    environment:
+      - OLLAMA_HOST=0.0.0.0  # Allow external connections
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:11434/api/tags"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # ============================================
+  # Service 2: API Backend (Port 8000)
+  # ============================================
+  api-service:
+    build:
+      context: .
+      dockerfile: docker/api/Dockerfile
+    container_name: sentinel-api
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env
+    environment:
+      - LLAMA_SERVICE_URL=http://llama-service:11434  # Internal Docker network
+    depends_on:
+      - llama-service
+    restart: unless-stopped
+
+  # ============================================
+  # Service 3: Security Tools (Nmap, Gobuster, etc.)
+  # ============================================
+  tools-service:
+    build:
+      context: .
+      dockerfile: docker/tools/Dockerfile
+    container_name: sentinel-tools
+    volumes:
+      - ./temp:/app/output  # Scan results
+    network_mode: host  # Direct network access for scanning
+    restart: unless-stopped
+    stdin_open: true
+    tty: true
+
+# Named volume for model persistence
+volumes:
+  ollama_models:
+    driver: local

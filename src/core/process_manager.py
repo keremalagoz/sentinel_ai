@@ -1,6 +1,9 @@
 from PyQt6.QtCore import QObject, QProcess, pyqtSignal
 from datetime import datetime
 import os
+import shlex
+
+from src.core.execution_manager import get_execution_manager, ExecutionMode
 
 
 class AdvancedProcessManager(QObject):
@@ -22,6 +25,7 @@ class AdvancedProcessManager(QObject):
         self._process = QProcess(self)
         self._log_file = None
         self._log_path = ""
+        self._exec_mgr = get_execution_manager()
         
         self._process.readyReadStandardOutput.connect(self._handle_stdout)
         self._process.readyReadStandardError.connect(self._handle_stderr)
@@ -29,26 +33,39 @@ class AdvancedProcessManager(QObject):
     
     def start_process(self, command: str, args: list, requires_root: bool = False):
         """
-        Komutu başlatır ve log dosyası oluşturur.
-        
-        requires_root: True ise komutun başına pkexec eklenir (Linux yetki yükseltme)
+        Komutu ExecutionManager ile hazırlayıp çalıştırır.
+        Moda göre (Docker/Native) otomatik ayarlanır.
         """
-        if requires_root:
-            args = [command] + args
-            command = "pkexec"
+        # 1. Komutu hazırla (Docker prefix, pkexec vb.)
+        final_cmd, final_args, temp_root = self._exec_mgr.prepare_command(
+            command, args, requires_root
+        )
         
+        # 2. Log dosyasını hazırla
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        self._log_path = os.path.join("temp", f"session_{timestamp}.txt")
+        self._log_path = self._exec_mgr.get_temp_path(f"session_{timestamp}.txt")
         
-        os.makedirs("temp", exist_ok=True)
-        self._log_file = open(self._log_path, "a", encoding="utf-8")
+        try:
+            # Dosya yazılabilir mi (Native modda)?
+            # Docker modunda container içinde yazdığı için buradaki self._log_file açamayabiliriz
+            # Bu yüzden loglamayı sadece Native mod veya Host path ise yapmalıyız.
+            
+            # Windows/Linux host path ise
+            if self._exec_mgr.mode == ExecutionMode.NATIVE:
+                log_dir = os.path.dirname(self._log_path)
+                os.makedirs(log_dir, exist_ok=True)
+                self._log_file = open(self._log_path, "a", encoding="utf-8")
+                
+                self._log_file.write(f"[SESSION START] {datetime.now().isoformat()}\n")
+                self._log_file.write(f"[MODE] {self._exec_mgr.mode.value.upper()}\n")
+                self._log_file.write(f"[COMMAND] {final_cmd} {shlex.join(final_args)}\n")
+                self._log_file.write("-" * 50 + "\n")
+                self._log_file.flush()
+        except Exception as e:
+            print(f"Log error: {e}")
         
-        self._log_file.write(f"[SESSION START] {datetime.now().isoformat()}\n")
-        self._log_file.write(f"[COMMAND] {command} {' '.join(args)}\n")
-        self._log_file.write("-" * 50 + "\n")
-        self._log_file.flush()
-        
-        self._process.start(command, args)
+        # 3. Çalıştır
+        self._process.start(final_cmd, final_args)
     
     def write_input(self, text: str):
         """
