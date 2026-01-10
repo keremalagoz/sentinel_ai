@@ -293,14 +293,35 @@ Eğer komut üretemiyorsan command=null yap."""
         Text içinden JSON objesini çıkar.
         
         Local LLM bazen yanıtın başına/sonuna text ekler.
-        Bu fonksiyon { } arasındaki JSON'u bulur.
+        Bu fonksiyon nested bracket'ları düzgün handle eder.
         """
-        # İlk { ve son } arasını bul
-        start = text.find('{')
-        end = text.rfind('}')
+        # Markdown code block kontrolü
+        import re
+        pattern = r"```(?:json)?\s*(\{[\s\S]*?\})\s*```"
+        match = re.search(pattern, text)
+        if match:
+            return match.group(1).strip()
         
-        if start != -1 and end != -1 and end > start:
+        # Normal JSON arama (nested bracket'ları düzgün handle et)
+        start = text.find('{')
+        if start == -1:
+            return text
+        
+        # Bracket sayarak doğru kapanış noktasını bul
+        depth = 0
+        end = start
+        for i, char in enumerate(text[start:], start):
+            if char == '{':
+                depth += 1
+            elif char == '}':
+                depth -= 1
+                if depth == 0:
+                    end = i
+                    break
+        
+        if end > start:
             return text[start:end + 1]
+        
         return text
     
     def _parse_response(self, raw_response: str, engine: str) -> AIResponse:
