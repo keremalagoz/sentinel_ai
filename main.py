@@ -182,7 +182,7 @@ class SentinelMainWindow(QMainWindow):
         layout.setContentsMargins(12, 8, 12, 8)
         
         # Logo/Başlık
-        title = QLabel("⚔️ SENTINEL AI")
+        title = QLabel(">>> SENTINEL AI")
         title.setStyleSheet(f"""
             color: {Colors.ACCENT_PRIMARY};
             font-family: {Fonts.MONO};
@@ -221,7 +221,7 @@ class SentinelMainWindow(QMainWindow):
         
         # Üst satır: Hedef IP
         target_row = QHBoxLayout()
-        target_label = QLabel("🎯 Hedef:")
+        target_label = QLabel("[TARGET] Hedef:")
         target_label.setStyleSheet(f"color: {Colors.TEXT_SECONDARY}; font-weight: bold;")
         target_label.setFixedWidth(80)
         target_row.addWidget(target_label)
@@ -234,7 +234,7 @@ class SentinelMainWindow(QMainWindow):
         
         # Alt satır: AI Sorgu
         ai_row = QHBoxLayout()
-        ai_label = QLabel("🤖 Komut:")
+        ai_label = QLabel("[AI] Komut:")
         ai_label.setStyleSheet(f"color: {Colors.TEXT_SECONDARY}; font-weight: bold;")
         ai_label.setFixedWidth(80)
         ai_row.addWidget(ai_label)
@@ -266,7 +266,7 @@ class SentinelMainWindow(QMainWindow):
         
         # Başlık
         header_row = QHBoxLayout()
-        self._approval_title = QLabel("🔍 AI Önerisi")
+        self._approval_title = QLabel("[ANALYSIS] AI Önerisi")
         self._approval_title.setStyleSheet(f"color: {Colors.ACCENT_PRIMARY}; font-weight: bold; font-size: 14px;")
         header_row.addWidget(self._approval_title)
         
@@ -299,13 +299,13 @@ class SentinelMainWindow(QMainWindow):
         btn_row = QHBoxLayout()
         btn_row.addStretch()
         
-        self._btn_reject = QPushButton("✕ İptal")
+        self._btn_reject = QPushButton("[X] İptal")
         self._btn_reject.setStyleSheet(self._get_button_style(danger=True))
         self._btn_reject.setCursor(Qt.CursorShape.PointingHandCursor)
         self._btn_reject.clicked.connect(self._on_reject_command)
         btn_row.addWidget(self._btn_reject)
         
-        self._btn_approve = QPushButton("✓ Çalıştır")
+        self._btn_approve = QPushButton("[OK] Çalıştır")
         self._btn_approve.setStyleSheet(self._get_button_style(success=True))
         self._btn_approve.setCursor(Qt.CursorShape.PointingHandCursor)
         self._btn_approve.clicked.connect(self._on_approve_command)
