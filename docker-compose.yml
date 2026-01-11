@@ -35,8 +35,11 @@ services:
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:11434/api/tags"]
       interval: 30s
-      timeout: 10s
-      retries: 3
+      timeout: 30s
+      retries: 5
+      start_period: 120s  # Ilk 2 dakika healthcheck basarisiz olabilir
+    networks:
+      - sentinel-net
 
   # ============================================
   # Service 2: API Backend (Port 8000)
@@ -55,6 +58,8 @@ services:
     depends_on:
       - llama-service
     restart: unless-stopped
+    networks:
+      - sentinel-net
 
   # ============================================
   # Service 3: Security Tools (Nmap, Gobuster, etc.)
@@ -66,7 +71,11 @@ services:
     container_name: sentinel-tools
     volumes:
       - ./temp:/app/output  # Scan results
-    network_mode: host  # Direct network access for scanning
+    networks:
+      - sentinel-net
+    cap_add:
+      - NET_RAW      # Nmap -sS icin gerekli
+      - NET_ADMIN    # Network tarama icin gerekli
     restart: unless-stopped
     stdin_open: true
     tty: true
@@ -75,3 +84,8 @@ services:
 volumes:
   ollama_models:
     driver: local
+
+# Custom network for service isolation
+networks:
+  sentinel-net:
+    driver: bridge
