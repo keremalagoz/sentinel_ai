@@ -116,8 +116,8 @@ class SentinelMainWindow(QMainWindow):
                 self, 
                 "Docker Temizliği", 
                 "Docker Motoru (VmmemWSL) tamamen kapatılsın mı?\n\n"
-                "✅ Evet: RAM (~2GB) temizlenir. Sonraki açılış uzun sürer.\n"
-                "❌ Hayır: Sadece servisler durur. Sonraki açılış hızlı olur.",
+                "[+] Evet: RAM (~2GB) temizlenir. Sonraki acilis uzun surer.\n"
+                "[-] Hayir: Sadece servisler durur. Sonraki acilis hizli olur.",
                 QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
                 QMessageBox.StandardButton.No
             )

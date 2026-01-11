@@ -208,7 +208,7 @@ class TerminalView(QWidget):
             self._input_field.setEchoMode(QLineEdit.EchoMode.Password)
             self._prompt_icon.setStyleSheet(f"color: {Colors.SECURE}; font-family: {Fonts.MONO}; font-size: 18px; font-weight: bold;")
             self._btn_stop.setVisible(True)
-            self._status_badge.setText("🔒 Secure")
+            self._status_badge.setText("[SECURE]")
             self._status_badge.setStyleSheet(get_badge_style("secure"))
             
         elif mode == self.MODE_YESNO:
@@ -306,11 +306,11 @@ class TerminalView(QWidget):
         if exit_code == 0:
             self._status_badge.setText("Done")
             self._status_badge.setStyleSheet(get_badge_style("success"))
-            self._log("✓ Completed", Colors.SUCCESS)
+            self._log("[OK] Completed", Colors.SUCCESS)
         else:
             self._status_badge.setText(f"Exit {exit_code}")
             self._status_badge.setStyleSheet(get_badge_style("danger"))
-            self._log(f"✗ Exit code {exit_code}", Colors.DANGER)
+            self._log(f"[X] Exit code {exit_code}", Colors.DANGER)
     
     @pyqtSlot()
     def _on_auth_failed(self):
@@ -318,7 +318,7 @@ class TerminalView(QWidget):
         self._set_mode(self.MODE_IDLE)
         self._status_badge.setText("Auth Failed")
         self._status_badge.setStyleSheet(get_badge_style("danger"))
-        self._log("⚠ Authentication denied", Colors.WARNING)
+        self._log("[!] Authentication denied", Colors.WARNING)
     
     def _clear_output(self):
         """Clear terminal."""
