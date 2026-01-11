@@ -2,9 +2,34 @@
 # Sprint 2.1: AI yanıt formatları
 # OpenAI response_format uyumlu, strict=True için tasarlandı
 
-from pydantic import BaseModel, Field
+import re
+from pydantic import BaseModel, Field, field_validator
 from typing import List, Literal, Optional
 from enum import Enum
+
+
+ALLOWED_TOOLS = frozenset({
+    # Security tools (Docker tools-service)
+    "nmap",
+    "gobuster",
+    "nikto",
+    "dirb",
+    "hydra",
+    "sqlmap",
+    # Basic recon / network utils
+    "whois",
+    "dig",
+    "nslookup",
+    "ping",
+    # Common HTTP utilities (optional but safe)
+    "curl",
+    "wget",
+})
+
+_TOOL_NAME_PATTERN = re.compile(r"^[a-z0-9][a-z0-9._+-]*$", re.IGNORECASE)
+_MAX_ARGUMENTS = 64
+_MAX_ARG_LENGTH = 512
+_ALLOWED_PLACEHOLDER = "{target}"
 
 
 class RiskLevel(str, Enum):
@@ -66,6 +91,72 @@ class ToolCommand(BaseModel):
         default=None,
         description="AI'ın bu komutu neden önerdiğine dair kısa açıklama"
     )
+
+    @field_validator("tool", mode="before")
+    @classmethod
+    def _validate_tool(cls, v: str) -> str:
+        if not isinstance(v, str):
+            raise TypeError("tool must be a string")
+
+        tool = v.strip().lower()
+        if not tool:
+            raise ValueError("tool cannot be empty")
+
+        # Disallow absolute/relative paths and weird formats (only allow binary names)
+        if not _TOOL_NAME_PATTERN.match(tool):
+            raise ValueError("tool format is invalid")
+
+        if tool not in ALLOWED_TOOLS:
+            raise ValueError(f"tool is not allowed: {tool}")
+
+        return tool
+
+    @field_validator("arguments", mode="before")
+    @classmethod
+    def _validate_arguments(cls, v: List[str]) -> List[str]:
+        if not isinstance(v, list):
+            raise TypeError("arguments must be a list of strings")
+
+        if len(v) == 0:
+            raise ValueError("arguments cannot be empty")
+
+        if len(v) > _MAX_ARGUMENTS:
+            raise ValueError("too many arguments")
+
+        normalized: List[str] = []
+        for raw in v:
+            if not isinstance(raw, str):
+                raise TypeError("each argument must be a string")
+
+            # Fail-closed: reject control characters even if they are trailing and would be stripped
+            if ("\x00" in raw) or ("\n" in raw) or ("\r" in raw):
+                raise ValueError("argument contains control characters")
+
+            arg = raw.strip()
+            if not arg:
+                raise ValueError("argument cannot be empty")
+
+            # Common LLM formatting: remove surrounding quotes
+            if (arg.startswith('"') and arg.endswith('"')) or (arg.startswith("'") and arg.endswith("'")):
+                arg = arg[1:-1].strip()
+                if not arg:
+                    raise ValueError("argument cannot be empty")
+
+            if len(arg) > _MAX_ARG_LENGTH:
+                raise ValueError("argument is too long")
+
+            # Block control characters (newline/null byte injection hardening)
+            if ("\x00" in arg) or ("\n" in arg) or ("\r" in arg):
+                raise ValueError("argument contains control characters")
+
+            # Only allow {target} placeholder usage (no other template expansions)
+            tmp = arg.replace(_ALLOWED_PLACEHOLDER, "")
+            if ("{" in tmp) or ("}" in tmp):
+                raise ValueError("only {target} placeholder is allowed in arguments")
+
+            normalized.append(arg)
+
+        return normalized
     
     class Config:
         json_schema_extra = {

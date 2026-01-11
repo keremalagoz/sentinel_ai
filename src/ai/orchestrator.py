@@ -11,6 +11,7 @@ import re
 from typing import Optional, Tuple
 from openai import OpenAI
 from dotenv import load_dotenv
+from pydantic import ValidationError
 
 from src.ai.schemas import (
     ToolCommand,
@@ -370,6 +371,14 @@ Eğer komut üretemiyorsan command=null yap."""
             return AIResponse(
                 command=None,
                 message=raw_response,
+                needs_clarification=True
+            )
+
+        except ValidationError:
+            # Komut, güvenlik doğrulamasından geçemedi (allowlist/arg policy)
+            return AIResponse(
+                command=None,
+                message="Uretilen komut guvenlik politikasina uymuyor. Lutfen talebi daha net yazin ve izinli araclarla tekrar deneyin.",
                 needs_clarification=True
             )
             

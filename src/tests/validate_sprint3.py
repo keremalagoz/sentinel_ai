@@ -5,6 +5,7 @@ import sys
 import shutil
 import time
 from datetime import datetime, timedelta
+from pydantic import ValidationError
 
 # Proje root'unu ekle
 sys.path.insert(0, os.getcwd())
@@ -12,6 +13,7 @@ sys.path.insert(0, os.getcwd())
 from src.core.execution_manager import get_execution_manager, ExecutionMode
 from src.core.cleaner import get_cleaner
 from src.core.validators import InputValidator
+from src.ai.schemas import validate_command
 
 class TestSprint3(unittest.TestCase):
     
@@ -89,36 +91,57 @@ class TestSprint3(unittest.TestCase):
     def test_session_expiry(self):
         print("\n[SecureCleaner] Zaman Aşımı Testi...")
         cleaner = get_cleaner()
+        mgr = get_execution_manager()
         
-        # Eski dosya oluştur
-        old_file = "temp/session_old.txt"
-        with open(old_file, "w") as f: f.write("old data")
-        
-        # Dosya tarihini 5 gün geriye al
-        past = time.time() - (5 * 86400)
-        os.utime(old_file, (past, past))
-        
-        # Yeni dosya oluştur
-        new_file = "temp/session_new.txt"
-        with open(new_file, "w") as f: f.write("new data")
-        
-        # Temizlik yap (3 günden eskileri sil)
-        # Windows hassasiyetini aşmak için kısa bir sleep
-        time.sleep(0.1)
-        
-        deleted = cleaner.cleanup_old_sessions(days=3)
-        
-        # Debug bilgisi
-        if os.path.exists(old_file):
-            print(f"   DEBUG: Eski dosya silinemedi. Mtime: {os.path.getmtime(old_file)}")
-        
-        self.assertEqual(deleted, 1, "Yanlış sayıda dosya silindi")
-        self.assertFalse(os.path.exists(old_file), "Eski dosya silinmedi")
-        self.assertTrue(os.path.exists(new_file), "Yeni dosya yanlışlıkla silindi")
-        
-        # Temizlik
-        cleaner.delete(new_file)
-        print("[OK] Session Temizligi Basarili")
+        # Cleaner, ExecutionManager'a gore farkli dizinleri temizler (Windows TEMP/sentinel, Linux /tmp, fallback temp/)
+        if mgr.is_windows:
+            target_dir = os.path.join(os.environ.get("TEMP", ""), "sentinel")
+        elif mgr.is_linux:
+            target_dir = "/tmp"
+        else:
+            target_dir = "temp"
+
+        os.makedirs(target_dir, exist_ok=True)
+
+        # Cleaner glob'u: sentinel_*
+        old_file = os.path.join(target_dir, "sentinel_unit_test_old.txt")
+        new_file = os.path.join(target_dir, "sentinel_unit_test_new.txt")
+
+        try:
+            # Eski dosya oluştur (cok eski tarih vererek lokal ortamda baska dosyalarla cakismayi azalt)
+            with open(old_file, "w") as f:
+                f.write("old data")
+
+            # Dosya tarihini ~11 yil geriye al (cutoff 10 yil) -> kesinlikle silinmeli
+            past = time.time() - (4000 * 86400)
+            os.utime(old_file, (past, past))
+
+            # Yeni dosya oluştur
+            with open(new_file, "w") as f:
+                f.write("new data")
+
+            # Temizlik yap (10 yildan eski sentinel_* dosyalari sil)
+            deleted = cleaner.cleanup_old_sessions(days=3650)
+
+            # Debug bilgisi
+            if os.path.exists(old_file):
+                print(f"   DEBUG: Eski dosya silinemedi. Mtime: {os.path.getmtime(old_file)}")
+
+            self.assertGreaterEqual(deleted, 1, "Yanlış sayıda dosya silindi")
+            self.assertFalse(os.path.exists(old_file), "Eski dosya silinmedi")
+            self.assertTrue(os.path.exists(new_file), "Yeni dosya yanlışlıkla silindi")
+
+            print("[OK] Session Temizligi Basarili")
+        finally:
+            # Temizlik (best-effort)
+            try:
+                cleaner.delete(new_file, secure=False)
+            except Exception:
+                pass
+            try:
+                cleaner.delete(old_file, secure=False)
+            except Exception:
+                pass
 
     # =========================================================================
     # 3. Execution Manager Testleri
@@ -147,6 +170,79 @@ class TestSprint3(unittest.TestCase):
             if mgr.is_linux:
                 self.assertTrue("/tmp/" in temp_path)
             print("[OK] Native Komut Hazirlama Basarili")
+
+    # =========================================================================
+    # 4. AI Command Validation Testleri (Sprint 3 - Guvenlik Bariyeri)
+    # =========================================================================
+    def test_ai_command_allowlist(self):
+        print("\n[AICommand] Allowlist Testi...")
+
+        # Izinli tool kabul edilmeli
+        cmd = validate_command({
+            "tool": "nmap",
+            "arguments": ["-sn", "{target}"],
+            "requires_root": False,
+            "risk_level": "low",
+            "explanation": "Host kesfi"
+        })
+        self.assertEqual(cmd.tool, "nmap")
+
+        # Izinli olmayan tool reddedilmeli
+        with self.assertRaises(ValidationError):
+            validate_command({
+                "tool": "bash",
+                "arguments": ["-lc", "id"],
+                "requires_root": False,
+                "risk_level": "high",
+                "explanation": "Bu reddedilmeli"
+            })
+
+        print("[OK] Allowlist Korumasi Basarili")
+
+    def test_ai_command_argument_policy(self):
+        print("\n[AICommand] Argument Policy Testi...")
+
+        # {target} placeholder serbest
+        cmd = validate_command({
+            "tool": "gobuster",
+            "arguments": ["dir", "-u", "http://{target}", "-w", "/usr/share/wordlists/dirb/common.txt"],
+            "requires_root": False,
+            "risk_level": "medium",
+            "explanation": "Dizin taramasi"
+        })
+        self.assertIn("{target}", cmd.arguments[2])
+
+        # Surrounding quotes normalize edilmeli
+        cmd2 = validate_command({
+            "tool": "gobuster",
+            "arguments": ["dir", "-u", "\"http://{target}\"", "-w", "/usr/share/wordlists/dirb/common.txt"],
+            "requires_root": False,
+            "risk_level": "medium",
+            "explanation": "Quote normalize"
+        })
+        self.assertEqual(cmd2.arguments[2], "http://{target}")
+
+        # Control char reddedilmeli
+        with self.assertRaises(ValidationError):
+            validate_command({
+                "tool": "nmap",
+                "arguments": ["-sn", "127.0.0.1\n"],
+                "requires_root": False,
+                "risk_level": "low",
+                "explanation": "newline reddedilmeli"
+            })
+
+        # Baska placeholder/template reddedilmeli
+        with self.assertRaises(ValidationError):
+            validate_command({
+                "tool": "nmap",
+                "arguments": ["-sn", "{evil}"],
+                "requires_root": False,
+                "risk_level": "low",
+                "explanation": "placeholder reddedilmeli"
+            })
+
+        print("[OK] Argument Policy Basarili")
 
 if __name__ == '__main__':
     print("=== SPRINT 3 VALIDATION SUITE ===")
