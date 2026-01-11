@@ -119,7 +119,7 @@ class TestWindow(QMainWindow):
 def main():
     # Docker kontrolü
     if not is_container_running():
-        print("⚠️  sentinel-tools container çalışmıyor!")
+        print("[WARNING] sentinel-tools container calismyor!")
         print("Çalıştır: docker compose up -d tools-service")
         print("Devam ediliyor (araçlar çalışmayabilir)...")
     

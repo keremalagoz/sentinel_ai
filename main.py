@@ -102,9 +102,9 @@ class SentinelMainWindow(QMainWindow):
         # Geçici dosyaları temizle (Secure Cleaner)
         try:
             deleted = get_cleaner().cleanup_old_sessions(days=3)
-            print(f"🧹 Temizlik: {deleted} eski session silindi.")
+            print(f"[CLEANUP] Temizlik: {deleted} eski session silindi.")
         except Exception as e:
-            print(f"🧹 Temizlik hatası: {e}")
+            print(f"[CLEANUP] Temizlik hatasi: {e}")
         
         # Docker kapatma seçenekleri
         if os.name == 'nt':
@@ -557,8 +557,8 @@ def main():
     app = QApplication(sys.argv)
     app.setStyle("Fusion")
     
-    print("🛡️  SENTINEL AI başlatılıyor...")
-    print("   Docker servisleri başlatılıyor (Bekleyiniz)...")
+    print("[*] SENTINEL AI baslatiliyor...")
+    print("    Docker servisleri baslatiliyor (Bekleyiniz)...")
     
     # Docker servislerini başlat ve BEKLE
     if os.name == 'nt':
@@ -572,13 +572,13 @@ def main():
                 creationflags=subprocess.CREATE_NO_WINDOW,
                 check=True  # Hata varsa exception fırlat
             )
-            print("✅ Docker servisleri hazır.")
+            print("[OK] Docker servisleri hazir.")
         except subprocess.CalledProcessError:
-            print("❌ Docker başlatılamadı! Lütfen Docker Desktop'ın açık olduğundan emin olun.")
+            print("[ERROR] Docker baslatilamadi! Lutfen Docker Desktop'in acik oldugundan emin olun.")
             # İsterseniz burada sys.exit() diyerek uygulamayı kapatabiliriz
             # ama belki kullanıcı local tool kullanmak ister diye devam ediyoruz.
         except Exception as e:
-            print(f"❌ Beklenmedik hata: {str(e)}")
+            print(f"[ERROR] Beklenmedik hata: {str(e)}")
     
     window = SentinelMainWindow()
     window.show()
