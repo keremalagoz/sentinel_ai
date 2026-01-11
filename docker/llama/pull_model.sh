@@ -14,11 +14,13 @@ echo "[2/3] Waiting for Ollama to initialize..."
 sleep 10
 
 echo "[3/3] Checking model..."
-if ollama list | grep -q "llama3"; then
-    echo "Model already exists, skipping download."
+MODEL_NAME="llama3:8b-instruct-q4_K_M"
+if ollama list | grep -q "$MODEL_NAME"; then
+    echo "Model $MODEL_NAME already exists, skipping download."
 else
     echo "Pulling Llama 3 model (this may take a while)..."
-    ollama pull llama3
+    echo "Model: $MODEL_NAME (~4.7GB)"
+    ollama pull $MODEL_NAME
 fi
 
 echo "=========================================="
