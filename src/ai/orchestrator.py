@@ -8,7 +8,7 @@
 import os
 import json
 import re
-from typing import Optional, Tuple
+from typing import Optional, Tuple, List, Dict, Any
 from openai import OpenAI
 from dotenv import load_dotenv
 from pydantic import ValidationError
@@ -226,6 +226,9 @@ KURALLAR:
         """
         engine = self._select_engine(user_input)
         
+        # Model secim kararini logla
+        print(f"[AI] Selected engine: {engine.upper()} for query: '{user_input[:50]}...'")
+        
         # Hedef bilgisini ekle
         context = user_input
         if target:
@@ -244,15 +247,23 @@ KURALLAR:
             
             return self._parse_response(response, engine)
             
-        except Exception as e:
-            # Hata durumunda fallback yanıt
+        except (ConnectionError, TimeoutError) as e:
+            # Network hatalari
             return AIResponse(
                 command=None,
-                message=f"AI işleme hatası: {str(e)}",
+                message=f"AI servisi ulasilamiyor: {str(e)}",
+                needs_clarification=True
+            )
+        except Exception as e:
+            # Beklenmeyen hatalar
+            print(f"[ERROR] AI processing failed: {e}")
+            return AIResponse(
+                command=None,
+                message=f"AI isleme hatasi: {str(e)}",
                 needs_clarification=True
             )
     
-    def _call_cloud(self, messages: list) -> str:
+    def _call_cloud(self, messages: List[Dict[str, str]]) -> str:
         """
         Cloud AI (OpenAI) çağrısı.
         
@@ -271,7 +282,7 @@ KURALLAR:
         
         return response.choices[0].message.content
     
-    def _call_local(self, messages: list) -> str:
+    def _call_local(self, messages: List[Dict[str, str]]) -> str:
         """
         Local LLM (Llama 3) çağrısı.
         
@@ -375,21 +386,27 @@ Eğer komut üretemiyorsan command=null yap."""
             )
 
         except ValidationError:
-            # Komut, güvenlik doğrulamasından geçemedi (allowlist/arg policy)
+            # Komut, guvenlik dogrulamasindan gecemedi (allowlist/arg policy)
             return AIResponse(
                 command=None,
                 message="Uretilen komut guvenlik politikasina uymuyor. Lutfen talebi daha net yazin ve izinli araclarla tekrar deneyin.",
                 needs_clarification=True
             )
-            
-        except Exception as e:
+
+        except (KeyError, AttributeError, TypeError) as e:
+            # Veri yapisi hatalari
             return AIResponse(
                 command=None,
-                message=f"Yanıt işleme hatası: {str(e)}\n\nHam yanıt: {raw_response[:200]}",
+                message=f"Yanit yapisi hatali: {str(e)}\n\nHam yanit: {raw_response[:200]}",
                 needs_clarification=True
             )
+
+        except Exception as e:
+            # Beklenmeyen hatalar - logla ve yeniden firlat
+            print(f"[CRITICAL] Unexpected error in _parse_response: {e}")
+            raise
     
-    def get_status(self) -> dict:
+    def get_status(self) -> Dict[str, Any]:
         """
         Orchestrator durumunu döndür.
         
