@@ -5,6 +5,7 @@ from PyQt6.QtWidgets import (
 )
 from PyQt6.QtCore import pyqtSlot, pyqtSignal, Qt, QEvent
 from PyQt6.QtGui import QTextCursor
+from typing import List
 
 from src.ui.styles import (
     Colors,
@@ -49,6 +50,7 @@ class TerminalView(QWidget):
         
         self._command_history = []
         self._history_index = 0
+        self._max_buffer_lines = 10000  # Maksimum satır sayısı
         
         self.setStyleSheet(MAIN_CONTAINER_STYLE)
         self._setup_ui()
@@ -273,7 +275,7 @@ class TerminalView(QWidget):
         self._status_badge.setText("Stopped")
         self._status_badge.setStyleSheet(get_badge_style("danger"))
     
-    def _log(self, text: str, color: str):
+    def _log(self, text: str, color: str) -> None:
         """Append styled text to output."""
         cursor = self._output.textCursor()
         cursor.movePosition(QTextCursor.MoveOperation.End)
@@ -298,6 +300,23 @@ class TerminalView(QWidget):
         cursor.insertHtml(f"<span style='color: {color};'>{self._escape(text)}</span>")
         self._output.setTextCursor(cursor)
         self._output.ensureCursorVisible()
+        
+        # Buffer limiti kontrolü
+        doc = self._output.document()
+        if doc.lineCount() > self._max_buffer_lines:
+            # İlk 1000 satırı sil
+            cursor = QTextCursor(doc)
+            cursor.movePosition(QTextCursor.MoveOperation.Start)
+            for _ in range(1000):
+                cursor.select(QTextCursor.SelectionType.LineUnderCursor)
+                cursor.removeSelectedText()
+                if cursor.atEnd():
+                    break
+                cursor.deleteChar()  # Newline'ı da sil
+            
+            # Bilgi mesajı ekle
+            cursor.movePosition(QTextCursor.MoveOperation.Start)
+            cursor.insertHtml(f"<span style='color: {Colors.WARNING};'>[BUFFER] İlk 1000 satır temizlendi (limit: {self._max_buffer_lines})</span><br>")
     
     @pyqtSlot(int, str)
     def _on_finished(self, exit_code: int, log_path: str):
@@ -320,11 +339,11 @@ class TerminalView(QWidget):
         self._status_badge.setStyleSheet(get_badge_style("danger"))
         self._log("[!] Authentication denied", Colors.WARNING)
     
-    def _clear_output(self):
+    def _clear_output(self) -> None:
         """Clear terminal."""
         self._output.clear()
     
-    def start_command(self, command: str, args: list, requires_root: bool = False):
+    def start_command(self, command: str, args: list, requires_root: bool = False) -> None:
         """Start command externally."""
         self._manager.start_process(command, args, requires_root)
         self._set_mode(self.MODE_RUNNING)
