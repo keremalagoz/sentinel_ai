@@ -19,14 +19,28 @@ class ExecutionManager:
     - Yetki yönetimi (pkexec vs sudo vs none)
     - Geçici dosya yolu yönetimi (/tmp vs /app/output)
     """
+    import time
     
     def __init__(self):
         self._platform = platform.system()  # 'Linux', 'Windows', 'Darwin'
-        self._mode = self._detect_mode()
+        self._mode = ExecutionMode.NATIVE # Varsayılan başla, ilk çağrıda güncellenir
+        self._last_check = 0
+        self._check_ttl = 5.0 # 5 saniyede bir docker kontrolü yap
+        
+        # İlk tespiti hemen yap
+        self._update_mode()
         
     @property
     def mode(self) -> ExecutionMode:
+        # Getter çağrıldığında TTL kontrolü yap
+        if (self._time.time() - self._last_check) > self._check_ttl:
+            self._update_mode()
         return self._mode
+    
+    @property
+    def _time(self):
+        import time
+        return time
     
     @property
     def is_linux(self) -> bool:
@@ -36,24 +50,31 @@ class ExecutionManager:
     def is_windows(self) -> bool:
         return self._platform == "Windows"
     
+    def _update_mode(self):
+        """Modu günceller ve zaman damgasını yeniler"""
+        self._mode = self._detect_mode()
+        self._last_check = self._time.time()
+
     def _detect_mode(self) -> ExecutionMode:
         """
         Çalışma modunu belirler.
         Öncelik: Docker > Native
         """
         # Döngüsel importu önlemek için fonksiyon içinde import ediyoruz
-        from src.core.docker_runner import is_container_running
-        
-        if is_container_running():
-            return ExecutionMode.DOCKER
-        
+        try:
+            from src.core.docker_runner import is_container_running
+            if is_container_running():
+                return ExecutionMode.DOCKER
+        except Exception:
+            pass
+            
         return ExecutionMode.NATIVE
     
     def can_run_privileged(self) -> bool:
         """
         Yüksek yetkili (root) komut çalıştırılabilir mi?
         """
-        if self._mode == ExecutionMode.DOCKER:
+        if self.mode == ExecutionMode.DOCKER:
             return True  # Container içinde zaten root yetkisi var
             
         elif self.is_linux:
@@ -84,7 +105,7 @@ class ExecutionManager:
         final_args = list(args)
         temp_root = "/tmp/" if self.is_linux else os.path.join(os.environ.get("TEMP", "."), "sentinel")
         
-        if self._mode == ExecutionMode.DOCKER:
+        if self.mode == ExecutionMode.DOCKER:
             from src.core.docker_runner import get_docker_command
             
             # Docker için komutu sar
@@ -94,7 +115,7 @@ class ExecutionManager:
             final_args = docker_args
             temp_root = "/app/output/" # Container içindeki path
             
-        elif self._mode == ExecutionMode.NATIVE:
+        elif self.mode == ExecutionMode.NATIVE:
             # Native Linux ve Root gerekli ise
             if requires_root and self.is_linux:
                 final_args = [tool] + final_args
@@ -117,7 +138,7 @@ class ExecutionManager:
         
         # Sadece root dizini al, gerisini birleştir
         # prepare_command'i çağırmak yerine mantığı tekrar ediyoruz (basitlik için)
-        if self._mode == ExecutionMode.DOCKER:
+        if self.mode == ExecutionMode.DOCKER:
             return f"/app/output/{safe_filename}"
         elif self.is_linux:
             return f"/tmp/{safe_filename}"

@@ -120,31 +120,47 @@ class SecureCleaner:
         if self._exec_mgr.mode == ExecutionMode.DOCKER:
             return False # Docker'da ise container içinden silinmeliydi, host'tan değil
             
-        # Pkexec çağrısı
+        # Pkexec çağrısı (Timeout ekli)
         import subprocess
         try:
             subprocess.run(
                 ["pkexec", "rm", "-f", file_path],
                 check=True,
                 stdout=subprocess.DEVNULL,
-                stderr=subprocess.DEVNULL
+                stderr=subprocess.DEVNULL,
+                timeout=5 # 5 saniye içinde şifre girilmezse iptal
             )
             return True
+        except subprocess.TimeoutExpired:
+            print(f"⚠️  Pkexec timeout: {file_path}")
+            return False
         except Exception:
             return False
 
     def cleanup_old_sessions(self, days: int = 7) -> int:
         """
         Eski session loglarını (temp/session_*.txt) temizler.
+        ExecutionManager'ın kullandığı path'e göre işlem yapar.
         """
-        temp_dir = Path("temp")
-        if not temp_dir.exists():
+        # Hedeflenen temp klasörünü belirle
+        target_processed_dir = None
+        
+        if self._exec_mgr.is_windows:
+            target_processed_dir = Path(os.path.join(os.environ.get("TEMP", ""), "sentinel"))
+        elif self._exec_mgr.is_linux:
+            target_processed_dir = Path("/tmp")
+        else:
+            target_processed_dir = Path("temp") # Fallback (Proje içi)
+
+        if not target_processed_dir.exists():
             return 0
             
         deleted_count = 0
         cutoff = datetime.now() - timedelta(days=days)
         
-        for item in temp_dir.glob("session_*.txt"):
+        # sentinel_ ile başlayan veya session_ ile başlayan dosyaları ara
+        # ExecutionManager 'sentinel_' prefix ekliyor
+        for item in target_processed_dir.glob("sentinel_*"):
             try:
                 # Dosya değiştirilme tarihi
                 mtime = datetime.fromtimestamp(item.stat().st_mtime)

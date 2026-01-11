@@ -24,12 +24,16 @@ def is_container_running() -> bool:
         False: Container çalışmıyor veya yok
     """
     try:
+        # Timeout ekle: Docker daemon yanıt vermezse UI donmasın (2 sn yeterli)
         result = subprocess.run(
             ["docker", "inspect", "-f", "{{.State.Running}}", CONTAINER_NAME],
             capture_output=True,
-            text=True
+            text=True,
+            timeout=2
         )
         return result.stdout.strip() == "true"
+    except subprocess.TimeoutExpired:
+        return False
     except Exception:
         return False
 
@@ -107,7 +111,8 @@ def list_available_tools(force_refresh: bool = False) -> List[str]:
             result = subprocess.run(
                 ["docker", "exec", CONTAINER_NAME, "which", tool],
                 capture_output=True,
-                text=True
+                text=True,
+                timeout=2  # Hızlı kontrol
             )
             if result.returncode == 0:
                 available.append(tool)
