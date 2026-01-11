@@ -46,7 +46,7 @@ class SecureCleaner:
         """
         # Güvenlik Kontrolü 1: Path Traversal
         if not self._is_safe_path(file_path):
-            print(f"🛑 GÜVENLİK UYARISI: {file_path} silinmesi engellendi (Whitelist dışı).")
+            print(f"[BLOCKED] GUVENLIK UYARISI: {file_path} silinmesi engellendi (Whitelist disi).")
             return False
             
         if not os.path.exists(file_path):
@@ -67,7 +67,7 @@ class SecureCleaner:
             return self._privileged_delete(file_path)
             
         except Exception as e:
-            print(f"❌ Silme hatası ({file_path}): {e}")
+            print(f"[ERROR] Silme hatasi ({file_path}): {e}")
             return False
 
     def _is_safe_path(self, path: str) -> bool:

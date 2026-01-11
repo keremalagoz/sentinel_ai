@@ -1,7 +1,7 @@
 # SENTINEL AI - PROTOCOL & COMPLIANCE HANDBOOK
 
 **Classification:** INTERNAL/RESTRICTED  
-**Version:** 2.1-STRICT (Corporate Standard)  
+**Version:** 2.2-STRICT (Corporate Standard)  
 **Enforcement:** MANDATORY  
 **Single Source of Truth:** `docs/Detaylı Fazlandırılmış.pdf`
 
@@ -109,6 +109,19 @@ PyQt arayüzünü dondurmak Ağır Suçtur.
 * Uygulama çökmemeli (Crash-Free).
 * `try-except` blokları spesifik olmalı (`except Exception:` yasak).
 * Yetki hataları (Exit Code 126/127) yakalanmalı ve UI tarafında "Yetki Reddedildi" uyarısı ile gösterilmelidir.
+
+### 5.4. Emoji Yasağı (No Emoji Policy)
+
+**Hiçbir script veya kaynak kod dosyasında emoji karakterleri kullanılamaz.**
+
+* **Sebep:** Windows console encoding (cp1254/cp1252) emoji karakterlerini desteklemez ve `UnicodeEncodeError` hatalarına yol açar.
+* **Alternatif:** Durum belirtmek için ASCII karakter kombinasyonları kullanılmalıdır:
+    * `[OK]` yerine ✅
+    * `[ERROR]` yerine ❌
+    * `[WARNING]` yerine ⚠️
+    * `[INFO]` yerine ℹ️
+    * `[BLOCKED]` yerine 🛑
+* **Kapsam:** `.py`, `.sh`, `.md` (kod blokları dahil) ve tüm kaynak dosyaları.
 
 ---
 

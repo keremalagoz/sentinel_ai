@@ -33,7 +33,7 @@ class TestSprint3(unittest.TestCase):
         self.assertTrue(InputValidator.validate_ip("10.0.0.1/24")) # CIDR
         self.assertFalse(InputValidator.validate_ip("999.999.999.999"))
         self.assertFalse(InputValidator.validate_ip("abc.def.ghi.jkl"))
-        print("✅ IP Validasyonu Başarılı")
+        print("[OK] IP Validasyonu Basarili")
 
     def test_validator_injection(self):
         print("\n[InputValidator] Injection Testi...")
@@ -44,7 +44,7 @@ class TestSprint3(unittest.TestCase):
         args = ["-sS", ";ls", "&cat"]
         safe_args = [arg for arg in args if InputValidator.is_safe_arg(arg)]
         self.assertEqual(safe_args, ["-sS"]) # Diğerleri elenmeli
-        print("✅ Injection Koruması Başarılı")
+        print("[OK] Injection Korumasi Basarili")
 
     # =========================================================================
     # 2. Secure Cleaner Testleri (EN KRİTİK)
@@ -74,7 +74,7 @@ class TestSprint3(unittest.TestCase):
         finally:
             os.remove(unsafe_file) # Test bitince biz silelim
             
-        print("✅ Whitelist Koruması Başarılı")
+        print("[OK] Whitelist Korumasi Basarili")
 
     def test_cleaner_path_traversal(self):
         print("\n[SecureCleaner] Path Traversal Testi...")
@@ -84,7 +84,7 @@ class TestSprint3(unittest.TestCase):
         traversal_path = "temp/../requirements.txt"
         result = cleaner.delete(traversal_path)
         self.assertFalse(result, "GÜVENLİK AÇIĞI: Path traversal engellenmedi!")
-        print("✅ Path Traversal Koruması Başarılı")
+        print("[OK] Path Traversal Korumasi Basarili")
 
     def test_session_expiry(self):
         print("\n[SecureCleaner] Zaman Aşımı Testi...")
@@ -118,7 +118,7 @@ class TestSprint3(unittest.TestCase):
         
         # Temizlik
         cleaner.delete(new_file)
-        print("✅ Session Temizliği Başarılı")
+        print("[OK] Session Temizligi Basarili")
 
     # =========================================================================
     # 3. Execution Manager Testleri
@@ -140,15 +140,15 @@ class TestSprint3(unittest.TestCase):
             self.assertEqual(cmd, "docker")
             self.assertTrue("exec" in final_args)
             self.assertTrue("/app/output/" in temp_path)
-            print("✅ Docker Komut Hazırlama Başarılı")
+            print("[OK] Docker Komut Hazirlama Basarili")
         else:
             self.assertEqual(cmd, "nmap")
             self.assertTrue("exec" not in final_args)
             if mgr.is_linux:
                 self.assertTrue("/tmp/" in temp_path)
-            print("✅ Native Komut Hazırlama Başarılı")
+            print("[OK] Native Komut Hazirlama Basarili")
 
 if __name__ == '__main__':
-    print("🚀 SPRINT 3 VALIDATION SUITE")
+    print("=== SPRINT 3 VALIDATION SUITE ===")
     print("=" * 60)
     unittest.main(exit=False)
