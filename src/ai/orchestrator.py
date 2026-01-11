@@ -109,14 +109,28 @@ KURALLAR:
         
         self._local_available = False
         self._cloud_available = self._cloud_client is not None
+        
+        # Cache: Servis kontrolu icin (30 saniye gecerli)
+        self._last_check_time = 0
+        self._check_cache_ttl = 30  # saniye
     
-    def check_services(self) -> Tuple[bool, bool]:
+    def check_services(self, force: bool = False) -> Tuple[bool, bool]:
         """
-        Servis durumlarını kontrol et.
+        Servis durumlarını kontrol et (cache mekanizmalı).
+        
+        Args:
+            force: True ise cache'i atla ve yeniden kontrol et
         
         Returns:
             (local_available, cloud_available)
         """
+        import time
+        current_time = time.time()
+        
+        # Cache gecerli mi? (TTL icinde ve force degil)
+        if not force and (current_time - self._last_check_time) < self._check_cache_ttl:
+            return (self._local_available, self._cloud_available)
+        
         # Local LLM kontrolü
         try:
             self._local_client.models.list()
@@ -126,6 +140,9 @@ KURALLAR:
         
         # Cloud kontrolü (API key varlığı yeterli)
         self._cloud_available = self._cloud_client is not None
+        
+        # Cache guncelle
+        self._last_check_time = current_time
         
         return (self._local_available, self._cloud_available)
     
@@ -295,8 +312,7 @@ Eğer komut üretemiyorsan command=null yap."""
         Local LLM bazen yanıtın başına/sonuna text ekler.
         Bu fonksiyon nested bracket'ları düzgün handle eder.
         """
-        # Markdown code block kontrolü
-        import re
+        # Markdown code block kontrolü (re zaten dosya başında import edilmiş)
         pattern = r"```(?:json)?\s*(\{[\s\S]*?\})\s*```"
         match = re.search(pattern, text)
         if match:

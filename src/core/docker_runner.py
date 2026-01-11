@@ -10,6 +10,10 @@ from typing import List, Tuple, Optional
 
 CONTAINER_NAME = "sentinel-tools"
 
+# Cache for list_available_tools (container basladiginda bir kez kontrol edilir)
+_tools_cache = None
+_tools_cache_valid = False
+
 
 def is_container_running() -> bool:
     """
@@ -79,13 +83,22 @@ def run_command_sync(tool: str, args: List[str], timeout: int = 300) -> Tuple[in
         return (-1, "", f"Hata: {str(e)}")
 
 
-def list_available_tools() -> List[str]:
+def list_available_tools(force_refresh: bool = False) -> List[str]:
     """
-    Container'da mevcut araçları listele.
+    Container'da mevcut araçları listele (cache mekanizmalı).
+    
+    Args:
+        force_refresh: True ise cache'i atla ve yeniden kontrol et
     
     Returns:
         Araç isimleri listesi
     """
+    global _tools_cache, _tools_cache_valid
+    
+    # Cache gecerli mi?
+    if _tools_cache_valid and not force_refresh and _tools_cache is not None:
+        return _tools_cache
+    
     tools = ["nmap", "gobuster", "nikto", "hydra", "sqlmap", "dirb", "whois", "dig"]
     available = []
     
@@ -101,7 +114,17 @@ def list_available_tools() -> List[str]:
         except Exception:
             pass
     
+    # Cache guncelle
+    _tools_cache = available
+    _tools_cache_valid = True
+    
     return available
+
+
+def invalidate_tools_cache():
+    """Container yeniden basladiginda cache'i sifirla."""
+    global _tools_cache_valid
+    _tools_cache_valid = False
 
 
 # =============================================================================

@@ -16,7 +16,8 @@ class InputValidator:
     
     # Yasaklı karakterler (Shell Injection riski taşıyanlar)
     # Not: | ve > bazen pipe için gerekebilir ama kullanıcı girdisinde risklidir.
-    DANGEROUS_CHARS = [";", "&", "|", "`", "$", "(", ")", "<", ">", "\\", "'", "\""]
+    # \n, \r, \x00 eklendi - newline/null byte injection önlemi
+    DANGEROUS_CHARS = [";", "&", "|", "`", "$", "(", ")", "<", ">", "\\", "'", "\"", "\n", "\r", "\x00"]
     
     # İzin verilen güvenli argüman karakterleri (Alfanümerik + yaygın semboller)
     # Regex: Sadece harf, sayı, tire, nokta, alt çizgi, slash, iki nokta
