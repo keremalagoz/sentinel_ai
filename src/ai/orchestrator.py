@@ -1,464 +1,342 @@
 # SENTINEL AI - Karar Motoru (Orchestrator)
-# Sprint 2.2: Hibrit AI sistemi (Local + Cloud)
-# 
-# Mantık:
-# - Basit komutlar → Local LLM (Llama 3 via Docker)
-# - Karmaşık senaryolar → Cloud AI (OpenAI GPT-4o-mini)
+# Action Planner v2: Intent-Based Architecture
+#
+# Yeni Akis (v2):
+#   User Input -> Intent Resolver -> Policy Gate -> Tool Registry -> Command Builder -> Execution
+#
+# LLM sadece intent belirler, tool/arguman/risk belirleme deterministic.
 
 import os
-import json
-import re
-from typing import Optional, Tuple, List, Dict, Any
-from openai import OpenAI
+from typing import Optional, Dict, Any
 from dotenv import load_dotenv
-from pydantic import ValidationError
 
+# V2 Imports
 from src.ai.schemas import (
+    Intent,
+    IntentType,
+    ToolSpec,
+    FinalCommand,
+    RiskLevel,
+    # Legacy (backward compat)
     ToolCommand,
     AIResponse,
-    RiskLevel,
-    validate_command,
-    get_openai_response_format,
-    TOOL_COMMAND_SCHEMA
 )
+from src.ai.intent_resolver import IntentResolver, get_intent_resolver
+from src.ai.tool_registry import build_tool_spec, get_tool_for_intent
+from src.ai.command_builder import CommandBuilder, get_command_builder
+from src.ai.policy_gate import PolicyGate, get_policy_gate
 
-# .env dosyasını yükle
 load_dotenv()
 
 
 class AIOrchestrator:
     """
-    Hibrit AI Karar Motoru.
+    Action Planner v2 - Katmanli Karar Motoru.
     
-    Kullanıcı girdisini analiz eder ve uygun AI motoruna yönlendirir:
-    - Local: Llama 3 (Docker üzerinde, port 8001)
-    - Cloud: OpenAI GPT-4o-mini
+    Yeni Mimari:
+    1. Intent Resolver: LLM sadece kullanici niyetini belirler
+    2. Policy Gate: Opsiyonel intent kontrolu (varsayilan kapali)
+    3. Tool Registry: Intent -> Tool mapping (deterministic)
+    4. Command Builder: ToolSpec -> FinalCommand (deterministic)
     
-    Güvenlik:
-    - Tüm çıktılar JSON şemasına zorlanır (strict mode)
-    - Shell injection riski minimize edilir (arguments list formatı)
+    Avantajlar:
+    - LLM daha dar scope'ta calisir (sadece intent)
+    - Tool metadata (requires_root, risk) statik, LLM'den bagimsiz
+    - Her katman ayri test edilebilir
+    - Policy gate kolayca eklenip cikartilabilir
     """
     
-    # Basit komutlar için anahtar kelimeler (Local LLM yeterli)
-    SIMPLE_PATTERNS = [
-        r"yardım|help|nasıl",
-        r"^ping\s",
-        r"^nslookup\s",
-        r"^whois\s",
-        r"basit\s+tara",
-        r"host\s+keşf",
-        r"port\s+tara",
-    ]
-    
-    # Karmaşık senaryolar (Cloud AI gerekli)
-    COMPLEX_PATTERNS = [
-        r"senaryo|scenario",
-        r"exploit|zafiyet|vulnerability",
-        r"kapsamlı|comprehensive",
-        r"strateji|strategy",
-        r"analiz\s+et|analyze",
-        r"çoklu\s+hedef|multiple\s+target",
-        r"pentest|penetration",
-    ]
-    
-    # Sistem promptu - AI'ın davranışını tanımlar
-    SYSTEM_PROMPT = """Sen SENTINEL AI, bir siber güvenlik test asistanısın.
-
-GÖREV: Kullanıcının doğal dildeki taleplerini güvenlik test komutlarına çevir.
-
-KURALLAR:
-1. SADECE güvenlik test araçları için komut üret (nmap, gobuster, nikto, dirb, hydra, sqlmap, vb.)
-2. Argümanları MUTLAKA liste olarak ver, string birleştirme YASAK
-3. Root gerektiren komutları (SYN scan, raw socket) requires_root=true olarak işaretle
-4. Risk seviyesini doğru belirle:
-   - low: Pasif tarama, bilgi toplama
-   - medium: Aktif tarama, port scan
-   - high: Exploit, brute force, sistem değişikliği
-
-ÖRNEKLER:
-- "Ağı tara" → nmap -sn 192.168.1.0/24 (low risk)
-- "Portları tara" → nmap -sS -sV -p- {target} (medium risk, requires_root=true)
-- "Web dizinlerini bul" → gobuster dir -u {target} -w wordlist.txt (medium risk)
-
-ÖNEMLİ:
-- Hedef IP/URL verilmemişse {target} placeholder kullan
-- Belirsiz taleplerde needs_clarification=true dön
-- Her zaman geçerli JSON formatında yanıt ver"""
-
-    def __init__(self):
+    def __init__(self, model: str = "whiterabbitneo"):
         """
-        Orchestrator'ı başlat.
-        
-        Environment variables:
-        - OPENAI_API_KEY: Cloud AI için
-        - LLAMA_SERVICE_URL: Local LLM endpoint (default: http://localhost:8001)
-        """
-        self._cloud_client: Optional[OpenAI] = None
-        self._local_client: Optional[OpenAI] = None
-        
-        # Cloud client (OpenAI)
-        openai_key = os.getenv("OPENAI_API_KEY")
-        if openai_key and openai_key != "your_openai_api_key_here":
-            self._cloud_client = OpenAI(api_key=openai_key)
-        
-        # Local client (Ollama - OpenAI compatible API)
-        llama_url = os.getenv("LLAMA_SERVICE_URL", "http://localhost:8001")
-        self._local_client = OpenAI(
-            base_url=f"{llama_url}/v1",
-            api_key="ollama"  # Ollama requires a dummy key
-        )
-        
-        self._local_available = False
-        self._cloud_available = self._cloud_client is not None
-        
-        # Cache: Servis kontrolu icin (30 saniye gecerli)
-        self._last_check_time = 0
-        self._check_cache_ttl = 30  # saniye
-    
-    def check_services(self, force: bool = False) -> Tuple[bool, bool]:
-        """
-        Servis durumlarını kontrol et (cache mekanizmalı).
+        Orchestrator'i baslat.
         
         Args:
-            force: True ise cache'i atla ve yeniden kontrol et
+            model: Kullanilacak LLM modeli (whiterabbitneo veya llama3:8b)
+        """
+        self._model = model
+        
+        # V2 Components
+        self._intent_resolver = IntentResolver(model=model)
+        self._command_builder = CommandBuilder()
+        self._policy_gate = PolicyGate()
+        
+        # Cache
+        self._last_intent: Optional[Intent] = None
+        self._last_tool_spec: Optional[ToolSpec] = None
+    
+    # =========================================================================
+    # V2 API - Yeni Katmanli Mimari
+    # =========================================================================
+    
+    def process_v2(
+        self,
+        user_input: str,
+        target: Optional[str] = None
+    ) -> Dict[str, Any]:
+        """
+        Kullanici girdisini isle (V2 - Katmanli Mimari).
+        
+        Args:
+            user_input: Kullanicinin dogal dildeki talebi
+            target: Hedef IP/URL (UI'dan gelebilir)
+        
+        Returns:
+            {
+                "success": bool,
+                "command": FinalCommand veya None,
+                "message": str,
+                "intent": Intent,
+                "needs_clarification": bool,
+                "policy_warning": str veya None
+            }
+        """
+        result = {
+            "success": False,
+            "command": None,
+            "message": "",
+            "intent": None,
+            "needs_clarification": False,
+            "policy_warning": None
+        }
+        
+        # =====================================================================
+        # 1. INTENT RESOLVER - LLM sadece niyet belirler
+        # =====================================================================
+        print(f"[Orchestrator] Resolving intent for: '{user_input[:50]}...'")
+        
+        intent = self._intent_resolver.resolve(user_input, target)
+        self._last_intent = intent
+        result["intent"] = intent
+        
+        # Netlestime gerekli mi?
+        if intent.needs_clarification:
+            result["message"] = intent.clarification_reason or "Lutfen talebi netlestirin."
+            result["needs_clarification"] = True
+            return result
+        
+        # Bilgi sorusu mu?
+        if intent.intent_type == IntentType.INFO_QUERY:
+            result["success"] = True
+            result["message"] = "Bu bir bilgi sorusu, komut gerektirmiyor."
+            return result
+        
+        # Unknown intent
+        if intent.intent_type == IntentType.UNKNOWN:
+            result["message"] = "Talebi anlayamadim. Lutfen daha acik belirtin."
+            result["needs_clarification"] = True
+            return result
+        
+        # =====================================================================
+        # 2. POLICY GATE - Opsiyonel kontrol
+        # =====================================================================
+        allowed, policy_message = self._policy_gate.check(intent.intent_type)
+        
+        if not allowed:
+            result["message"] = policy_message
+            return result
+        
+        if policy_message:
+            result["policy_warning"] = policy_message
+        
+        # =====================================================================
+        # 3. TOOL REGISTRY - Intent -> ToolSpec
+        # =====================================================================
+        # Target: UI'dan gelen veya intent'ten cikan
+        final_target = target or intent.target
+        
+        tool_spec = build_tool_spec(
+            intent_type=intent.intent_type,
+            target=final_target,
+            params=intent.params
+        )
+        
+        if tool_spec is None:
+            result["message"] = f"Bu intent icin tool bulunamadi: {intent.intent_type.value}"
+            return result
+        
+        self._last_tool_spec = tool_spec
+        
+        # =====================================================================
+        # 4. COMMAND BUILDER - ToolSpec -> FinalCommand
+        # =====================================================================
+        tool_def = get_tool_for_intent(intent.intent_type)
+        explanation = tool_def.description if tool_def else ""
+        
+        command, error = self._command_builder.build(tool_spec, explanation)
+        
+        if error:
+            result["message"] = f"Komut olusturulamadi: {error}"
+            return result
+        
+        # =====================================================================
+        # 5. BASARILI SONUC
+        # =====================================================================
+        result["success"] = True
+        result["command"] = command
+        result["message"] = f"Komut hazir: {command.to_display_string()}"
+        
+        return result
+    
+    def process(
+        self,
+        user_input: str,
+        target: Optional[str] = None
+    ) -> AIResponse:
+        """
+        Kullanici girdisini isle (Backward Compatible API).
+        
+        V2 API'yi cagirir ve sonucu eski AIResponse formatina donusturur.
+        UI ile uyumluluk icin.
+        """
+        v2_result = self.process_v2(user_input, target)
+        
+        # FinalCommand -> ToolCommand donusumu (legacy compat)
+        tool_command = None
+        if v2_result["command"]:
+            cmd = v2_result["command"]
+            tool_command = ToolCommand(
+                tool=cmd.executable,
+                arguments=cmd.arguments,
+                requires_root=cmd.requires_root,
+                risk_level=cmd.risk_level,
+                explanation=cmd.explanation
+            )
+        
+        return AIResponse(
+            command=tool_command,
+            message=v2_result["message"],
+            needs_clarification=v2_result["needs_clarification"]
+        )
+    
+    # =========================================================================
+    # STATUS & DIAGNOSTICS
+    # =========================================================================
+    
+    def get_status(self) -> Dict[str, Any]:
+        """
+        Orchestrator durumunu doner.
+        """
+        return {
+            "version": "v2",
+            "model": self._model,
+            "llm_available": self._intent_resolver.check_available(),
+            "policy_enabled": self._policy_gate.is_enabled,
+            "policy_status": self._policy_gate.get_policy_status(),
+            "last_intent": self._last_intent.intent_type.value if self._last_intent else None,
+        }
+    
+    def check_services(self, force: bool = False) -> tuple:
+        """
+        Servis durumlarini kontrol et (legacy compat).
         
         Returns:
             (local_available, cloud_available)
         """
-        import time
-        current_time = time.time()
-        
-        # Cache gecerli mi? (TTL icinde ve force degil)
-        if not force and (current_time - self._last_check_time) < self._check_cache_ttl:
-            return (self._local_available, self._cloud_available)
-        
-        # Local LLM kontrolü
-        try:
-            self._local_client.models.list()
-            self._local_available = True
-        except Exception:
-            self._local_available = False
-        
-        # Cloud kontrolü (API key varlığı yeterli)
-        self._cloud_available = self._cloud_client is not None
-        
-        # Cache guncelle
-        self._last_check_time = current_time
-        
-        return (self._local_available, self._cloud_available)
+        local = self._intent_resolver.check_available()
+        cloud = os.getenv("OPENAI_API_KEY") is not None
+        return (local, cloud)
     
-    def _is_complex_query(self, user_input: str) -> bool:
-        """
-        Sorgunun karmaşık olup olmadığını belirle.
-        
-        Karmaşık sorgular Cloud AI'ya yönlendirilir.
-        """
-        input_lower = user_input.lower()
-        
-        # Karmaşık pattern kontrolü
-        for pattern in self.COMPLEX_PATTERNS:
-            if re.search(pattern, input_lower):
-                return True
-        
-        # Uzun sorgular genellikle karmaşıktır
-        if len(user_input.split()) > 15:
-            return True
-        
-        return False
+    def set_model(self, model: str):
+        """Kullanilacak modeli degistir"""
+        self._model = model
+        self._intent_resolver = IntentResolver(model=model)
     
-    def _is_simple_query(self, user_input: str) -> bool:
-        """
-        Sorgunun basit olup olmadığını belirle.
-        
-        Basit sorgular Local LLM ile işlenebilir.
-        """
-        input_lower = user_input.lower()
-        
-        for pattern in self.SIMPLE_PATTERNS:
-            if re.search(pattern, input_lower):
-                return True
-        
-        # Kısa sorgular genellikle basittir
-        if len(user_input.split()) <= 5:
-            return True
-        
-        return False
+    def enable_policy(self):
+        """Policy gate'i aktif et"""
+        self._policy_gate.enable()
     
-    def _select_engine(self, user_input: str) -> str:
-        """
-        Uygun AI motorunu seç.
-        
-        Returns:
-            "local" veya "cloud"
-        """
-        # Servis durumlarını güncelle
-        self.check_services()
-        
-        # Karmaşık sorgu ve cloud varsa → Cloud
-        if self._is_complex_query(user_input) and self._cloud_available:
-            return "cloud"
-        
-        # Basit sorgu ve local varsa → Local
-        if self._is_simple_query(user_input) and self._local_available:
-            return "local"
-        
-        # Fallback: Hangisi varsa onu kullan
-        if self._local_available:
-            return "local"
-        if self._cloud_available:
-            return "cloud"
-        
-        raise RuntimeError("Hiçbir AI servisi kullanılamıyor!")
-    
-    def process(self, user_input: str, target: Optional[str] = None) -> AIResponse:
-        """
-        Kullanıcı girdisini işle ve AI yanıtı üret.
-        
-        Args:
-            user_input: Kullanıcının doğal dildeki talebi
-            target: Hedef IP/URL (opsiyonel)
-        
-        Returns:
-            AIResponse: Komut ve/veya mesaj içeren yanıt
-        
-        Raises:
-            RuntimeError: AI servisi kullanılamıyorsa
-        """
-        engine = self._select_engine(user_input)
-        
-        # Model secim kararini logla
-        print(f"[AI] Selected engine: {engine.upper()} for query: '{user_input[:50]}...'")
-        
-        # Hedef bilgisini ekle
-        context = user_input
-        if target:
-            context = f"Hedef: {target}\n\nTalep: {user_input}"
-        
-        messages = [
-            {"role": "system", "content": self.SYSTEM_PROMPT},
-            {"role": "user", "content": context}
-        ]
-        
-        try:
-            if engine == "cloud":
-                response = self._call_cloud(messages)
-            else:
-                response = self._call_local(messages)
-            
-            return self._parse_response(response, engine)
-            
-        except (ConnectionError, TimeoutError) as e:
-            # Network hatalari
-            return AIResponse(
-                command=None,
-                message=f"AI servisi ulasilamiyor: {str(e)}",
-                needs_clarification=True
-            )
-        except Exception as e:
-            # Beklenmeyen hatalar
-            print(f"[ERROR] AI processing failed: {e}")
-            return AIResponse(
-                command=None,
-                message=f"AI isleme hatasi: {str(e)}",
-                needs_clarification=True
-            )
-    
-    def _call_cloud(self, messages: List[Dict[str, str]]) -> str:
-        """
-        Cloud AI (OpenAI) çağrısı.
-        
-        Structured output kullanır (strict=True).
-        """
-        if not self._cloud_client:
-            raise RuntimeError("Cloud AI yapılandırılmamış")
-        
-        response = self._cloud_client.chat.completions.create(
-            model="gpt-4o-mini",
-            messages=messages,
-            response_format=get_openai_response_format(),
-            temperature=0.3,  # Düşük temperature = tutarlı çıktı
-            max_tokens=500
-        )
-        
-        return response.choices[0].message.content
-    
-    def _call_local(self, messages: List[Dict[str, str]]) -> str:
-        """
-        Local LLM (Llama 3) çağrısı.
-        
-        Ollama OpenAI-compatible API kullanır.
-        """
-        # Local model için JSON talimatı ekle
-        json_instruction = """
-
-YANIT FORMATI (STRICT JSON):
-{
-    "command": {
-        "tool": "araç_adı",
-        "arguments": ["arg1", "arg2"],
-        "requires_root": false,
-        "risk_level": "low|medium|high",
-        "explanation": "açıklama"
-    },
-    "message": "kullanıcıya mesaj",
-    "needs_clarification": false
-}
-
-Eğer komut üretemiyorsan command=null yap."""
-        
-        messages[-1]["content"] += json_instruction
-        
-        response = self._local_client.chat.completions.create(
-            model="llama3:8b-instruct-q4_K_M",
-            messages=messages,
-            temperature=0.3,
-            max_tokens=500
-        )
-        
-        return response.choices[0].message.content
-    
-    def _extract_json(self, text: str) -> str:
-        """
-        Text içinden JSON objesini çıkar.
-        
-        Local LLM bazen yanıtın başına/sonuna text ekler.
-        Bu fonksiyon nested bracket'ları düzgün handle eder.
-        """
-        # Markdown code block kontrolü (re zaten dosya başında import edilmiş)
-        pattern = r"```(?:json)?\s*(\{[\s\S]*?\})\s*```"
-        match = re.search(pattern, text)
-        if match:
-            return match.group(1).strip()
-        
-        # Normal JSON arama (nested bracket'ları düzgün handle et)
-        start = text.find('{')
-        if start == -1:
-            return text
-        
-        # Bracket sayarak doğru kapanış noktasını bul
-        depth = 0
-        end = start
-        for i, char in enumerate(text[start:], start):
-            if char == '{':
-                depth += 1
-            elif char == '}':
-                depth -= 1
-                if depth == 0:
-                    end = i
-                    break
-        
-        if end > start:
-            return text[start:end + 1]
-        
-        return text
-    
-    def _parse_response(self, raw_response: str, engine: str) -> AIResponse:
-        """
-        AI yanıtını parse et ve doğrula.
-        
-        JSON formatına uymayan yanıtlar için fallback uygular.
-        """
-        try:
-            # JSON'u text içinden çıkar
-            json_str = self._extract_json(raw_response)
-            
-            # JSON parse
-            data = json.loads(json_str)
-            
-            # Pydantic ile doğrula
-            if data.get("command"):
-                command = validate_command(data["command"])
-            else:
-                command = None
-            
-            return AIResponse(
-                command=command,
-                message=data.get("message", "Komut hazır."),
-                needs_clarification=data.get("needs_clarification", False)
-            )
-            
-        except json.JSONDecodeError:
-            # JSON değilse, raw text olarak dön
-            return AIResponse(
-                command=None,
-                message=raw_response,
-                needs_clarification=True
-            )
-
-        except ValidationError:
-            # Komut, guvenlik dogrulamasindan gecemedi (allowlist/arg policy)
-            return AIResponse(
-                command=None,
-                message="Uretilen komut guvenlik politikasina uymuyor. Lutfen talebi daha net yazin ve izinli araclarla tekrar deneyin.",
-                needs_clarification=True
-            )
-
-        except (KeyError, AttributeError, TypeError) as e:
-            # Veri yapisi hatalari
-            return AIResponse(
-                command=None,
-                message=f"Yanit yapisi hatali: {str(e)}\n\nHam yanit: {raw_response[:200]}",
-                needs_clarification=True
-            )
-
-        except Exception as e:
-            # Beklenmeyen hatalar - logla ve yeniden firlat
-            print(f"[CRITICAL] Unexpected error in _parse_response: {e}")
-            raise
-    
-    def get_status(self) -> Dict[str, Any]:
-        """
-        Orchestrator durumunu döndür.
-        
-        UI'da servis durumu göstermek için kullanılır.
-        """
-        self.check_services()
-        
-        return {
-            "local": {
-                "available": self._local_available,
-                "model": "llama3",
-                "url": os.getenv("LLAMA_SERVICE_URL", "http://localhost:8001")
-            },
-            "cloud": {
-                "available": self._cloud_available,
-                "model": "gpt-4o-mini",
-                "configured": os.getenv("OPENAI_API_KEY") is not None
-            }
-        }
+    def disable_policy(self):
+        """Policy gate'i devre disi birak"""
+        self._policy_gate.disable()
 
 
 # =============================================================================
-# Convenience Functions
+# SINGLETON & CONVENIENCE FUNCTIONS
 # =============================================================================
 
 _orchestrator: Optional[AIOrchestrator] = None
 
 
-def get_orchestrator() -> AIOrchestrator:
+def get_orchestrator(model: str = "whiterabbitneo") -> AIOrchestrator:
     """
-    Singleton orchestrator instance döndür.
+    Singleton orchestrator instance doner.
     
-    Kullanım:
+    Kullanim:
         from src.ai.orchestrator import get_orchestrator
         
         orch = get_orchestrator()
-        response = orch.process("Ağı tara", target="192.168.1.0/24")
+        response = orch.process("Agi tara", target="192.168.1.0/24")
     """
     global _orchestrator
     if _orchestrator is None:
-        _orchestrator = AIOrchestrator()
+        _orchestrator = AIOrchestrator(model=model)
     return _orchestrator
 
 
 def quick_command(user_input: str, target: Optional[str] = None) -> Optional[ToolCommand]:
     """
-    Hızlı komut üretimi.
+    Hizli komut uretimi (legacy compat).
     
     Returns:
-        ToolCommand veya None (komut üretilemezse)
+        ToolCommand veya None
     """
     orch = get_orchestrator()
     response = orch.process(user_input, target)
     return response.command
 
+
+def quick_process(user_input: str, target: Optional[str] = None) -> Dict[str, Any]:
+    """
+    Hizli V2 isleme.
+    
+    Returns:
+        V2 result dict
+    """
+    orch = get_orchestrator()
+    return orch.process_v2(user_input, target)
+
+
+# =============================================================================
+# DEBUG
+# =============================================================================
+
+if __name__ == "__main__":
+    print("=" * 70)
+    print("SENTINEL AI - Orchestrator v2 Test")
+    print("=" * 70)
+    
+    orch = AIOrchestrator(model="whiterabbitneo")
+    
+    print(f"\nStatus: {orch.get_status()}")
+    
+    # Test cases
+    test_inputs = [
+        ("192.168.1.0/24 agini tara", None),
+        ("example.com portlarini kontrol et", None),
+        ("google.com DNS sorgusu yap", None),
+        ("web sitesinde dizin ara", "http://example.com"),
+        ("nmap nedir?", None),
+    ]
+    
+    for user_input, target in test_inputs:
+        print(f"\n{'='*70}")
+        print(f"Input: {user_input}")
+        if target:
+            print(f"Target: {target}")
+        print("-" * 70)
+        
+        result = orch.process_v2(user_input, target)
+        
+        print(f"Success: {result['success']}")
+        print(f"Message: {result['message']}")
+        
+        if result['intent']:
+            print(f"Intent: {result['intent'].intent_type.value}")
+        
+        if result['command']:
+            print(f"Command: {result['command'].to_display_string()}")
+            print(f"Root: {result['command'].requires_root}")
+            print(f"Risk: {result['command'].risk_level.value}")
+        
+        if result['policy_warning']:
+            print(f"Warning: {result['policy_warning']}")
