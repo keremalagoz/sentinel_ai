@@ -1,6 +1,6 @@
 # SENTINEL AI - Proje Durum Raporu
 
-**Tarih:** 11 Ocak 2026  
+**Tarih:** 17 Ocak 2026  
 **Ekip:** Kerem (AI/Data/Backend) & Yiğit (System/UI/Security)
 
 ---
@@ -44,16 +44,21 @@
 
 ```
 sentinel_root/
-├── main.py                      ✅ ExecutionManager Entegre
+├── main.py                      ✅ PRODUCTION - Docker Full Stack
+├── main_developer.py            ✅ YENİ - Developer Mode (Native Ollama)
 ├── requirements.txt             ✅
-├── README.md                    ✅
-├── docker-compose.yml           ✅ GPU Support & Runtime: nvidia
+├── README.md                    ✅ Developer mode guide eklendi
+├── docker-compose.yml           ✅ GPU Support & WhiteRabbitNeo
 ├── son_durum.md                 ✅
 │
 ├── src/
 │   ├── ai/                      ← Kerem'in alanı
-│   │   ├── schemas.py           ✅ JSON şemaları
-│   │   └── orchestrator.py      ✅ Hibrit AI motoru
+│   │   ├── schemas.py           ✅ Intent, ToolSpec, FinalCommand (v2)
+│   │   ├── orchestrator.py      ✅ Action Planner v2
+│   │   ├── tool_registry.py     ✅ YENİ - 15 tool metadata
+│   │   ├── intent_resolver.py   ✅ YENİ - LLM intent parser
+│   │   ├── command_builder.py   ✅ YENİ - Deterministik builder
+│   │   └── policy_gate.py       ✅ YENİ - Opsiyonel kontrol
 │   │
 │   ├── core/                    
 │   │   ├── execution_manager.py ✅ YENİ (Sprint 3 Core)
@@ -71,12 +76,18 @@ sentinel_root/
 │   └── tests/
 │       ├── test_sprint1.py      ✅
 │       ├── interactive_test.py  ✅
-│       └── validate_sprint3.py  ✅ Sprint 3 Validation Suite
+│       ├── validate_sprint3.py  ✅ Sprint 3 Validation
+│       ├── test_action_planner_v2.py ✅ YENİ - v2 test suite
+│       └── test_model_comparison.py  ✅ YENİ - LLM benchmark
 │
 ├── docker/
 │   ├── llama/                   ✅ Llama 3 servisi
+│   ├── whiterabbitneo/          ✅ YENİ - WhiteRabbitNeo servisi
 │   ├── api/                     ✅ API backend
 │   └── tools/                   ✅ Güvenlik araçları
+│
+├── models/
+│   └── Modelfile.whiterabbitneo ✅ YENİ - Ollama model config
 │
 ├── docs/
 │   └── Detaylı Fazlandırılmış.pdf
@@ -108,6 +119,89 @@ sentinel_root/
 | ProcessManager Update | Yiğit | ✅ | Yeni core modüllerle entegrasyon |
 | UI Security Indicators | Yiğit | ⏳ | Terminalde 'ROOT' ikonu, kilit işareti vb. |
 | Settings Menu (Security) | Yiğit | ⏳ | "Temizlik Sıklığı" vb. güvenlik ayarları |
+
+---
+
+## Aktif Mini Sprint: Action Planner v2
+
+**Tarih:** 17 Ocak 2026  
+**Sorumlu:** Kerem  
+**Amaç:** Karar motoru mimarisini yeniden tasarlamak (ChatGPT 5.2 analizi dogrultusunda)
+
+### Mimari Degisiklikler
+
+| Eski (v1) | Yeni (v2) |
+|-----------|-----------|
+| LLM tool adi uretiyor | LLM sadece intent belirliyor |
+| LLM argumanlar uretiyor | Registry'den geliyor |
+| LLM risk/root belirliyor | Tool metadata'dan |
+| Tek katman | 4 katmanli mimari |
+| Validasyon en sonda | Her katmanda validasyon |
+
+### Gorevler
+
+| # | Gorev | Dosya | Durum |
+|---|-------|-------|-------|
+| 1 | Intent & ToolSpec semalari | schemas.py | ✅ TAMAMLANDI |
+| 2 | Tool Registry (15 arac) | tool_registry.py | ✅ TAMAMLANDI |
+| 3 | Intent Resolver | intent_resolver.py | ✅ TAMAMLANDI |
+| 4 | Command Builder | command_builder.py | ✅ TAMAMLANDI |
+| 5 | Policy Gate (opsiyonel) | policy_gate.py | ✅ TAMAMLANDI |
+| 6 | Orchestrator refactor | orchestrator.py | ✅ TAMAMLANDI |
+| 7 | Test ve dogrulama | test_action_planner_v2.py | ✅ TAMAMLANDI |
+| 8 | Developer Mode | main_developer.py | ✅ TAMAMLANDI |
+
+### Developer Mode
+
+**Problem:** Docker + WSL → ~6GB RAM kullanımı, LLM gecikmeleri
+
+**Çözüm:** Native Ollama + Mock Execution
+
+| Özellik | Production (main.py) | Developer (main_developer.py) |
+|---------|----------------------|-------------------------------|
+| LLM | Docker Ollama (8001) | Native Ollama (11434) |
+| Docker | Gerekli | GEREKMIYOR |
+| WSL | Aktif (~6GB) | Kapalı (0GB) |
+| Execution | Gerçek komutlar | Mock çıktılar |
+| Kullanım | Gerçek testler | UI/AI geliştirme |
+| Hız | Normal | 2-3x hızlı |
+
+**Setup:**
+```bash
+# 1. Native Ollama kur
+ollama pull whiterabbitneo
+
+# 2. Developer mode başlat
+python main_developer.py
+```
+
+### LLM Secimi
+
+| Model | Dogruluk | Karar |
+|-------|----------|-------|
+| Llama 3:8b | %63.6 | - |
+| WhiteRabbitNeo | %90.9 | ✅ SECILDI |
+
+### Yeni Akis
+
+```
+User Input
+    |
+    v
+[Intent Resolver] --> LLM sadece intent belirler
+    |
+    v
+[Policy Gate] --> Opsiyonel, toggle ile acilir/kapanir
+    |
+    v
+[Tool Registry] --> Intent --> Tool (deterministic)
+    |
+    v
+[Command Builder] --> ToolSpec + Params --> Final Command
+    |
+    v
+[Execution Layer]
+```
 
 ---
 
@@ -170,4 +264,4 @@ sentinel_root/
 
 ---
 
-*Son Güncelleme: 11 Ocak 2026*
+*Son Güncelleme: 17 Ocak 2026*
