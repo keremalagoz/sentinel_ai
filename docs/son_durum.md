@@ -86,8 +86,6 @@ sentinel_root/
 │   ├── api/                     ✅ API backend
 │   └── tools/                   ✅ Güvenlik araçları
 │
-├── models/
-│   └── Modelfile.whiterabbitneo ✅ YENİ - Ollama model config
 │
 ├── docs/
 │   └── Detaylı Fazlandırılmış.pdf
