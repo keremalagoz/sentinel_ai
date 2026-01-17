@@ -96,13 +96,32 @@ sentinel_root/
 
 ## 🚀 Kurulum
 
-### Gereksinimler
+### İki Çalışma Modu
+
+SENTINEL AI iki farklı modda çalışabilir:
+
+| Mod | Dosya | Kullanım Durumu | RAM | LLM |
+|-----|-------|-----------------|-----|-----|
+| **Production** | `main.py` | Gerçek güvenlik testleri | ~8GB | Docker Ollama |
+| **Developer** | `main_developer.py` | UI/AI geliştirme | ~2GB | Native Ollama |
+
+> 💡 **Developer Mode:** Sadece UI ve AI geliştirme için optimize edilmiştir. Komutlar gerçekte çalıştırılmaz, mock çıktı gösterilir. WSL/Docker kapalı olduğu için ~6GB RAM tasarrufu sağlar.
+
+### Gereksinimler (Production Mode)
 
 - **İşletim Sistemi:** Linux (Ubuntu 20.04+ önerilir)
 - **Python:** 3.11+
 - **Docker:** 20.10+ & Docker Compose
 - **RAM:** Minimum 8GB (Llama 3 için 16GB önerilir)
 - **Disk:** 10GB+ (Model indirme için)
+
+### Gereksinimler (Developer Mode)
+
+- **İşletim Sistemi:** Windows/Linux/macOS
+- **Python:** 3.11+
+- **Ollama:** Native kurulum gerekli
+- **RAM:** Minimum 4GB (Native Ollama için 8GB önerilir)
+- **Disk:** ~5GB (Model için)
 
 ### 1. Projeyi Klonlayın
 
@@ -145,9 +164,67 @@ docker-compose logs -f llama-service
 
 ### 5. Uygulamayı Başlatın
 
+**Production Mode (Gerçek Testler):**
 ```bash
 python main.py
 ```
+
+**Developer Mode (UI/AI Geliştirme):**
+```bash
+python main_developer.py
+```
+
+---
+
+## 🔧 Developer Mode Kurulumu
+
+Developer mode, sadece UI ve AI geliştirmesi için optimize edilmiştir. Docker/WSL kapalı çalıştığı için ~6GB RAM tasarrufu sağlar.
+
+### 1. Native Ollama Kurulumu
+
+**Windows:**
+```bash
+# https://ollama.com/download adresinden indir ve kur
+```
+
+**Linux:**
+```bash
+curl -fsSL https://ollama.com/install.sh | sh
+```
+
+**macOS:**
+```bash
+brew install ollama
+```
+
+### 2. WhiteRabbitNeo Modelini İndir
+
+```bash
+ollama pull whiterabbitneo
+```
+
+### 3. Ollama'yı Başlat (Otomatik başlamazsa)
+
+```bash
+ollama serve
+```
+
+### 4. Developer Mode'u Çalıştır
+
+```bash
+python main_developer.py
+```
+
+### Developer Mode Özellikleri
+
+✅ **Native Ollama Bağlantısı** - Docker'a gerek yok  
+✅ **RAM Tasarrufu** - WSL kapalı (~6GB tasarruf)  
+✅ **Hızlı LLM Yanıt** - Network overhead yok (2-3x hızlı)  
+✅ **Mock Execution** - Komutlar çalıştırılmaz, güvenli  
+✅ **Action Planner Testi** - Intent, Tool, Command çıktılarını görüntüle  
+✅ **Policy Gate** - Production ile aynı mantık  
+
+⚠️ **UYARI:** Developer mode gerçek güvenlik testleri için kullanılamaz!
 
 ---
 
