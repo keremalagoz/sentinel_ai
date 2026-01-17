@@ -3,11 +3,11 @@
 # DEVELOPMENT ONLY - Do NOT use in production
 #
 # Bu dosya development için optimize edilmiştir:
-# ✅ Native Ollama (localhost:11434) - Docker'a gerek yok
-# ✅ WSL/Docker kapalı - RAM tasarrufu (~6GB)
-# ✅ Mock execution - Gerçek komut çalıştırmaz, sadece gösterir
-# ✅ LLM yanıt süresi 2-3x daha hızlı
-# ✅ Policy gate production ile aynı
+# [OK] Native Ollama (localhost:11434) - Docker'a gerek yok
+# [OK] WSL/Docker kapalı - RAM tasarrufu (~6GB)
+# [OK] Mock execution - Gerçek komut çalıştırmaz, sadece gösterir
+# [OK] LLM yanıt süresi 2-3x daha hızlı
+# [OK] Policy gate production ile aynı
 #
 # Gereksinimler:
 # 1. Native Ollama kurulu olmalı: https://ollama.com/download
@@ -42,14 +42,14 @@ from src.ai.schemas import AIResponse, RiskLevel
 DEVELOPER_BANNER = """
 ╔════════════════════════════════════════════════════════════════════════╗
 ║                                                                        ║
-║            🔧 SENTINEL AI - DEVELOPER MODE 🔧                          ║
+║            [DEV] SENTINEL AI - DEVELOPER MODE [DEV]                   ║
 ║                                                                        ║
-║  [✓] LLM: Native Ollama (localhost:11434) - NO DOCKER                ║
-║  [✓] RAM: WSL Kapalı (~6GB tasarruf)                                  ║
-║  [✓] Execution: MOCKED (komutlar çalıştırılmaz)                       ║
-║  [✓] Speed: 2-3x daha hızlı yanıt                                     ║
+║  [OK] LLM: Native Ollama (localhost:11434) - NO DOCKER               ║
+║  [OK] RAM: WSL Kapalı (~6GB tasarruf)                                 ║
+║  [OK] Execution: MOCKED (komutlar çalıştırılmaz)                      ║
+║  [OK] Speed: 2-3x daha hızlı yanıt                                    ║
 ║                                                                        ║
-║  ⚠️  PRODUCTION KULLANIMI YASAK - Sadece UI/AI geliştirme için       ║
+║  [WARNING] PRODUCTION KULLANIMI YASAK - Sadece UI/AI geliştirme için ║
 ║                                                                        ║
 ╚════════════════════════════════════════════════════════════════════════╝
 """
@@ -229,7 +229,7 @@ class SentinelDeveloperWindow(QMainWindow):
         self._pending_command = None
         
         # Pencere ayarları
-        self.setWindowTitle("🔧 SENTINEL AI - DEVELOPER MODE 🔧")
+        self.setWindowTitle("[DEV] SENTINEL AI - DEVELOPER MODE [DEV]")
         self.setMinimumSize(1000, 700)
         self.setStyleSheet(f"background-color: {Colors.BG_PRIMARY}; color: {Colors.TEXT_PRIMARY};")
         
@@ -301,7 +301,7 @@ class SentinelDeveloperWindow(QMainWindow):
         layout = QHBoxLayout(banner)
         layout.setContentsMargins(12, 6, 12, 6)
         
-        icon = QLabel("⚠️")
+        icon = QLabel("[!]")
         icon.setStyleSheet(f"color: {Colors.WARNING}; font-size: 20px;")
         layout.addWidget(icon)
         
@@ -333,7 +333,7 @@ class SentinelDeveloperWindow(QMainWindow):
         layout.setContentsMargins(12, 8, 12, 8)
         
         # Logo/Başlık
-        title = QLabel("🔧 SENTINEL AI [DEV]")
+        title = QLabel("[DEV] SENTINEL AI [DEV]")
         title.setStyleSheet(f"""
             color: {Colors.WARNING};
             font-family: {Fonts.MONO};
@@ -368,7 +368,7 @@ class SentinelDeveloperWindow(QMainWindow):
         
         # Üst satır: Hedef IP
         target_row = QHBoxLayout()
-        target_label = QLabel("🎯 Hedef:")
+        target_label = QLabel("[>] Hedef:")
         target_label.setStyleSheet(f"color: {Colors.TEXT_SECONDARY}; font-weight: bold;")
         target_label.setFixedWidth(80)
         target_row.addWidget(target_label)
@@ -443,7 +443,7 @@ class SentinelDeveloperWindow(QMainWindow):
         layout.addWidget(self._explanation_label)
         
         # Developer mode uyarısı
-        dev_warning = QLabel("⚠️ DEV MODE: Komut gerçekte çalıştırılmayacak (mock çıktı gösterilecek)")
+        dev_warning = QLabel("[WARNING] DEV MODE: Komut gerçekte çalıştırılmayacak (mock çıktı gösterilecek)")
         dev_warning.setStyleSheet(f"""
             color: {Colors.WARNING};
             font-size: 11px;
@@ -651,7 +651,7 @@ class SentinelDeveloperWindow(QMainWindow):
         
         # Açıklama
         explanation = cmd.explanation or response.message
-        root_warning = " ⚠️ (Root yetkisi gerekli)" if cmd.requires_root else ""
+        root_warning = " [!] (Root yetkisi gerekli)" if cmd.requires_root else ""
         self._explanation_label.setText(f"{explanation}{root_warning}")
         
         # Panel stilini risk seviyesine göre ayarla
