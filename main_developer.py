@@ -26,7 +26,7 @@ from PyQt6.QtWidgets import (
     QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
     QLineEdit, QLabel, QPushButton, QFrame, QMessageBox
 )
-from PyQt6.QtCore import Qt, QThread, pyqtSignal, pyqtSlot
+from PyQt6.QtCore import Qt, QThread, pyqtSignal, pyqtSlot, QObject
 from PyQt6.QtGui import QFont
 
 from src.ui.terminal_view import TerminalView
@@ -42,14 +42,14 @@ from src.ai.schemas import AIResponse, RiskLevel
 DEVELOPER_BANNER = """
 ╔════════════════════════════════════════════════════════════════════════╗
 ║                                                                        ║
-║            [DEV] SENTINEL AI - DEVELOPER MODE [DEV]                   ║
+║            [DEV] SENTINEL AI - DEVELOPER MODE [DEV]                    ║
 ║                                                                        ║
-║  [OK] LLM: Native Ollama (localhost:11434) - NO DOCKER               ║
-║  [OK] RAM: WSL Kapalı (~6GB tasarruf)                                 ║
-║  [OK] Execution: MOCKED (komutlar çalıştırılmaz)                      ║
-║  [OK] Speed: 2-3x daha hızlı yanıt                                    ║
+║  [OK] LLM: Native Ollama (localhost:11434) - NO DOCKER                 ║
+║  [OK] RAM: WSL Kapalı (~6GB tasarruf)                                  ║
+║  [OK] Execution: MOCKED (komutlar çalıştırılmaz)                       ║
+║  [OK] Speed: 2-3x daha hızlı yanıt                                     ║
 ║                                                                        ║
-║  [WARNING] PRODUCTION KULLANIMI YASAK - Sadece UI/AI geliştirme için ║
+║  [WARNING] PRODUCTION KULLANIMI YASAK - Sadece UI/AI geliştirme için   ║
 ║                                                                        ║
 ╚════════════════════════════════════════════════════════════════════════╝
 """
@@ -59,13 +59,21 @@ DEVELOPER_BANNER = """
 # Developer Mode - Mock Process Manager
 # =============================================================================
 
-class MockProcessManager:
+class MockProcessManager(QObject):
     """
     Development için sahte process manager.
     Komutları çalıştırmaz, sadece terminal'de gösterir.
+    
+    TerminalView ile uyumlu olmak için PyQt6 sinyalleri içerir.
     """
     
+    # TerminalView'un beklediği sinyaller
+    sig_output_stream = pyqtSignal(str, str)  # (text, stream_type)
+    sig_process_finished = pyqtSignal(int, str)  # (exit_code, log_path)
+    sig_auth_failed = pyqtSignal()  # ()
+    
     def __init__(self, parent=None):
+        super().__init__(parent)
         self._parent = parent
         self._is_running = False
     
@@ -73,35 +81,37 @@ class MockProcessManager:
         return self._is_running
     
     def start_process(self, tool: str, arguments: list, requires_root: bool = False):
-        """Komutu çalıştırmaz, sadece terminal'e yazar"""
+        """Komutu çalıştırmaz, mock çıktı üretir ve sinyallerle gönderir"""
+        self._is_running = True
+        
         # Mock çıktı oluştur
         args_str = ' '.join(arguments)
         command_line = f"{tool} {args_str}"
         
         root_prefix = "[ROOT] " if requires_root else ""
         
-        # Terminal'e yaz
-        if hasattr(self._parent, '_terminal'):
-            terminal = self._parent._terminal
-            
-            # Komut satırını göster
-            terminal.append_output(f"\n{root_prefix}$ {command_line}", is_command=True)
-            
-            # Developer mode uyarısı
-            terminal.append_output(
-                "\n[DEVELOPER MODE] Komut gerçekte çalıştırılmadı.\n",
-                is_warning=True
-            )
-            
-            # Sahte çıktı
-            mock_output = self._generate_mock_output(tool, arguments)
-            if mock_output:
-                terminal.append_output(f"\n{mock_output}\n", is_success=True)
-            
-            terminal.append_output(
-                "\n[INFO] Production'da bu komut gerçek çıktı üretecek.\n",
-                is_info=True
-            )
+        # Komut satırını sinyal ile gönder
+        self.sig_output_stream.emit(f"\n{root_prefix}$ {command_line}\n", "stdout")
+        
+        # Developer mode uyarısı
+        self.sig_output_stream.emit(
+            "[DEVELOPER MODE] Komut gerçekte çalıştırılmadı.\n",
+            "stderr"
+        )
+        
+        # Sahte çıktı üret ve gönder
+        mock_output = self._generate_mock_output(tool, arguments)
+        if mock_output:
+            self.sig_output_stream.emit(f"\n{mock_output}\n", "stdout")
+        
+        self.sig_output_stream.emit(
+            "\n[INFO] Production'da bu komut gerçek çıktı üretecek.\n",
+            "stdout"
+        )
+        
+        # Mock process bitti sinyali (exit_code=0, log_path="")
+        self._is_running = False
+        self.sig_process_finished.emit(0, "")
     
     def stop_process(self):
         """Mock - hiçbir şey yapmaz"""
@@ -224,7 +234,13 @@ class SentinelDeveloperWindow(QMainWindow):
         
         # Core bileşenler - DEVELOPER MODE
         self._process_manager = MockProcessManager(self)  # Mock!
-        self._orchestrator = AIOrchestrator(model="whiterabbitneo")  # Native Ollama
+        try:
+            self._orchestrator = AIOrchestrator(model="whiterabbitneo")  # Native Ollama
+        except Exception as e:
+            # Ollama yoksa, orchestrator'u oluşturma başarısız - graceful fallback
+            print(f"[WARN] Orchestrator oluşturulamadı: {e}")
+            self._orchestrator = None
+        
         self._ai_worker: AIWorker = None
         self._pending_command = None
         
@@ -276,14 +292,14 @@ class SentinelDeveloperWindow(QMainWindow):
         self._terminal = TerminalView(self._process_manager)
         main_layout.addWidget(self._terminal, stretch=1)
         
-        # Developer mode uyarısını terminal'e bas
-        self._terminal.append_output(
+        # Developer mode uyarısını sinyaller ile gönder
+        self._process_manager.sig_output_stream.emit(
             DEVELOPER_BANNER + "\n",
-            is_info=True
+            "stdout"
         )
-        self._terminal.append_output(
+        self._process_manager.sig_output_stream.emit(
             "[INFO] Native Ollama bağlantısı kontrol ediliyor...\n",
-            is_info=True
+            "stdout"
         )
     
     def _create_warning_banner(self) -> QWidget:
@@ -547,30 +563,42 @@ class SentinelDeveloperWindow(QMainWindow):
     
     def _check_services(self):
         """Native Ollama durumunu kontrol et."""
+        # Orchestrator yoksa, Ollama'yı başlatamamış demektir
+        if self._orchestrator is None:
+            self._status_ollama.setText("○ Native Ollama")
+            self._status_ollama.setStyleSheet(f"color: {Colors.DANGER};")
+            self._process_manager.sig_output_stream.emit(
+                "[ERROR] Native Ollama bağlantı hatası!\n"
+                "        Çözüm: ollama serve komutunu çalıştırın\n"
+                "        https://ollama.com/download\n",
+                "stderr"
+            )
+            return
+        
         try:
             available = self._orchestrator._intent_resolver.check_available()
             
             if available:
                 self._status_ollama.setText("● Native Ollama")
                 self._status_ollama.setStyleSheet(f"color: {Colors.SUCCESS_BRIGHT};")
-                self._terminal.append_output(
+                self._process_manager.sig_output_stream.emit(
                     "[OK] Native Ollama (localhost:11434) bağlantı başarılı.\n",
-                    is_success=True
+                    "stdout"
                 )
             else:
                 self._status_ollama.setText("○ Native Ollama")
                 self._status_ollama.setStyleSheet(f"color: {Colors.DANGER};")
-                self._terminal.append_output(
+                self._process_manager.sig_output_stream.emit(
                     "[ERROR] Native Ollama bağlantı hatası!\n"
                     "        Çözüm: ollama serve\n",
-                    is_error=True
+                    "stderr"
                 )
         except Exception as e:
             self._status_ollama.setText("○ Native Ollama")
             self._status_ollama.setStyleSheet(f"color: {Colors.DANGER};")
-            self._terminal.append_output(
+            self._process_manager.sig_output_stream.emit(
                 f"[ERROR] Ollama kontrol hatası: {str(e)}\n",
-                is_error=True
+                "stderr"
             )
     
     # =========================================================================
@@ -579,6 +607,19 @@ class SentinelDeveloperWindow(QMainWindow):
     
     def _on_ai_submit(self):
         """AI'ya sorgu gönder."""
+        # Orchestrator yoksa uyarı ver
+        if self._orchestrator is None:
+            QMessageBox.warning(
+                self,
+                "Ollama Bağlantı Hatası",
+                "Native Ollama bağlanamıyor.\n\n"
+                "Çözüm:\n"
+                "1. https://ollama.com/download adresinden Ollama'yı indirin\n"
+                "2. Kurulduktan sonra 'ollama serve' komutunu çalıştırın\n"
+                "3. Uygulamayı yeniden başlatın"
+            )
+            return
+        
         query = self._ai_input.text().strip()
         if not query:
             return
