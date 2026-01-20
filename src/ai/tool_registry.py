@@ -245,16 +245,23 @@ def build_tool_spec(
     
     Args:
         intent_type: Kullanici niyeti
-        target: Hedef IP/domain
+        target: Hedef IP/domain (REQUIRED for most tools)
         params: Ek parametreler (ports, wordlist, vb.)
     
     Returns:
         ToolSpec veya None (tool yoksa)
     
+    Raises:
+        ValueError: Target gerekli ama saglanmamissa
+    
     Example:
         >>> build_tool_spec(IntentType.PORT_SCAN, "192.168.1.1", {"ports": "1-1000"})
         ToolSpec(tool="nmap", arguments=["-sS", "-sV", "-p", "1-1000"], target="192.168.1.1", ...)
     """
+    # Target validation for most tools
+    if not target and intent_type not in [IntentType.INFO_QUERY, IntentType.UNKNOWN]:
+        raise ValueError("Hedef IP adresi belirtilmedi")
+    
     tool_def = get_tool_for_intent(intent_type)
     
     if tool_def is None or not tool_def.tool:

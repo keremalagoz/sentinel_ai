@@ -366,7 +366,7 @@ class SQLiteBackend:
         cursor = self.connection.cursor()
         cursor.execute(
             """
-            INSERT INTO tool_executions 
+            INSERT OR IGNORE INTO tool_executions 
             (execution_id, tool_id, stage_id, status, parse_status, raw_output, 
              started_at, completed_at, entities_created, error_message)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
