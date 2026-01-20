@@ -27,6 +27,11 @@ ONEMLI KURALLAR:
 2. ASLA argumanlar uretme (-sS, -p, vb.)
 3. ASLA risk seviyesi veya root bilgisi verme
 4. SADECE kullanicinin ne yapmak istedigini anla
+5. Kullanici "hedef", "target", "ağ" gibi GENEL ifadeler kullaniyorsa target=null birak
+   (Cunku hedef bilgisi UI'dan ayrıca gelecek)
+6. SADECE kullanici SPESIFIK IP/domain belirtirse target doldur
+   - Spesifik: "192.168.1.1", "example.com", "10.0.0.1/24"
+   - Genel: "hedef", "hedef ağ", "target", "bu sistem"
 
 INTENT TURLERI:
 - host_discovery: Agdaki aktif cihazlari bul, ping taramasi
@@ -64,11 +69,17 @@ Cikti: {"intent_type": "host_discovery", "target": "192.168.1.0/24", "params": {
 Girdi: "example.com portlarini tara"
 Cikti: {"intent_type": "port_scan", "target": "example.com", "params": {}, "needs_clarification": false, "clarification_reason": null}
 
+Girdi: "hedef ağda tam tarama yap"
+Cikti: {"intent_type": "port_scan", "target": null, "params": {}, "needs_clarification": false, "clarification_reason": null}
+
+Girdi: "tarama yap"
+Cikti: {"intent_type": "port_scan", "target": null, "params": {}, "needs_clarification": false, "clarification_reason": null}
+
 Girdi: "80 ve 443 portlarini kontrol et 10.0.0.1 de"
 Cikti: {"intent_type": "port_scan", "target": "10.0.0.1", "params": {"ports": "80,443"}, "needs_clarification": false, "clarification_reason": null}
 
 Girdi: "web sitesinde dizin ara"
-Cikti: {"intent_type": "web_dir_enum", "target": null, "params": {}, "needs_clarification": true, "clarification_reason": "Hedef URL belirtilmedi"}
+Cikti: {"intent_type": "web_dir_enum", "target": null, "params": {}, "needs_clarification": false, "clarification_reason": null}
 
 Girdi: "nmap nedir?"
 Cikti: {"intent_type": "info_query", "target": null, "params": {}, "needs_clarification": false, "clarification_reason": null}
