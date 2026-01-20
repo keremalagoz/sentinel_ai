@@ -75,7 +75,21 @@ class SentinelMainWindow(QMainWindow):
         
         # Core bileşenler
         self._process_manager = AdvancedProcessManager(self)
-        self._orchestrator = get_orchestrator()
+        
+        # Tool Coordinator (Integrated Tool System)
+        try:
+            from src.core.sentinel_coordinator import SentinelCoordinator
+            self._coordinator = SentinelCoordinator(db_path="sentinel_production.db")
+            print("[✓] SentinelCoordinator initialized (Integrated Tool System)")
+        except Exception as e:
+            print(f"[WARN] SentinelCoordinator initialization failed: {e}")
+            self._coordinator = None
+        
+        # AI Orchestrator (with coordinator for tool execution)
+        from src.ai.orchestrator import AIOrchestrator
+        self._orchestrator = AIOrchestrator(model="whiterabbitneo", coordinator=self._coordinator)
+        print("[✓] AIOrchestrator initialized (AI-Driven Tool Execution)")
+        
         self._ai_worker: AIWorker = None
         self._pending_command = None  # AI'dan gelen onay bekleyen komut
         
@@ -163,7 +177,7 @@ class SentinelMainWindow(QMainWindow):
         main_layout.addWidget(self._approval_panel)
         
         # === TERMİNAL ===
-        self._terminal = TerminalView(self._process_manager)
+        self._terminal = TerminalView(self._process_manager, coordinator=self._coordinator)
         main_layout.addWidget(self._terminal, stretch=1)
     
     def _create_header(self) -> QWidget:
@@ -419,7 +433,18 @@ class SentinelMainWindow(QMainWindow):
         if not query:
             return
         
-        target = self._target_input.text().strip() or None
+        # Target: ALWAYS get from UI (required)
+        target = self._target_input.text().strip()
+        
+        # Hedef yoksa kesinlikle hata ver
+        if not target:
+            QMessageBox.warning(
+                self,
+                "Hedef Gerekli",
+                "Lütfen 'Hedef' alanına IP adresi veya hostname girin.\n\n"
+                "Örnek: 192.168.1.1, scanme.nmap.org"
+            )
+            return
         
         # UI'yı devre dışı bırak
         self._btn_ask.setEnabled(False)
