@@ -27,6 +27,7 @@ Thumbs.db
 temp/
 models/
 *.log
+*.db
 
 # Build
 dist/

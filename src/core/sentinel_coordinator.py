@@ -8,8 +8,16 @@ from typing import Optional, Callable
 from PySide6.QtCore import QObject, Signal
 
 from src.core.tool_integration import ToolManager, IntegratedToolResult
-from src.core.tool_base import PingTool, NmapPingSweepTool, NmapPortScanTool
-from src.core.parser_framework import PingParser, NmapPingSweepParser, NmapPortScanParser
+from src.core.tool_base import (
+    PingTool, NmapPingSweepTool, NmapPortScanTool,
+    NmapServiceDetectionTool, NmapVulnScanTool, DnsLookupTool,
+    SslScanTool, GobusterDirTool, SubdomainEnumTool, WebAppScanTool
+)
+from src.core.parser_framework import (
+    PingParser, NmapPingSweepParser, NmapPortScanParser,
+    NmapServiceDetectionParser, NmapVulnScanParser, DnsLookupParser,
+    SslScanParser, GobusterDirParser, SubdomainEnumParser, WebAppScanParser
+)
 from src.core.sqlite_backend import SQLiteBackend
 from src.ai.execution_policy import ExecutionPolicy
 
@@ -86,6 +94,48 @@ class SentinelCoordinator(QObject):
             tool=NmapPortScanTool(timeout=120),
             parser=NmapPortScanParser()
         )
+        
+        # Nmap Service Detection
+        self.manager.register_tool(
+            tool=NmapServiceDetectionTool(timeout=180),
+            parser=NmapServiceDetectionParser()
+        )
+        
+        # Nmap Vulnerability Scan
+        self.manager.register_tool(
+            tool=NmapVulnScanTool(timeout=300),
+            parser=NmapVulnScanParser()
+        )
+        
+        # DNS Lookup
+        self.manager.register_tool(
+            tool=DnsLookupTool(timeout=30),
+            parser=DnsLookupParser()
+        )
+        
+        # SSL/TLS Scan
+        self.manager.register_tool(
+            tool=SslScanTool(timeout=60),
+            parser=SslScanParser()
+        )
+        
+        # Web Directory Enumeration
+        self.manager.register_tool(
+            tool=GobusterDirTool(timeout=300),
+            parser=GobusterDirParser()
+        )
+        
+        # Subdomain Enumeration
+        self.manager.register_tool(
+            tool=SubdomainEnumTool(timeout=120),
+            parser=SubdomainEnumParser()
+        )
+        
+        # Web Application Scanner
+        self.manager.register_tool(
+            tool=WebAppScanTool(timeout=60),
+            parser=WebAppScanParser()
+        )
     
     def execute_ping(self, target: str, count: int = 4) -> bool:
         """
@@ -145,6 +195,154 @@ class SentinelCoordinator(QObject):
             target=target,
             ports=ports,
             scan_type=scan_type
+        )
+    
+    def execute_service_detection(self, target: str, ports: Optional[str] = None, intensity: int = 5) -> bool:
+        """
+        Execute nmap service detection.
+        
+        Args:
+            target: IP address
+            ports: Optional port range (if not specified, scans common ports)
+            intensity: Version detection intensity 0-9 (default: 5)
+            
+        Returns:
+            True if started successfully
+        """
+        kwargs = {
+            "target": target,
+            "intensity": intensity
+        }
+        
+        if ports:
+            kwargs["ports"] = ports
+        
+        return self.manager.execute_tool(
+            "nmap_service_detection",
+            callback=None,
+            **kwargs
+        )
+    
+    def execute_vuln_scan(self, target: str, ports: Optional[str] = None, scripts: str = "vuln") -> bool:
+        """
+        Execute nmap vulnerability scan.
+        
+        Args:
+            target: IP address
+            ports: Optional port range (if not specified, scans all discovered ports)
+            scripts: NSE script category (default: "vuln")
+            
+        Returns:
+            True if started successfully
+        """
+        kwargs = {
+            "target": target,
+            "scripts": scripts
+        }
+        
+        if ports:
+            kwargs["ports"] = ports
+        
+        return self.manager.execute_tool(
+            "nmap_vuln_scan",
+            callback=None,
+            **kwargs
+        )
+    
+    def execute_dns_lookup(self, domain: str, record_type: str = "A") -> bool:
+        """
+        Execute DNS lookup.
+        
+        Args:
+            domain: Domain name to query
+            record_type: DNS record type (A, AAAA, MX, NS, TXT, etc.)
+            
+        Returns:
+            True if started successfully
+        """
+        return self.manager.execute_tool(
+            "dns_lookup",
+            callback=None,
+            domain=domain,
+            record_type=record_type
+        )
+    
+    def execute_ssl_scan(self, target: str, port: int = 443) -> bool:
+        """
+        Execute SSL/TLS scan.
+        
+        Args:
+            target: Target hostname or IP
+            port: SSL/TLS port (default: 443 for HTTPS)
+            
+        Returns:
+            True if started successfully
+        """
+        return self.manager.execute_tool(
+            "ssl_scan",
+            callback=None,
+            target=target,
+            port=port
+        )
+    
+    def execute_web_dir_enum(self, url: str, wordlist: str = "common.txt", extensions: Optional[str] = None) -> bool:
+        """
+        Execute web directory enumeration.
+        
+        Args:
+            url: Target URL (e.g., http://example.com)
+            wordlist: Path to wordlist file
+            extensions: Optional file extensions (e.g., "php,html,txt")
+            
+        Returns:
+            True if started successfully
+        """
+        kwargs = {
+            "url": url,
+            "wordlist": wordlist
+        }
+        
+        if extensions:
+            kwargs["extensions"] = extensions
+        
+        return self.manager.execute_tool(
+            "gobuster_dir",
+            callback=None,
+            **kwargs
+        )
+    
+    def execute_subdomain_enum(self, domain: str, wordlist: str = "subdomains.txt") -> bool:
+        """
+        Execute subdomain enumeration.
+        
+        Args:
+            domain: Target domain (e.g., example.com)
+            wordlist: Path to subdomain wordlist
+            
+        Returns:
+            True if started successfully
+        """
+        return self.manager.execute_tool(
+            "subdomain_enum",
+            callback=None,
+            domain=domain,
+            wordlist=wordlist
+        )
+    
+    def execute_web_app_scan(self, url: str) -> bool:
+        """
+        Execute web application scanner.
+        
+        Args:
+            url: Target URL (e.g., http://example.com)
+            
+        Returns:
+            True if started successfully
+        """
+        return self.manager.execute_tool(
+            "web_app_scan",
+            callback=None,
+            url=url
         )
     
     def cancel_tool(self, tool_id: str) -> bool:

@@ -39,6 +39,7 @@ class IntentType(str, Enum):
     SERVICE_DETECTION = "service_detection" # Servis ve versiyon tespiti
     OS_DETECTION = "os_detection"          # Isletim sistemi tespiti
     VULN_SCAN = "vuln_scan"                # Zafiyet taramasi
+    SSL_SCAN = "ssl_scan"                  # SSL/TLS sertifika ve cipher analizi
     
     # Web (Web Enumeration)
     WEB_DIR_ENUM = "web_dir_enum"          # Dizin/dosya kesfet
@@ -47,6 +48,7 @@ class IntentType(str, Enum):
     # Recon (Bilgi Toplama)
     DNS_LOOKUP = "dns_lookup"              # DNS sorgusu
     WHOIS_LOOKUP = "whois_lookup"          # Domain bilgisi
+    SUBDOMAIN_ENUM = "subdomain_enum"      # Subdomain kesfet
     
     # Brute Force
     BRUTE_FORCE_SSH = "brute_force_ssh"    # SSH brute force
