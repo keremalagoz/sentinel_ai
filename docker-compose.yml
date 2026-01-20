@@ -6,43 +6,7 @@ version: '3.8'
 
 services:
   # ============================================
-  # Service 1: Llama 3 Local LLM (Port 8001)
-  # ============================================
-  llama-service:
-    build:
-      context: .
-      dockerfile: docker/llama/Dockerfile
-    container_name: sentinel-llama
-    ports:
-      - "8001:11434"  # External:Internal (Ollama default is 11434)
-    volumes:
-      - ollama_models:/root/.ollama  # Model cache - persist between restarts
-    environment:
-      - OLLAMA_HOST=0.0.0.0  # Allow external connections
-      - OLLAMA_GPU_LAYERS=99  # Force all layers to GPU
-      - NVIDIA_VISIBLE_DEVICES=all  # Force GPU visibility
-      - NVIDIA_DRIVER_CAPABILITIES=compute,utility  # Enable CUDA
-    restart: unless-stopped
-    # GPU Access - Multiple methods for compatibility
-    runtime: nvidia  # Primary method
-    deploy:
-      resources:
-        reservations:
-          devices:
-            - driver: nvidia
-              count: all
-              capabilities: [gpu]
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:11434/api/tags"]
-      interval: 30s
-      timeout: 30s
-      retries: 5
-      start_period: 120s  # Ilk 2 dakika healthcheck basarisiz olabilir
-    networks:
-      - sentinel-net
-
-  # ============================================
-  # Service 2: WhiteRabbitNeo LLM (Port 8002)
+  # Service 1: WhiteRabbitNeo LLM (Port 8002)
   # ============================================
   whiterabbitneo-service:
     build:
@@ -88,10 +52,6 @@ services:
       - "8000:8000"
     env_file:
       - .env
-    environment:
-      - LLAMA_SERVICE_URL=http://llama-service:11434  # Internal Docker network
-    depends_on:
-      - llama-service
     restart: unless-stopped
     networks:
       - sentinel-net
@@ -117,8 +77,6 @@ services:
 
 # Named volumes for model persistence
 volumes:
-  ollama_models:
-    driver: local
   whiterabbitneo_models:
     driver: local
 
