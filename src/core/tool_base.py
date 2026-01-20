@@ -364,3 +364,345 @@ class NmapPortScanTool(BaseTool):
             Command: ["nmap", "-sT", "-p", "1-1000", "192.168.1.10"]
         """
         return ["nmap", f"-{scan_type}", "-p", ports, target]
+
+
+class NmapServiceDetectionTool(BaseTool):
+    """
+    Nmap service detection tool (-sV).
+    
+    Detects service versions on open ports.
+    Can be combined with port scan or run independently.
+    
+    Usage:
+        tool = NmapServiceDetectionTool()
+        tool.execute(callback=my_callback, target="192.168.1.10", ports="80,443")
+    """
+    
+    def __init__(self, timeout: int = 180, signals: Optional[ToolExecutionSignals] = None):
+        super().__init__("nmap_service_detection", timeout, signals)
+    
+    def build_command(
+        self,
+        target: str,
+        ports: Optional[str] = None,
+        intensity: int = 5,
+        **kwargs
+    ) -> List[str]:
+        """
+        Build nmap service detection command.
+        
+        Args:
+            target: Target IP
+            ports: Optional port range (if not specified, scans common ports)
+            intensity: Version detection intensity 0-9 (default: 5)
+            
+        Returns:
+            Command: ["nmap", "-sV", "--version-intensity", "5", "-p", "80,443", "192.168.1.10"]
+        """
+        cmd = ["nmap", "-sV", "--version-intensity", str(intensity)]
+        
+        if ports:
+            cmd.extend(["-p", ports])
+        
+        cmd.append(target)
+        return cmd
+
+
+class NmapVulnScanTool(BaseTool):
+    """
+    Nmap vulnerability scan tool (--script vuln).
+    
+    Uses NSE (Nmap Scripting Engine) vulnerability scripts.
+    Comprehensive scan, can take significant time.
+    
+    Usage:
+        tool = NmapVulnScanTool()
+        tool.execute(callback=my_callback, target="192.168.1.10", ports="80,443")
+    """
+    
+    def __init__(self, timeout: int = 300, signals: Optional[ToolExecutionSignals] = None):
+        super().__init__("nmap_vuln_scan", timeout, signals)
+    
+    def build_command(
+        self,
+        target: str,
+        ports: Optional[str] = None,
+        scripts: str = "vuln",
+        **kwargs
+    ) -> List[str]:
+        """
+        Build nmap vulnerability scan command.
+        
+        Args:
+            target: Target IP
+            ports: Optional port range (if not specified, scans all open ports)
+            scripts: NSE script category (default: "vuln")
+            
+        Returns:
+            Command: ["nmap", "--script", "vuln", "-p", "80,443", "192.168.1.10"]
+        """
+        cmd = ["nmap", "--script", scripts]
+        
+        if ports:
+            cmd.extend(["-p", ports])
+        
+        cmd.append(target)
+        return cmd
+
+
+class SslScanTool(BaseTool):
+    """
+    SSL/TLS certificate and cipher analysis.
+    Uses OpenSSL s_client for SSL/TLS handshake and certificate inspection.
+    """
+    
+    def __init__(self, timeout: int = 60, signals: Optional[ToolExecutionSignals] = None):
+        super().__init__("ssl_scan", timeout, signals)
+    
+    def build_command(
+        self,
+        target: str,
+        port: int = 443,
+        **kwargs
+    ) -> List[str]:
+        """
+        Build OpenSSL s_client command for SSL/TLS analysis.
+        
+        Args:
+            target: Target hostname or IP
+            port: SSL/TLS port (default: 443)
+            
+        Returns:
+            Command: ["openssl", "s_client", "-connect", "example.com:443", "-showcerts"]
+        """
+        # OpenSSL s_client with certificate details
+        # Using echo to automatically close connection
+        cmd = [
+            "cmd.exe", "/c",
+            f"echo | openssl s_client -connect {target}:{port} -showcerts 2>&1"
+        ]
+        return cmd
+
+
+class GobusterDirTool(BaseTool):
+    """
+    Web directory and file enumeration.
+    Uses gobuster dir mode to discover hidden paths.
+    """
+    
+    def __init__(self, timeout: int = 300, signals: Optional[ToolExecutionSignals] = None):
+        super().__init__("gobuster_dir", timeout, signals)
+    
+    def build_command(
+        self,
+        url: str,
+        wordlist: str = "common.txt",
+        extensions: Optional[str] = None,
+        **kwargs
+    ) -> List[str]:
+        """
+        Build gobuster dir command.
+        
+        Args:
+            url: Target URL (e.g., http://example.com)
+            wordlist: Path to wordlist file (default: common.txt)
+            extensions: File extensions to check (e.g., "php,html,txt")
+            
+        Returns:
+            Command: ["gobuster", "dir", "-u", "http://example.com", "-w", "wordlist.txt", "-x", "php,html"]
+        """
+        cmd = ["gobuster", "dir", "-u", url, "-w", wordlist]
+        
+        if extensions:
+            cmd.extend(["-x", extensions])
+        
+        # Quiet output for better parsing
+        cmd.append("-q")
+        
+        return cmd
+
+
+class SubdomainEnumTool(BaseTool):
+    """
+    Subdomain enumeration using DNS queries.
+    Uses nslookup to test common subdomain prefixes.
+    """
+    
+    def __init__(self, timeout: int = 120, signals: Optional[ToolExecutionSignals] = None):
+        super().__init__("subdomain_enum", timeout, signals)
+    
+    def build_command(
+        self,
+        domain: str,
+        wordlist: str = "subdomains.txt",
+        **kwargs
+    ) -> List[str]:
+        """
+        Build PowerShell subdomain enumeration command.
+        
+        Args:
+            domain: Target domain (e.g., example.com)
+            wordlist: Path to subdomain wordlist (default: subdomains.txt)
+            
+        Returns:
+            PowerShell command to test subdomains
+        """
+        # PowerShell script to test subdomains
+        # If wordlist doesn't exist, use common subdomains
+        ps_script = f"""
+$domain = '{domain}'
+$wordlist = '{wordlist}'
+
+# Common subdomains if file doesn't exist
+$commonSubs = @('www', 'mail', 'ftp', 'admin', 'api', 'blog', 'shop', 'dev', 'test', 'staging')
+
+if (Test-Path $wordlist) {{
+    $subdomains = Get-Content $wordlist
+}} else {{
+    $subdomains = $commonSubs
+}}
+
+foreach ($sub in $subdomains) {{
+    $fqdn = "$sub.$domain"
+    try {{
+        $result = nslookup $fqdn 2>&1
+        if ($result -match '\\d{{1,3}}\\.\\d{{1,3}}\\.\\d{{1,3}}\\.\\d{{1,3}}') {{
+            Write-Output "FOUND: $fqdn"
+        }}
+    }} catch {{
+        # Ignore errors
+    }}
+}}
+"""
+        
+        # Encode PowerShell script to base64 for command line
+        cmd = [
+            "powershell.exe", "-NoProfile", "-ExecutionPolicy", "Bypass",
+            "-Command", ps_script
+        ]
+        
+        return cmd
+
+
+class DnsLookupTool(BaseTool):
+    """
+    DNS lookup tool using nslookup (Windows compatible).
+    
+    Queries DNS records (A, AAAA, MX, NS, TXT, etc.)
+    
+    Usage:
+        tool = DnsLookupTool()
+        tool.execute(callback=my_callback, domain="example.com", record_type="A")
+    """
+    
+    def __init__(self, timeout: int = 30, signals: Optional[ToolExecutionSignals] = None):
+        super().__init__("dns_lookup", timeout, signals)
+    
+    def build_command(
+        self,
+        domain: str,
+        record_type: str = "A",
+        **kwargs
+    ) -> List[str]:
+        """
+        Build nslookup command.
+        
+        Args:
+            domain: Domain name to query
+            record_type: DNS record type (A, AAAA, MX, NS, TXT, etc.)
+            
+        Returns:
+            Command: ["nslookup", "-type=A", "example.com"]
+        """
+        return ["nslookup", f"-type={record_type.upper()}", domain]
+
+
+class WebAppScanTool(BaseTool):
+    """
+    Web application scanner for technology fingerprinting.
+    Uses curl and PowerShell to detect web technologies.
+    """
+    
+    def __init__(self, timeout: int = 60, signals: Optional[ToolExecutionSignals] = None):
+        super().__init__("web_app_scan", timeout, signals)
+    
+    def build_command(
+        self,
+        url: str,
+        **kwargs
+    ) -> List[str]:
+        """
+        Build curl-based web app scan command.
+        
+        Args:
+            url: Target URL (e.g., http://example.com)
+            
+        Returns:
+            PowerShell command to fingerprint web technologies
+        """
+        # PowerShell script to analyze HTTP response
+        ps_script = f"""
+$url = '{url}'
+
+try {{
+    $response = Invoke-WebRequest -Uri $url -UseBasicParsing -TimeoutSec 30 -ErrorAction Stop
+    
+    # Extract server header
+    $server = $response.Headers['Server']
+    if ($server) {{
+        Write-Output "SERVER: $server"
+    }}
+    
+    # Extract X-Powered-By header
+    $poweredBy = $response.Headers['X-Powered-By']
+    if ($poweredBy) {{
+        Write-Output "POWERED-BY: $poweredBy"
+    }}
+    
+    # Extract content type
+    $contentType = $response.Headers['Content-Type']
+    if ($contentType) {{
+        Write-Output "CONTENT-TYPE: $contentType"
+    }}
+    
+    # Check for common technologies in HTML
+    $html = $response.Content
+    
+    if ($html -match 'WordPress|wp-content|wp-includes') {{
+        Write-Output "TECH: WordPress"
+    }}
+    if ($html -match 'Joomla') {{
+        Write-Output "TECH: Joomla"
+    }}
+    if ($html -match 'Drupal') {{
+        Write-Output "TECH: Drupal"
+    }}
+    if ($html -match 'Laravel') {{
+        Write-Output "TECH: Laravel"
+    }}
+    if ($html -match 'React') {{
+        Write-Output "TECH: React"
+    }}
+    if ($html -match 'Angular|ng-app') {{
+        Write-Output "TECH: Angular"
+    }}
+    if ($html -match 'Vue\\.js|v-app') {{
+        Write-Output "TECH: Vue.js"
+    }}
+    if ($html -match 'jQuery') {{
+        Write-Output "TECH: jQuery"
+    }}
+    
+    Write-Output "STATUS: $($response.StatusCode)"
+    
+}} catch {{
+    Write-Output "ERROR: $($_.Exception.Message)"
+}}
+"""
+        
+        cmd = [
+            "powershell.exe", "-NoProfile", "-ExecutionPolicy", "Bypass",
+            "-Command", ps_script
+        ]
+        
+        return cmd

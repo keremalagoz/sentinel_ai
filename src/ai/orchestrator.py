@@ -338,10 +338,81 @@ class AIOrchestrator:
             elif intent_type == IntentType.SERVICE_DETECTION:
                 # Service detection (nmap -sV)
                 scan_target = intent.target or target or "127.0.0.1"
-                ports = intent.params.get("ports", "1-1000")
-                self._coordinator.execute_port_scan(target=scan_target, ports=ports)
+                ports = intent.params.get("ports")  # Optional, can be None
+                intensity = intent.params.get("intensity", 5)
+                self._coordinator.execute_service_detection(
+                    target=scan_target,
+                    ports=ports,
+                    intensity=intensity
+                )
                 result["tool_started"] = True
                 result["message"] = f"Service detection started: {scan_target}"
+            
+            elif intent_type == IntentType.VULN_SCAN:
+                # Vulnerability scan (nmap --script vuln)
+                scan_target = intent.target or target or "127.0.0.1"
+                ports = intent.params.get("ports")  # Optional
+                scripts = intent.params.get("scripts", "vuln")
+                self._coordinator.execute_vuln_scan(
+                    target=scan_target,
+                    ports=ports,
+                    scripts=scripts
+                )
+                result["tool_started"] = True
+                result["message"] = f"Vulnerability scan started: {scan_target}"
+            
+            elif intent_type == IntentType.DNS_LOOKUP:
+                # DNS lookup (nslookup)
+                domain = intent.target or target or "example.com"
+                record_type = intent.params.get("record_type", "A")
+                self._coordinator.execute_dns_lookup(
+                    domain=domain,
+                    record_type=record_type
+                )
+                result["tool_started"] = True
+                result["message"] = f"DNS lookup started: {domain} (type: {record_type})"
+            
+            elif intent_type == IntentType.SSL_SCAN:
+                # SSL/TLS scan (openssl s_client)
+                scan_target = intent.target or target or "example.com"
+                port = intent.params.get("port", 443)
+                self._coordinator.execute_ssl_scan(
+                    target=scan_target,
+                    port=port
+                )
+                result["tool_started"] = True
+                result["message"] = f"SSL/TLS scan started: {scan_target}:{port}"
+            
+            elif intent_type == IntentType.WEB_DIR_ENUM:
+                # Web directory enumeration (gobuster dir)
+                target_url = intent.target or target or "http://example.com"
+                wordlist = intent.params.get("wordlist", "common.txt")
+                extensions = intent.params.get("extensions")
+                self._coordinator.execute_web_dir_enum(
+                    url=target_url,
+                    wordlist=wordlist,
+                    extensions=extensions
+                )
+                result["tool_started"] = True
+                result["message"] = f"Web directory enumeration started: {target_url}"
+            
+            elif intent_type == IntentType.SUBDOMAIN_ENUM:
+                # Subdomain enumeration (DNS bruteforce)
+                domain = intent.target or target or "example.com"
+                wordlist = intent.params.get("wordlist", "subdomains.txt")
+                self._coordinator.execute_subdomain_enum(
+                    domain=domain,
+                    wordlist=wordlist
+                )
+                result["tool_started"] = True
+                result["message"] = f"Subdomain enumeration started: {domain}"
+            
+            elif intent_type == IntentType.WEB_VULN_SCAN:
+                # Web application scanner (technology fingerprinting)
+                target_url = intent.target or target or "http://example.com"
+                self._coordinator.execute_web_app_scan(url=target_url)
+                result["tool_started"] = True
+                result["message"] = f"Web application scan started: {target_url}"
             
             else:
                 # Diğer intent'ler için henüz tool yok
