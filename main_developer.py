@@ -44,7 +44,7 @@ DEVELOPER_BANNER = """
 ║                                                                        ║
 ║            [DEV] SENTINEL AI - DEVELOPER MODE [DEV]                    ║
 ║                                                                        ║
-║  [OK] LLM: Native Ollama (localhost:11434) - NO DOCKER                 ║
+║  [OK] LLM: Native Ollama (localhost:11434)                             ║
 ║  [OK] RAM: WSL Kapalı (~6GB tasarruf)                                  ║
 ║  [OK] Execution: MOCKED (komutlar çalıştırılmaz)                       ║
 ║  [OK] Speed: 2-3x daha hızlı yanıt                                     ║
@@ -234,8 +234,19 @@ class SentinelDeveloperWindow(QMainWindow):
         
         # Core bileşenler - DEVELOPER MODE
         self._process_manager = MockProcessManager(self)  # Mock!
+        
+        # Tool Coordinator (Integrated Tool System)
         try:
-            self._orchestrator = AIOrchestrator(model="whiterabbitneo")  # Native Ollama
+            from src.core.sentinel_coordinator import SentinelCoordinator
+            self._coordinator = SentinelCoordinator(db_path="sentinel_dev.db")
+            print("[✓] SentinelCoordinator başlatıldı (Integrated Tool System)")
+        except Exception as e:
+            print(f"[WARN] SentinelCoordinator oluşturulamadı: {e}")
+            self._coordinator = None
+        
+        try:
+            self._orchestrator = AIOrchestrator(model="whiterabbitneo", coordinator=self._coordinator)  # Native Ollama + Coordinator
+            print("[✓] AIOrchestrator başlatıldı (AI-Driven Tool Execution)")
         except Exception as e:
             # Ollama yoksa, orchestrator'u oluşturma başarısız - graceful fallback
             print(f"[WARN] Orchestrator oluşturulamadı: {e}")
@@ -289,7 +300,7 @@ class SentinelDeveloperWindow(QMainWindow):
         main_layout.addWidget(self._approval_panel)
         
         # === TERMİNAL ===
-        self._terminal = TerminalView(self._process_manager)
+        self._terminal = TerminalView(self._process_manager, coordinator=self._coordinator)
         main_layout.addWidget(self._terminal, stretch=1)
         
         # Developer mode uyarısını sinyaller ile gönder
@@ -415,6 +426,56 @@ class SentinelDeveloperWindow(QMainWindow):
         ai_row.addWidget(self._btn_ask)
         
         layout.addLayout(ai_row)
+        
+        # === Tool Test Buttons (Integrated Tool System) ===
+        if self._coordinator:
+            layout.addSpacing(10)
+            
+            tools_label = QLabel("🔧 Integrated Tools (Test):")
+            tools_label.setStyleSheet(f"color: {Colors.ACCENT_PRIMARY}; font-weight: bold;")
+            layout.addWidget(tools_label)
+            
+            tools_row = QHBoxLayout()
+            tools_row.setSpacing(8)
+            
+            # Ping Test
+            btn_ping = QPushButton("🔹 Ping")
+            btn_ping.setStyleSheet(self._get_button_style())
+            btn_ping.setCursor(Qt.CursorShape.PointingHandCursor)
+            btn_ping.clicked.connect(self._test_integrated_ping)
+            tools_row.addWidget(btn_ping)
+            
+            # Nmap Ping Sweep
+            btn_sweep = QPushButton("🔹 Ping Sweep")
+            btn_sweep.setStyleSheet(self._get_button_style())
+            btn_sweep.setCursor(Qt.CursorShape.PointingHandCursor)
+            btn_sweep.clicked.connect(self._test_integrated_sweep)
+            tools_row.addWidget(btn_sweep)
+            
+            # Nmap Port Scan
+            btn_portscan = QPushButton("🔹 Port Scan")
+            btn_portscan.setStyleSheet(self._get_button_style())
+            btn_portscan.setCursor(Qt.CursorShape.PointingHandCursor)
+            btn_portscan.clicked.connect(self._test_integrated_portscan)
+            tools_row.addWidget(btn_portscan)
+            
+            # Backend Stats
+            btn_stats = QPushButton("📊 Backend Stats")
+            btn_stats.setStyleSheet(self._get_button_style())
+            btn_stats.setCursor(Qt.CursorShape.PointingHandCursor)
+            btn_stats.clicked.connect(self._show_backend_stats)
+            tools_row.addWidget(btn_stats)
+            
+            # AI Auto-Execute (Test)
+            btn_ai_exec = QPushButton("🤖 AI Execute")
+            btn_ai_exec.setStyleSheet(self._get_button_style())
+            btn_ai_exec.setCursor(Qt.CursorShape.PointingHandCursor)
+            btn_ai_exec.clicked.connect(self._test_ai_execute)
+            btn_ai_exec.setToolTip("AI otomatik tool selection + execution test")
+            tools_row.addWidget(btn_ai_exec)
+            
+            tools_row.addStretch()
+            layout.addLayout(tools_row)
         
         return panel
     
@@ -749,6 +810,100 @@ class SentinelDeveloperWindow(QMainWindow):
         
         # Mock execution
         self._process_manager.start_process(tool, args)
+    
+    # === Integrated Tool System Test Methods ===
+    
+    def _test_integrated_ping(self):
+        """Test integrated ping tool."""
+        target = self._target_input.text().strip() or "8.8.8.8"
+        self._terminal.start_tool("ping", target=target, count=4)
+    
+    def _test_integrated_sweep(self):
+        """Test integrated nmap ping sweep."""
+        target = self._target_input.text().strip() or "192.168.1.0/24"
+        self._terminal.start_tool("nmap_ping_sweep", target_range=target)
+    
+    def _test_integrated_portscan(self):
+        """Test integrated nmap port scan."""
+        target = self._target_input.text().strip() or "scanme.nmap.org"
+        self._terminal.start_tool("nmap_port_scan", target=target, ports="22,80,443")
+    
+    def _show_backend_stats(self):
+        """Show backend statistics."""
+        if not self._coordinator:
+            QMessageBox.warning(self, "Uyarı", "SentinelCoordinator mevcut değil!")
+            return
+        
+        stats = self._coordinator.get_backend_stats()
+        entities = stats.get('entities', {})
+        total = sum(entities.values()) if entities else 0
+        
+        stats_lines = [
+            f"Total Entities: {total}",
+            f"  - Hosts: {entities.get('host', 0)}",
+            f"  - Ports: {entities.get('port', 0)}",
+            f"  - Services: {entities.get('service', 0)}",
+            f"  - Vulnerabilities: {entities.get('vulnerability', 0)}",
+            f"  - URLs: {entities.get('url', 0)}",
+            f"  - Credentials: {entities.get('credential', 0)}",
+            f"  - Files: {entities.get('file', 0)}",
+            f"  - DNS: {entities.get('dns_record', 0)}",
+            f"  - SSL: {entities.get('ssl_certificate', 0)}",
+            "",
+            f"Total Executions: {stats.get('total_executions', 0)}"
+        ]
+        
+        QMessageBox.information(
+            self,
+            "Backend Statistics",
+            "SQLite Backend İstatistikleri:\n\n" + "\n".join(stats_lines)
+        )
+    
+    def _test_ai_execute(self):
+        """Test AI-driven tool execution."""
+        if not self._orchestrator or not self._coordinator:
+            QMessageBox.warning(
+                self, 
+                "Uyarı", 
+                "AIOrchestrator veya SentinelCoordinator mevcut değil!\n\n"
+                "Ollama (localhost:11434) çalışıyor olmalı."
+            )
+            return
+        
+        # AI input alanından hedef al
+        target = self._target_input.text().strip() or "127.0.0.1"
+        
+        # Basit test: "X'i tara" komutu
+        user_query = f"{target}'i tara"
+        
+        self._terminal._manager.sig_output_stream.emit(
+            f"\n[AI] Query: {user_query}\n",
+            "stdout"
+        )
+        
+        try:
+            # AI-driven execution
+            result = self._orchestrator.execute_intent(user_query, target=target)
+            
+            if result["success"] and result["tool_started"]:
+                self._terminal._manager.sig_output_stream.emit(
+                    f"[AI] ✓ {result['message']}\n",
+                    "stdout"
+                )
+                self._terminal._manager.sig_output_stream.emit(
+                    f"[AI] Intent: {result['intent'].value if result['intent'] else 'N/A'}\n",
+                    "stdout"
+                )
+            else:
+                self._terminal._manager.sig_output_stream.emit(
+                    f"[AI] ✗ {result['message']}\n",
+                    "stdout"
+                )
+        except Exception as e:
+            self._terminal._manager.sig_output_stream.emit(
+                f"[AI] ERROR: {str(e)}\n",
+                "stderr"
+            )
 
 
 # =============================================================================

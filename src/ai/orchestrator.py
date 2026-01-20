@@ -46,14 +46,16 @@ class AIOrchestrator:
     - Policy gate kolayca eklenip cikartilabilir
     """
     
-    def __init__(self, model: str = "whiterabbitneo"):
+    def __init__(self, model: str = "whiterabbitneo", coordinator=None):
         """
         Orchestrator'i baslat.
         
         Args:
             model: Kullanilacak LLM modeli (whiterabbitneo veya llama3:8b)
+            coordinator: SentinelCoordinator instance (tool execution için)
         """
         self._model = model
+        self._coordinator = coordinator
         
         # V2 Components
         self._intent_resolver = IntentResolver(model=model)
@@ -141,8 +143,21 @@ class AIOrchestrator:
         # =====================================================================
         # 3. TOOL REGISTRY - Intent -> ToolSpec
         # =====================================================================
-        # Target: UI'dan gelen veya intent'ten cikan
-        final_target = target or intent.target
+        # Target: UI'dan gelen, intent'ten cikan, veya params'tan
+        final_target = target or intent.target or intent.params.get("target")
+        
+        # Debug logging
+        print(f"[Orchestrator] Target resolution:")
+        print(f"  UI target: {target}")
+        print(f"  Intent target: {intent.target}")
+        print(f"  Intent params: {intent.params}")
+        print(f"  Final target: {final_target}")
+        
+        # Target validation
+        if not final_target:
+            result["message"] = "Hedef IP adresi belirtilmedi. Lütfen 'Hedef' alanına IP/domain girin."
+            result["needs_clarification"] = True
+            return result
         
         tool_spec = build_tool_spec(
             intent_type=intent.intent_type,
@@ -248,6 +263,99 @@ class AIOrchestrator:
     def disable_policy(self):
         """Policy gate'i devre disi birak"""
         self._policy_gate.disable()
+    
+    # =========================================================================
+    # TOOL EXECUTION - AI-Driven Workflow
+    # =========================================================================
+    
+    def execute_intent(self, user_input: str, target: Optional[str] = None) -> Dict[str, Any]:
+        """
+        AI-driven tool execution: Intent → Tool selection → Auto-execute.
+        
+        Workflow:
+        1. process_v2() ile intent belirle ve komut oluştur
+        2. Intent type'a göre doğru coordinator metodunu çağır
+        3. Tool execution başlat (async via signals)
+        
+        Args:
+            user_input: Kullanıcı girdisi ("192.168.1.1'i tara")
+            target: Opsiyonel hedef (UI'dan gelebilir)
+        
+        Returns:
+            {
+                "success": bool,
+                "message": str,
+                "intent": IntentType,
+                "tool_started": bool,
+                "execution_id": str veya None
+            }
+        """
+        result = {
+            "success": False,
+            "message": "",
+            "intent": None,
+            "tool_started": False,
+            "execution_id": None
+        }
+        
+        # Coordinator yoksa hata
+        if not self._coordinator:
+            result["message"] = "SentinelCoordinator not initialized. Cannot execute tools."
+            return result
+        
+        # AI processing - intent + command generation
+        ai_result = self.process_v2(user_input, target)
+        
+        result["intent"] = ai_result["intent"].intent_type if ai_result["intent"] else None
+        
+        # AI başarısız veya command yok
+        if not ai_result["success"] or not ai_result["command"]:
+            result["message"] = ai_result["message"]
+            return result
+        
+        # Intent → Tool mapping
+        intent = ai_result["intent"]
+        intent_type = intent.intent_type
+        command = ai_result["command"]
+        
+        # Intent type'a göre tool çalıştır
+        try:
+            if intent_type == IntentType.HOST_DISCOVERY:
+                # Ping sweep - target from intent params or UI
+                target_range = intent.params.get("target", intent.target or target or "192.168.1.0/24")
+                self._coordinator.execute_ping_sweep(target_range=target_range)
+                result["tool_started"] = True
+                result["message"] = f"Ping sweep started: {target_range}"
+            
+            elif intent_type == IntentType.PORT_SCAN:
+                # Port scan - target and ports from intent
+                scan_target = intent.target or target or "127.0.0.1"
+                ports = intent.params.get("ports", "1-1000")
+                self._coordinator.execute_port_scan(target=scan_target, ports=ports)
+                result["tool_started"] = True
+                result["message"] = f"Port scan started: {scan_target} (ports: {ports})"
+            
+            elif intent_type == IntentType.SERVICE_DETECTION:
+                # Service detection (nmap -sV)
+                scan_target = intent.target or target or "127.0.0.1"
+                ports = intent.params.get("ports", "1-1000")
+                self._coordinator.execute_port_scan(target=scan_target, ports=ports)
+                result["tool_started"] = True
+                result["message"] = f"Service detection started: {scan_target}"
+            
+            else:
+                # Diğer intent'ler için henüz tool yok
+                result["message"] = f"Tool execution not implemented for: {intent_type.value}"
+                result["success"] = False
+                return result
+            
+            result["success"] = True
+            
+        except Exception as e:
+            result["message"] = f"Tool execution failed: {str(e)}"
+            result["success"] = False
+        
+        return result
 
 
 # =============================================================================
