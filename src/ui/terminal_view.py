@@ -33,6 +33,7 @@ class TerminalView(QWidget):
     - Integrated action buttons for Yes/No prompts
     - Command history with Up/Down arrows
     - Secure password input mode
+    - Tool integration with real-time output streaming
     """
     
     sig_command_requested = pyqtSignal(str)
@@ -41,11 +42,14 @@ class TerminalView(QWidget):
     MODE_RUNNING = "running"
     MODE_PASSWORD = "password"
     MODE_YESNO = "yesno"
+    MODE_TOOL_RUNNING = "tool_running"
     
-    def __init__(self, process_manager, parent=None):
+    def __init__(self, process_manager=None, coordinator=None, parent=None):
         super().__init__(parent)
         self._manager = process_manager
+        self._coordinator = coordinator
         self._current_mode = self.MODE_IDLE
+        self._current_tool_id = None
         
         self._command_history = []
         self._history_index = 0
@@ -173,9 +177,18 @@ class TerminalView(QWidget):
             self._input_field.clear()
     
     def _connect_signals(self):
-        self._manager.sig_output_stream.connect(self._on_output)
-        self._manager.sig_process_finished.connect(self._on_finished)
-        self._manager.sig_auth_failed.connect(self._on_auth_failed)
+        if self._manager:
+            self._manager.sig_output_stream.connect(self._on_output)
+            self._manager.sig_process_finished.connect(self._on_finished)
+            self._manager.sig_auth_failed.connect(self._on_auth_failed)
+        
+        if self._coordinator:
+            self._coordinator.tool_started.connect(self._on_tool_started)
+            self._coordinator.tool_completed.connect(self._on_tool_completed)
+            self._coordinator.tool_error.connect(self._on_tool_error)
+            # Subscribe to tool output from integrated tools
+            if hasattr(self._coordinator.manager, 'signals'):
+                self._coordinator.manager.signals.tool_finished.connect(self._on_tool_output)
     
     def _set_mode(self, mode: str):
         """Set UI mode."""
@@ -200,6 +213,15 @@ class TerminalView(QWidget):
             self._prompt_icon.setStyleSheet(f"color: {Colors.ACCENT_PRIMARY}; font-family: {Fonts.MONO}; font-size: 18px; font-weight: bold;")
             self._btn_stop.setVisible(True)
             self._status_badge.setText("Running")
+            self._status_badge.setStyleSheet(get_badge_style("info"))
+            
+        elif mode == self.MODE_TOOL_RUNNING:
+            self._input_container.setStyleSheet(INPUT_CONTAINER_ACTIVE_STYLE)
+            self._input_field.setPlaceholderText("Tool running...")
+            self._input_field.setEnabled(False)
+            self._prompt_icon.setStyleSheet(f"color: {Colors.ACCENT_PRIMARY}; font-family: {Fonts.MONO}; font-size: 18px; font-weight: bold;")
+            self._btn_stop.setVisible(True)
+            self._status_badge.setText("Tool Running")
             self._status_badge.setStyleSheet(get_badge_style("info"))
             
         elif mode == self.MODE_PASSWORD:
@@ -326,8 +348,105 @@ class TerminalView(QWidget):
     
     def start_command(self, command: str, args: list, requires_root: bool = False):
         """Start command externally."""
-        self._manager.start_process(command, args, requires_root)
-        self._set_mode(self.MODE_RUNNING)
+        if self._manager:
+            self._manager.start_process(command, args, requires_root)
+            self._set_mode(self.MODE_RUNNING)
+    
+    # ========== Tool Integration Methods ==========
+    
+    def start_tool(self, tool_name: str, **kwargs):
+        """
+        Start integrated tool execution.
+        
+        Args:
+            tool_name: Tool name (ping, nmap_ping_sweep, nmap_port_scan)
+            **kwargs: Tool-specific parameters
+        """
+        if not self._coordinator:
+            self._log("[!] Coordinator not initialized", Colors.DANGER)
+            return
+        
+        tool_map = {
+            "ping": self._coordinator.execute_ping,
+            "nmap_ping_sweep": self._coordinator.execute_ping_sweep,
+            "nmap_port_scan": self._coordinator.execute_port_scan
+        }
+        
+        tool_func = tool_map.get(tool_name)
+        if not tool_func:
+            self._log(f"[!] Unknown tool: {tool_name}", Colors.DANGER)
+            return
+        
+        self._log(f"$ Starting {tool_name}...", Colors.ACCENT_PRIMARY)
+        success = tool_func(**kwargs)
+        
+        if not success:
+            self._log(f"[!] Failed to start {tool_name}", Colors.DANGER)
+            self._set_mode(self.MODE_IDLE)
+    
+    @pyqtSlot(str, str)
+    def _on_tool_started(self, tool_id: str, execution_id: str):
+        """Handle tool start event."""
+        self._current_tool_id = tool_id
+        self._set_mode(self.MODE_TOOL_RUNNING)
+        self._status_badge.setText(f"Running: {tool_id}")
+        self._status_badge.setStyleSheet(get_badge_style("info"))
+        self._log(f"[EXEC] {execution_id}", Colors.TEXT_MUTED)
+    
+    @pyqtSlot(str, object)
+    def _on_tool_output(self, tool_id: str, tool_result):
+        """Handle tool execution output (from ToolResult)."""
+        if hasattr(tool_result, 'stdout') and tool_result.stdout:
+            # Display stdout
+            lines = tool_result.stdout.strip().split('\n')
+            for line in lines:
+                if line.strip():
+                    self._log(line, Colors.TEXT_PRIMARY)
+        
+        if hasattr(tool_result, 'stderr') and tool_result.stderr:
+            # Display stderr
+            lines = tool_result.stderr.strip().split('\n')
+            for line in lines:
+                if line.strip():
+                    self._log(line, Colors.DANGER)
+    
+    @pyqtSlot(str, object)
+    def _on_tool_completed(self, tool_id: str, result):
+        """Handle tool completion."""
+        self._current_tool_id = None
+        self._set_mode(self.MODE_IDLE)
+        
+        # Display result summary
+        if result.success:
+            self._status_badge.setText("Tool Complete")
+            self._status_badge.setStyleSheet(get_badge_style("success"))
+            self._log(
+                f"[✓] {tool_id} completed: {result.entities_created} entities created",
+                Colors.SUCCESS
+            )
+        else:
+            self._status_badge.setText("Tool Failed")
+            self._status_badge.setStyleSheet(get_badge_style("warning"))
+            self._log(
+                f"[!] {tool_id} status: {result.execution_status}",
+                Colors.WARNING
+            )
+            
+            if result.error_message:
+                self._log(f"    Error: {result.error_message}", Colors.DANGER)
+        
+        # Display execution details
+        self._log(f"    Duration: {result.duration:.2f}s", Colors.TEXT_MUTED)
+        self._log(f"    Exit code: {result.exit_code}", Colors.TEXT_MUTED)
+    
+    @pyqtSlot(str, str)
+    def _on_tool_error(self, tool_id: str, error_message: str):
+        """Handle tool error."""
+        self._current_tool_id = None
+        self._set_mode(self.MODE_IDLE)
+        self._status_badge.setText("Error")
+        self._status_badge.setStyleSheet(get_badge_style("danger"))
+        self._log(f"[X] {tool_id} error: {error_message}", Colors.DANGER)
     
     @staticmethod
     def _escape(text: str) -> str:
