@@ -50,8 +50,15 @@ services:
     container_name: sentinel-api
     ports:
       - "8000:8000"
+    volumes:
+      - ./data:/app/data  # Database persistence
+      - ./temp:/app/temp  # Temporary files
     env_file:
       - .env
+    environment:
+      - DB_PATH=/app/data/sentinel_api.db
+    depends_on:
+      - whiterabbitneo-service
     restart: unless-stopped
     networks:
       - sentinel-net

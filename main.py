@@ -13,6 +13,16 @@ import sys
 import os
 import subprocess
 
+# Check if running in API mode
+if os.getenv("SENTINEL_MODE") == "api" or "--api" in sys.argv:
+    from api_server import app
+    __all__ = ["app"]
+    # Don't import GUI components in API mode
+    if __name__ == "__main__":
+        import uvicorn
+        uvicorn.run(app, host="0.0.0.0", port=8000)
+    sys.exit(0)
+
 # Proje root'unu path'e ekle
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
