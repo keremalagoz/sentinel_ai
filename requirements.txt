@@ -7,3 +7,7 @@ pydantic>=2.5.0
 openai>=1.6.0
 python-dotenv>=1.0.0
 defusedxml>=0.7.1
+
+# API Server (Öncelik 5)
+fastapi>=0.109.0
+uvicorn[standard]>=0.27.0

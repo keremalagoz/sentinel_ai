@@ -1,21 +1,41 @@
 # SENTINEL AI - API Backend Service
-# Sprint 0.2: Placeholder (Will be configured in Sprint 2)
-# Purpose: AI Orchestrator API endpoint
+# Öncelik 5: AI Orchestrator API endpoint
+# Purpose: Expose AI Orchestrator via REST API
 
 FROM python:3.11-slim
 
 WORKDIR /app
 
-# Install base dependencies
+# Install system dependencies
+RUN apt-get update && apt-get install -y \
+    git \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copy requirements
 COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt || true
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Copy application code
+COPY src/ ./src/
+COPY main.py .
+COPY api_server.py .
+
+# Create database directory
+RUN mkdir -p /app/data
 
 # Expose API port
 EXPOSE 8000
 
-# Placeholder: Simple health check server
-# Will be replaced with FastAPI in Sprint 2
-CMD ["python", "-c", "import http.server; import socketserver; handler = http.server.SimpleHTTPRequestHandler; httpd = socketserver.TCPServer(('', 8000), handler); print('SENTINEL API placeholder running on port 8000'); httpd.serve_forever()"]
+# Environment variable to enable API mode
+ENV SENTINEL_MODE=api
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
+    CMD curl -f http://localhost:8000/health || exit 1
+
+# Run FastAPI with uvicorn
+CMD ["python", "-m", "uvicorn", "api_server:app", "--host", "0.0.0.0", "--port", "8000"]
 
 
 
