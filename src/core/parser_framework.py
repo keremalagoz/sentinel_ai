@@ -12,6 +12,7 @@ from typing import List, Dict, Any, Optional
 from pydantic import BaseModel
 import time
 import uuid
+import re
 
 from src.core.entity_id_generator import EntityIDGenerator
 from src.core.sqlite_backend import (
@@ -23,6 +24,206 @@ from src.core.sqlite_backend import (
 class ParserException(Exception):
     """Parser exception - raised when parsing fails"""
     pass
+
+
+# Advanced Parser Utilities (Öncelik 4)
+
+def calculate_risk_score(confidence: float, severity: str) -> float:
+    """
+    Calculate risk score based on confidence and severity.
+    
+    Risk Score Formula: confidence * severity_weight
+    
+    Args:
+        confidence: Detection confidence (0.0 - 1.0)
+        severity: Severity level (low, medium, high, critical)
+        
+    Returns:
+        Risk score (0.0 - 10.0)
+    """
+    severity_weights = {
+        "info": 1.0,
+        "low": 3.0,
+        "medium": 6.0,
+        "high": 8.5,
+        "critical": 10.0
+    }
+    
+    severity_weight = severity_weights.get(severity.lower(), 5.0)
+    return round(confidence * severity_weight, 2)
+
+
+def extract_cve_info(text: str) -> Dict[str, Any]:
+    """
+    Extract CVE information from text.
+    
+    Extracts CVE IDs, CVSS scores, and severity levels.
+    
+    Args:
+        text: Text containing CVE information
+        
+    Returns:
+        Dict with cve_ids, cvss_score, severity
+    """
+    result = {
+        "cve_ids": [],
+        "cvss_score": None,
+        "severity": "medium"
+    }
+    
+    # Extract CVE IDs (CVE-YYYY-NNNNN)
+    cve_pattern = r'CVE-\d{4}-\d{4,7}'
+    cve_matches = re.findall(cve_pattern, text, re.IGNORECASE)
+    result["cve_ids"] = list(set(cve_matches))
+    
+    # Extract CVSS score (0.0 - 10.0)
+    cvss_pattern = r'(?:CVSS|cvss)[:\s]+(\d+\.?\d*)'
+    cvss_match = re.search(cvss_pattern, text)
+    if cvss_match:
+        try:
+            score = float(cvss_match.group(1))
+            result["cvss_score"] = min(10.0, max(0.0, score))
+            
+            # Map CVSS to severity
+            if score >= 9.0:
+                result["severity"] = "critical"
+            elif score >= 7.0:
+                result["severity"] = "high"
+            elif score >= 4.0:
+                result["severity"] = "medium"
+            else:
+                result["severity"] = "low"
+        except ValueError:
+            pass
+    
+    # Fallback: detect severity keywords
+    if not result["cvss_score"]:
+        text_lower = text.lower()
+        if "critical" in text_lower or "severe" in text_lower:
+            result["severity"] = "critical"
+        elif "high" in text_lower:
+            result["severity"] = "high"
+        elif "medium" in text_lower or "moderate" in text_lower:
+            result["severity"] = "medium"
+        elif "low" in text_lower:
+            result["severity"] = "low"
+    
+    return result
+
+
+def parse_service_version(version_string: str) -> Dict[str, Any]:
+    """
+    Parse service version string into components.
+    
+    Args:
+        version_string: Version string (e.g., "Apache httpd 2.4.41")
+        
+    Returns:
+        Dict with product, version, extra_info
+    """
+    result = {
+        "product": None,
+        "version": None,
+        "extra_info": None
+    }
+    
+    if not version_string:
+        return result
+    
+    # Common patterns
+    # Example: "OpenSSH 8.2p1 Ubuntu 4ubuntu0.5"
+    # Example: "Apache httpd 2.4.41"
+    # Example: "nginx 1.18.0"
+    
+    parts = version_string.strip().split()
+    
+    if len(parts) >= 1:
+        result["product"] = parts[0]
+    
+    # Find version number (digits with dots)
+    version_pattern = r'\d+\.\d+[\w\.\-]*'
+    for part in parts:
+        if re.match(version_pattern, part):
+            result["version"] = part
+            break
+    
+    # Remaining parts = extra info
+    if result["version"] and len(parts) > 2:
+        version_idx = parts.index(result["version"])
+        if version_idx + 1 < len(parts):
+            result["extra_info"] = ' '.join(parts[version_idx + 1:])
+    
+    return result
+
+
+def analyze_banner(banner: str) -> Dict[str, Any]:
+    """
+    Analyze service banner for useful information.
+    
+    Extracts: service type, version, OS hints, security flags
+    
+    Args:
+        banner: Service banner text
+        
+    Returns:
+        Dict with service_type, version_hints, os_hints, security_flags
+    """
+    result = {
+        "service_type": None,
+        "version_hints": [],
+        "os_hints": [],
+        "security_flags": []
+    }
+    
+    if not banner:
+        return result
+    
+    banner_lower = banner.lower()
+    
+    # Detect service type
+    service_keywords = {
+        "ssh": "ssh",
+        "ftp": "ftp",
+        "smtp": "smtp",
+        "http": "http",
+        "mysql": "mysql",
+        "postgresql": "postgresql",
+        "redis": "redis",
+        "mongodb": "mongodb"
+    }
+    
+    for keyword, service in service_keywords.items():
+        if keyword in banner_lower:
+            result["service_type"] = service
+            break
+    
+    # Extract version hints
+    version_pattern = r'\d+\.\d+[\w\.\-]*'
+    versions = re.findall(version_pattern, banner)
+    result["version_hints"] = versions[:3]  # Limit to 3
+    
+    # OS hints
+    os_keywords = {
+        "ubuntu": "Ubuntu",
+        "debian": "Debian",
+        "centos": "CentOS",
+        "redhat": "RedHat",
+        "windows": "Windows",
+        "unix": "Unix",
+        "linux": "Linux"
+    }
+    
+    for keyword, os_name in os_keywords.items():
+        if keyword in banner_lower:
+            result["os_hints"].append(os_name)
+    
+    # Security flags
+    if "ssl" in banner_lower or "tls" in banner_lower:
+        result["security_flags"].append("encryption")
+    if "auth" in banner_lower or "login" in banner_lower:
+        result["security_flags"].append("authentication")
+    
+    return result
 
 
 class BaseParser(ABC):
@@ -200,8 +401,8 @@ class BaseParser(ABC):
     
     def _create_vulnerability_entity(
         self,
-        service_id: str,
-        vuln_id: str,
+        target_id: str,
+        vuln_type: str,
         severity: str,
         description: Optional[str] = None,
         exploitable: bool = False,
@@ -212,22 +413,22 @@ class BaseParser(ABC):
         Helper: Create vulnerability entity with correct canonical ID.
         
         Args:
-            service_id: Service ID
-            vuln_id: CVE ID or vulnerability type
-            severity: Severity (low, medium, high, critical)
+            target_id: Target ID (service_id or port_id)
+            vuln_type: CVE ID or vulnerability type
+            severity: Severity (info, low, medium, high, critical)
             description: Optional description
             exploitable: Whether vulnerability is exploitable
             confidence: Confidence score
-            **kwargs: Additional data fields
+            **kwargs: Additional data fields (cve_ids, cvss_score, risk_score)
             
         Returns:
             Vulnerability entity with canonical ID
         """
-        vuln_entity_id = self.id_generator.vuln_id(service_id, vuln_id)
+        vuln_entity_id = self.id_generator.vuln_id(target_id, vuln_type)
         
         data = {
-            "service_id": service_id,
-            "vuln_id": vuln_id,
+            "target_id": target_id,
+            "vuln_type": vuln_type,
             "severity": severity.lower(),
             "exploitable": exploitable
         }
@@ -235,7 +436,17 @@ class BaseParser(ABC):
         if description:
             data["description"] = description
         
+        # Advanced fields (Öncelik 4)
         data.update(kwargs)
+        
+        return BaseEntity(
+            id=vuln_entity_id,
+            entity_type=EntityType.VULNERABILITY,
+            created_at=time.time(),
+            updated_at=time.time(),
+            confidence=confidence,
+            data=data
+        )
         
         return BaseEntity(
             id=vuln_entity_id,
@@ -680,12 +891,22 @@ class NmapServiceDetectionParser(BaseParser):
                                 if version_info:
                                     service_data["version"] = version_info
                                     
-                                    # Try to extract product and version separately
-                                    version_parts = version_info.split(None, 2)
-                                    if len(version_parts) >= 1:
-                                        service_data["product"] = version_parts[0]
-                                    if len(version_parts) >= 2:
-                                        service_data["product_version"] = version_parts[1]
+                                    # Advanced: Parse version components (Öncelik 4)
+                                    parsed_version = parse_service_version(version_info)
+                                    if parsed_version["product"]:
+                                        service_data["product"] = parsed_version["product"]
+                                    if parsed_version["version"]:
+                                        service_data["product_version"] = parsed_version["version"]
+                                    if parsed_version["extra_info"]:
+                                        service_data["extra_info"] = parsed_version["extra_info"]
+                                    
+                                    # Banner analysis if version string is long enough
+                                    if len(version_info) > 20:
+                                        banner_info = analyze_banner(version_info)
+                                        if banner_info["os_hints"]:
+                                            service_data["os_hints"] = banner_info["os_hints"]
+                                        if banner_info["security_flags"]:
+                                            service_data["security_flags"] = banner_info["security_flags"]
                                 
                                 service = self._create_service_entity(
                                     port_id=port.id,
@@ -759,11 +980,21 @@ class NmapVulnScanParser(BaseParser):
                 # Flush previous vulnerability if exists
                 if vuln_buffer and current_port_entity:
                     vuln_text = '\n'.join(vuln_buffer)
+                    
+                    # Advanced: Extract CVE info and calculate risk (Öncelik 4)
+                    cve_info = extract_cve_info(vuln_text)
+                    confidence = 0.9 if cve_info["cve_ids"] else 0.7
+                    risk_score = calculate_risk_score(confidence, cve_info["severity"])
+                    
                     vuln_entity = self._create_vulnerability_entity(
                         target_id=current_port_entity.id,
                         vuln_type="nmap_script",
                         description=vuln_text,
-                        severity="medium"
+                        severity=cve_info["severity"],
+                        cve_ids=cve_info["cve_ids"],
+                        cvss_score=cve_info["cvss_score"],
+                        risk_score=risk_score,
+                        confidence=confidence
                     )
                     entities.append(vuln_entity)
                     vuln_buffer = []
@@ -817,11 +1048,25 @@ class NmapVulnScanParser(BaseParser):
         # Flush last vulnerability if exists
         if vuln_buffer and current_port_entity:
             vuln_text = '\n'.join(vuln_buffer)
+            
+            # Advanced: Extract CVE info and calculate risk (Öncelik 4)
+            cve_info = extract_cve_info(vuln_text)
+            
+            # Determine confidence based on CVE presence
+            confidence = 0.9 if cve_info["cve_ids"] else 0.7
+            
+            # Calculate risk score
+            risk_score = calculate_risk_score(confidence, cve_info["severity"])
+            
             vuln_entity = self._create_vulnerability_entity(
                 target_id=current_port_entity.id,
                 vuln_type="nmap_script",
                 description=vuln_text,
-                severity="medium"
+                severity=cve_info["severity"],
+                cve_ids=cve_info["cve_ids"],
+                cvss_score=cve_info["cvss_score"],
+                risk_score=risk_score,
+                confidence=confidence
             )
             entities.append(vuln_entity)
         
