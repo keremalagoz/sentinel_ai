@@ -15,8 +15,9 @@ import os
 # Add project root to path
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-from src.ai.orchestrator import AIOrchestrator
-from src.ai.schemas import Intent, IntentType
+from src.ai.schemas import IntentType
+from src.ai.tool_registry import build_tool_spec, get_supported_intents, get_tool_for_intent
+from src.ai.command_builder import get_command_builder
 
 # Initialize FastAPI app
 app = FastAPI(
@@ -25,8 +26,7 @@ app = FastAPI(
     version="2.1.0"
 )
 
-# Initialize orchestrator (no coordinator needed for API mode)
-orchestrator = AIOrchestrator(model="whiterabbitneo")
+_command_builder = get_command_builder()
 
 
 
@@ -48,6 +48,7 @@ class ExecuteIntentResponse(BaseModel):
     target: str
     tool_started: bool
     message: str
+    command: Optional[Dict[str, Any]] = None
 
 
 # API Endpoints
@@ -60,58 +61,57 @@ async def health_check():
 
 @app.get("/api/tools", response_model=ToolStatusResponse)
 async def list_tools():
-    """List all available security tools"""
-    # List of 10 available tools
-    tools = [
-        "ping", "ping_sweep", "port_scan", "service_detection", 
-        "vuln_scan", "dns_lookup", "ssl_scan", "web_dir_enum",
-        "subdomain_enum", "web_vuln_scan"
-    ]
-    return {"tools": tools, "count": len(tools)}
+    """List all available intent types"""
+    intents = [intent.value for intent in get_supported_intents()]
+    return {"tools": intents, "count": len(intents)}
 
 
 @app.post("/api/execute", response_model=ExecuteIntentResponse)
 async def execute_intent(request: ExecuteIntentRequest):
-    """Execute security testing intent"""
+    """Prepare a command deterministically for a given intent"""
     try:
-        # Map string to IntentType enum
-        intent_type_map = {
-            "ping": IntentType.PING,
-            "ping_sweep": IntentType.PING_SWEEP,
-            "port_scan": IntentType.PORT_SCAN,
-            "service_detection": IntentType.SERVICE_DETECTION,
-            "vuln_scan": IntentType.VULN_SCAN,
-            "dns_lookup": IntentType.DNS_LOOKUP,
-            "ssl_scan": IntentType.SSL_SCAN,
-            "web_dir_enum": IntentType.WEB_DIR_ENUM,
-            "subdomain_enum": IntentType.SUBDOMAIN_ENUM,
-            "web_vuln_scan": IntentType.WEB_VULN_SCAN
-        }
-        
-        if request.intent_type not in intent_type_map:
+        try:
+            intent_type = IntentType(request.intent_type)
+        except ValueError:
             raise HTTPException(
                 status_code=400,
                 detail=f"Unknown intent type: {request.intent_type}"
             )
-        
-        # Create intent object
-        intent = Intent(
-            intent_type=intent_type_map[request.intent_type],
+
+        tool_spec = build_tool_spec(
+            intent_type=intent_type,
             target=request.target,
             params=request.params
         )
-        
-        # Execute via orchestrator
-        result = orchestrator.execute_intent(intent)
-        
+
+        if tool_spec is None:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Unsupported intent type: {request.intent_type}"
+            )
+
+        tool_def = get_tool_for_intent(intent_type)
+        explanation = tool_def.description if tool_def else ""
+
+        command, error = _command_builder.build(tool_spec, explanation)
+
+        if error or not command:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Command build failed: {error or 'unknown error'}"
+            )
+
         return ExecuteIntentResponse(
-            success=result.get("tool_started", False),
+            success=True,
             intent_type=request.intent_type,
             target=request.target,
-            tool_started=result.get("tool_started", False),
-            message=result.get("message", "Intent executed")
+            tool_started=False,
+            message="Command prepared",
+            command=command.model_dump()
         )
-        
+
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 

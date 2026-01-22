@@ -98,10 +98,10 @@ Bu bir hata değil, **bilgi eksikliği** durumudur.
 
 | Durum                 | execution_status | parse_status | Knowledge State | History      |
 | --------------------- | ---------------- | ------------ | --------------- | ------------ |
-| Tool crash            | FAILED           | —            | ❌ Güncellenmez  | ✅ Kaydedilir |
-| Tool OK, parse OK     | SUCCESS          | PARSED       | ✅ Güncellenir   | ✅ Kaydedilir |
-| Tool OK, parse fail   | PARTIAL_SUCCESS  | PARSE_FAILED | ❌ Güncellenmez  | ✅ Kaydedilir |
-| Tool OK, empty output | SUCCESS          | EMPTY_OUTPUT | ❌ Güncellenmez  | ✅ Kaydedilir |
+| Tool crash            | FAILED           | —            | [NO] Güncellenmez  | [OK] Kaydedilir |
+| Tool OK, parse OK     | SUCCESS          | PARSED       | [OK] Güncellenir   | [OK] Kaydedilir |
+| Tool OK, parse fail   | PARTIAL_SUCCESS  | PARSE_FAILED | [NO] Güncellenmez  | [OK] Kaydedilir |
+| Tool OK, empty output | SUCCESS          | EMPTY_OUTPUT | [NO] Güncellenmez  | [OK] Kaydedilir |
 
 ---
 

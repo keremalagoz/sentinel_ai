@@ -1399,13 +1399,13 @@ tool = selector.select_tool(
 
 ### Bu Modelin Çözdükleri:
 
-✅ **Multi-tool chain** → State'te bilgi birikir, planner adapte eder  
-✅ **Conditional logic** → Stage conditions state'e bakar  
-✅ **Next-step suggestions** → State-based recommendation engine  
-✅ **Tool selection intelligence** → ToolDefV2 + state context  
-✅ **Output normalization** → Raw output → Entities  
-✅ **Knowledge retention** → Entity graph, query'lenebilir  
-✅ **Adaptive planning** → State değiştikçe plan değişir  
+[OK] **Multi-tool chain** → State'te bilgi birikir, planner adapte eder  
+[OK] **Conditional logic** → Stage conditions state'e bakar  
+[OK] **Next-step suggestions** → State-based recommendation engine  
+[OK] **Tool selection intelligence** → ToolDefV2 + state context  
+[OK] **Output normalization** → Raw output → Entities  
+[OK] **Knowledge retention** → Entity graph, query'lenebilir  
+[OK] **Adaptive planning** → State değiştikçe plan değişir  
 
 ### ToolDef V2 Entegrasyonu:
 

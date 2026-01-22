@@ -5,7 +5,7 @@ Connects ToolManager with TerminalView for complete workflow
 """
 
 from typing import Optional, Callable
-from PySide6.QtCore import QObject, Signal
+from PyQt6.QtCore import QObject, pyqtSignal
 
 from src.core.tool_integration import ToolManager, IntegratedToolResult
 from src.core.tool_base import (
@@ -40,10 +40,10 @@ class SentinelCoordinator(QObject):
     """
     
     # Signals for UI
-    tool_started = Signal(str, str)  # tool_id, execution_id
-    tool_output = Signal(str, str)  # tool_id, output_chunk
-    tool_completed = Signal(str, object)  # tool_id, IntegratedToolResult
-    tool_error = Signal(str, str)  # tool_id, error_message
+    tool_started = pyqtSignal(str, str)  # tool_id, execution_id
+    tool_output = pyqtSignal(str, str)  # tool_id, output_chunk
+    tool_completed = pyqtSignal(str, object)  # tool_id, IntegratedToolResult
+    tool_error = pyqtSignal(str, str)  # tool_id, error_message
     
     def __init__(self, db_path: str = "sentinel_state.db", parent: Optional[QObject] = None):
         """

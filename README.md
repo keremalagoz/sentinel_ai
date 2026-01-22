@@ -1,4 +1,4 @@
-# 🛡️ SENTINEL AI
+# SENTINEL AI
 
 <div align="center">
 
@@ -16,23 +16,23 @@
 
 ---
 
-## 📖 Proje Hakkında
+## Proje Hakkında
 
 SENTINEL AI, siber güvenlik testlerini yapay zeka destekli komutlarla otomatikleştiren bir masaüstü uygulamasıdır. Hibrit AI mimarisi sayesinde hem yerel (Llama 3) hem de bulut (OpenAI GPT-4) yapay zeka modellerini kullanarak güvenlik taramalarını yönetir.
 
-### ✨ Özellikler
+### Özellikler
 
-- 🤖 **Hibrit AI Motoru** - Basit görevler için Local Llama 3, karmaşık senaryolar için Cloud AI
-- 🖥️ **Modern PyQt6 Arayüzü** - Donmayan, responsive terminal ve sonuç görüntüleme
-- 🐳 **Docker Altyapısı** - İzole ve taşınabilir servis mimarisi
-- 🔒 **Güvenli Yetki Yönetimi** - Pkexec ile şifresiz root işlemleri
-- 📊 **Akıllı Parsing** - Nmap XML çıktılarını otomatik parse ve tablo görüntüleme
-- 💡 **Öneri Motoru** - Bulgulara göre sonraki adım önerileri
-- 🔌 **Plugin Sistemi** - Genişletilebilir araç desteği
+- **Hibrit AI Motoru** - Basit görevler için Local Llama 3, karmaşık senaryolar için Cloud AI
+- **Modern PyQt6 Arayüzü** - Donmayan, responsive terminal ve sonuç görüntüleme
+- **Docker Altyapısı** - İzole ve taşınabilir servis mimarisi
+- **Güvenli Yetki Yönetimi** - Pkexec ile şifresiz root işlemleri
+- **Akıllı Parsing** - Nmap XML çıktılarını otomatik parse ve tablo görüntüleme
+- **Öneri Motoru** - Bulgulara göre sonraki adım önerileri
+- **Plugin Sistemi** - Genişletilebilir araç desteği
 
 ---
 
-## 🏗️ Mimari
+## Mimari
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
@@ -55,36 +55,36 @@ SENTINEL AI, siber güvenlik testlerini yapay zeka destekli komutlarla otomatikl
 
 ---
 
-## 📁 Proje Yapısı
+## Proje Yapısı
 
 ```
 sentinel_root/
-├── 📂 src/                      # Kaynak kodlar
-│   ├── 📂 core/                 # Backend mantığı
-│   │   ├── 📂 adapters/         # Araç çıktı parserleri
+├── src/                      # Kaynak kodlar
+│   ├── core/                 # Backend mantığı
+│   │   ├── adapters/         # Araç çıktı parserleri
 │   │   │   └── nmap_adapter.py  # Nmap XML parser
 │   │   ├── process_manager.py   # QProcess wrapper
 │   │   ├── models.py            # Pydantic veri modelleri
 │   │   ├── cleaner.py           # Güvenli dosya temizleyici
 │   │   ├── interfaces.py        # Plugin arayüzleri
 │   │   └── plugin_manager.py    # Plugin yükleyici
-│   ├── 📂 ui/                   # PyQt6 arayüz dosyaları
+│   ├── ui/                   # PyQt6 arayüz dosyaları
 │   │   ├── terminal_view.py     # Terminal widget
 │   │   └── results_view.py      # Sonuç tablosu
-│   ├── 📂 ai/                   # Yapay zeka modülleri
+│   ├── ai/                   # Yapay zeka modülleri
 │   │   ├── schemas.py           # JSON şemaları
 │   │   ├── orchestrator.py      # AI karar motoru
 │   │   └── masking.py           # Veri maskeleme
-│   ├── 📂 plugins/              # Harici araç eklentileri
-│   └── 📂 tests/                # Unit testler
-├── 📂 docker/                   # Docker yapılandırmaları
-│   ├── 📂 llama/                # Llama 3 servisi
+│   ├── plugins/              # Harici araç eklentileri
+│   └── tests/                # Unit testler
+├── docker/                   # Docker yapılandırmaları
+│   ├── llama/                # Llama 3 servisi
 │   │   ├── Dockerfile
 │   │   └── pull_model.sh
-│   └── 📂 api/                  # API servisi
+│   └── api/                  # API servisi
 │       └── Dockerfile
-├── 📂 docs/                     # Dokümantasyon
-├── 📂 temp/                     # Session logları (gitignore)
+├── docs/                     # Dokümantasyon
+├── temp/                     # Session logları (gitignore)
 ├── main.py                      # Uygulama giriş noktası
 ├── requirements.txt             # Python bağımlılıkları
 ├── docker-compose.yml           # Docker servis tanımları
@@ -94,7 +94,7 @@ sentinel_root/
 
 ---
 
-## 🚀 Kurulum
+## Kurulum
 
 ### İki Çalışma Modu
 
@@ -105,7 +105,7 @@ SENTINEL AI iki farklı modda çalışabilir:
 | **Production** | `main.py` | Gerçek güvenlik testleri | ~8GB | Docker Ollama |
 | **Developer** | `main_developer.py` | UI/AI geliştirme | ~2GB | Native Ollama |
 
-> 💡 **Developer Mode:** Sadece UI ve AI geliştirme için optimize edilmiştir. Komutlar gerçekte çalıştırılmaz, mock çıktı gösterilir. WSL/Docker kapalı olduğu için ~6GB RAM tasarrufu sağlar.
+> **Developer Mode:** Sadece UI ve AI geliştirme için optimize edilmiştir. Komutlar gerçekte çalıştırılmaz, mock çıktı gösterilir. WSL/Docker kapalı olduğu için ~6GB RAM tasarrufu sağlar.
 
 ### Gereksinimler (Production Mode)
 
@@ -176,7 +176,7 @@ python main_developer.py
 
 ---
 
-## 🔧 Developer Mode Kurulumu
+## Developer Mode Kurulumu
 
 Developer mode, sadece UI ve AI geliştirmesi için optimize edilmiştir. Docker/WSL kapalı çalıştığı için ~6GB RAM tasarrufu sağlar.
 
@@ -217,18 +217,18 @@ python main_developer.py
 
 ### Developer Mode Özellikleri
 
-✅ **Native Ollama Bağlantısı** - Docker'a gerek yok  
-✅ **RAM Tasarrufu** - WSL kapalı (~6GB tasarruf)  
-✅ **Hızlı LLM Yanıt** - Network overhead yok (2-3x hızlı)  
-✅ **Mock Execution** - Komutlar çalıştırılmaz, güvenli  
-✅ **Action Planner Testi** - Intent, Tool, Command çıktılarını görüntüle  
-✅ **Policy Gate** - Production ile aynı mantık  
+[OK] Native Ollama Bağlantısı - Docker'a gerek yok  
+[OK] RAM Tasarrufu - WSL kapalı (~6GB tasarruf)  
+[OK] Hızlı LLM Yanıt - Network overhead yok (2-3x hızlı)  
+[OK] Mock Execution - Komutlar çalıştırılmaz, güvenli  
+[OK] Action Planner Testi - Intent, Tool, Command çıktılarını görüntüle  
+[OK] Policy Gate - Production ile aynı mantık  
 
-⚠️ **UYARI:** Developer mode gerçek güvenlik testleri için kullanılamaz!
+UYARI: Developer mode gerçek güvenlik testleri için kullanılamaz!
 
 ---
 
-## 🐳 Docker Servisleri
+## Docker Servisleri
 
 | Servis | Port | Açıklama |
 |--------|------|----------|
@@ -256,7 +256,7 @@ docker-compose down -v
 
 ---
 
-## 💻 Kullanım
+## Kullanım
 
 ### Temel Akış
 
@@ -279,7 +279,7 @@ AI → {"tool": "gobuster", "arguments": ["dir", "-u", "http://target", "-w", "w
 
 ---
 
-## 🔒 Güvenlik
+## Güvenlik
 
 ### Yetki Yönetimi
 
@@ -301,7 +301,7 @@ Cloud AI'ya gönderilen verilerde:
 
 ---
 
-## 🧪 Test
+## Test
 
 ```bash
 # Tüm testleri çalıştır
@@ -316,7 +316,7 @@ pytest --cov=src src/tests/
 
 ---
 
-## 📦 Build (Linux)
+## Build (Linux)
 
 ```bash
 # Tek dosya executable oluştur
@@ -327,7 +327,7 @@ pyinstaller --onefile --name sentinel-ai --windowed src/main.py
 
 ---
 
-## 🤝 Katkıda Bulunma
+## Katkıda Bulunma
 
 ### Branch Yapısı
 
@@ -348,7 +348,7 @@ dev_yigit   ← Yiğit'in geliştirme branch'ı
 
 ---
 
-## 👥 Ekip
+## Ekip
 
 | İsim | Rol | Sorumluluklar |
 |------|-----|---------------|
@@ -357,13 +357,13 @@ dev_yigit   ← Yiğit'in geliştirme branch'ı
 
 ---
 
-## 📄 Lisans
+## Lisans
 
 Bu proje MIT lisansı altında lisanslanmıştır. Detaylar için [LICENSE](LICENSE) dosyasına bakın.
 
 ---
 
-## 📞 İletişim
+## İletişim
 
 - **GitHub:** [macsclub/sentinel_ai](https://github.com/macsclub/sentinel_ai)
 - **Issues:** [GitHub Issues](https://github.com/macsclub/sentinel_ai/issues)
@@ -372,7 +372,7 @@ Bu proje MIT lisansı altında lisanslanmıştır. Detaylar için [LICENSE](LICE
 
 <div align="center">
 
-**⚔️ SENTINEL AI - Güvenlik Testlerinizde Yapay Zeka Desteği ⚔️**
+**SENTINEL AI - Güvenlik Testlerinizde Yapay Zeka Desteği**
 
 </div>
 

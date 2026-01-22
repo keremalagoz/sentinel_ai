@@ -239,14 +239,14 @@ class SentinelDeveloperWindow(QMainWindow):
         try:
             from src.core.sentinel_coordinator import SentinelCoordinator
             self._coordinator = SentinelCoordinator(db_path="sentinel_dev.db")
-            print("[✓] SentinelCoordinator başlatıldı (Integrated Tool System)")
+            print("[OK] SentinelCoordinator başlatıldı (Integrated Tool System)")
         except Exception as e:
             print(f"[WARN] SentinelCoordinator oluşturulamadı: {e}")
             self._coordinator = None
         
         try:
             self._orchestrator = AIOrchestrator(model="whiterabbitneo", coordinator=self._coordinator)  # Native Ollama + Coordinator
-            print("[✓] AIOrchestrator başlatıldı (AI-Driven Tool Execution)")
+            print("[OK] AIOrchestrator başlatıldı (AI-Driven Tool Execution)")
         except Exception as e:
             # Ollama yoksa, orchestrator'u oluşturma başarısız - graceful fallback
             print(f"[WARN] Orchestrator oluşturulamadı: {e}")
@@ -431,7 +431,7 @@ class SentinelDeveloperWindow(QMainWindow):
         if self._coordinator:
             layout.addSpacing(10)
             
-            tools_label = QLabel("🔧 Integrated Tools (Test):")
+            tools_label = QLabel("Integrated Tools (Test):")
             tools_label.setStyleSheet(f"color: {Colors.ACCENT_PRIMARY}; font-weight: bold;")
             layout.addWidget(tools_label)
             
@@ -460,7 +460,7 @@ class SentinelDeveloperWindow(QMainWindow):
             tools_row.addWidget(btn_portscan)
             
             # Backend Stats
-            btn_stats = QPushButton("📊 Backend Stats")
+            btn_stats = QPushButton("Backend Stats")
             btn_stats.setStyleSheet(self._get_button_style())
             btn_stats.setCursor(Qt.CursorShape.PointingHandCursor)
             btn_stats.clicked.connect(self._show_backend_stats)
@@ -539,7 +539,7 @@ class SentinelDeveloperWindow(QMainWindow):
         self._btn_reject.clicked.connect(self._on_reject_command)
         btn_row.addWidget(self._btn_reject)
         
-        self._btn_approve = QPushButton("✓ Mock Göster")
+        self._btn_approve = QPushButton("Mock Göster")
         self._btn_approve.setStyleSheet(self._get_button_style(success=True))
         self._btn_approve.setCursor(Qt.CursorShape.PointingHandCursor)
         self._btn_approve.clicked.connect(self._on_approve_command)
@@ -887,7 +887,7 @@ class SentinelDeveloperWindow(QMainWindow):
             
             if result["success"] and result["tool_started"]:
                 self._terminal._manager.sig_output_stream.emit(
-                    f"[AI] ✓ {result['message']}\n",
+                    f"[AI] [OK] {result['message']}\n",
                     "stdout"
                 )
                 self._terminal._manager.sig_output_stream.emit(
@@ -896,7 +896,7 @@ class SentinelDeveloperWindow(QMainWindow):
                 )
             else:
                 self._terminal._manager.sig_output_stream.emit(
-                    f"[AI] ✗ {result['message']}\n",
+                    f"[AI] [FAIL] {result['message']}\n",
                     "stdout"
                 )
         except Exception as e:

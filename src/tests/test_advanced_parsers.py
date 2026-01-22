@@ -51,18 +51,18 @@ def test_cve_extraction():
         severity_match = result["severity"] == expected_severity
         
         if cves_match and cvss_match and severity_match:
-            print(f"  ✓ {text[:50]}...")
+            print(f"  [OK] {text[:50]}...")
         else:
-            print(f"  ✗ {text[:50]}...")
+            print(f"  [FAIL] {text[:50]}...")
             print(f"    Expected: CVEs={expected_cves}, CVSS={expected_cvss}, Severity={expected_severity}")
             print(f"    Got: CVEs={result['cve_ids']}, CVSS={result['cvss_score']}, Severity={result['severity']}")
             all_passed = False
     
     if all_passed:
-        print("\n✅ TEST 1 PASSED: CVE extraction works correctly")
+        print("\n[OK] TEST 1 PASSED: CVE extraction works correctly")
         return True
     else:
-        print("\n❌ TEST 1 FAILED: Some CVE extractions incorrect")
+        print("\n[FAIL] TEST 1 FAILED: Some CVE extractions incorrect")
         return False
 
 
@@ -86,16 +86,16 @@ def test_risk_scoring():
         score = calculate_risk_score(confidence, severity)
         
         if score == expected_score:
-            print(f"  ✓ confidence={confidence}, severity={severity} → risk={score}")
+            print(f"  [OK] confidence={confidence}, severity={severity} → risk={score}")
         else:
-            print(f"  ✗ confidence={confidence}, severity={severity} → risk={score} (expected {expected_score})")
+            print(f"  [FAIL] confidence={confidence}, severity={severity} → risk={score} (expected {expected_score})")
             all_passed = False
     
     if all_passed:
-        print("\n✅ TEST 2 PASSED: Risk scoring works correctly")
+        print("\n[OK] TEST 2 PASSED: Risk scoring works correctly")
         return True
     else:
-        print("\n❌ TEST 2 FAILED: Some risk scores incorrect")
+        print("\n[FAIL] TEST 2 FAILED: Some risk scores incorrect")
         return False
 
 
@@ -122,18 +122,18 @@ def test_version_parsing():
         extra_match = result["extra_info"] == expected_extra
         
         if product_match and version_match and extra_match:
-            print(f"  ✓ {version_string}")
+            print(f"  [OK] {version_string}")
         else:
-            print(f"  ✗ {version_string}")
+            print(f"  [FAIL] {version_string}")
             print(f"    Expected: product={expected_product}, version={expected_version}, extra={expected_extra}")
             print(f"    Got: product={result['product']}, version={result['version']}, extra={result['extra_info']}")
             all_passed = False
     
     if all_passed:
-        print("\n✅ TEST 3 PASSED: Version parsing works correctly")
+        print("\n[OK] TEST 3 PASSED: Version parsing works correctly")
         return True
     else:
-        print("\n❌ TEST 3 FAILED: Some version parsing incorrect")
+        print("\n[FAIL] TEST 3 FAILED: Some version parsing incorrect")
         return False
 
 
@@ -158,19 +158,19 @@ def test_banner_analysis():
         os_match = any(os in result["os_hints"] for os in expected_os_hints) if expected_os_hints else True
         
         if service_match and os_match:
-            print(f"  ✓ {banner[:50]}...")
+            print(f"  [OK] {banner[:50]}...")
             print(f"    Service: {result['service_type']}, OS hints: {result['os_hints']}")
         else:
-            print(f"  ✗ {banner[:50]}...")
+            print(f"  [FAIL] {banner[:50]}...")
             print(f"    Expected: service={expected_service}, OS={expected_os_hints}")
             print(f"    Got: service={result['service_type']}, OS={result['os_hints']}")
             all_passed = False
     
     if all_passed:
-        print("\n✅ TEST 4 PASSED: Banner analysis works correctly")
+        print("\n[OK] TEST 4 PASSED: Banner analysis works correctly")
         return True
     else:
-        print("\n❌ TEST 4 FAILED: Some banner analysis incorrect")
+        print("\n[FAIL] TEST 4 FAILED: Some banner analysis incorrect")
         return False
 
 
@@ -210,26 +210,26 @@ PORT     STATE SERVICE
             has_risk = "risk_score" in vuln.data and vuln.data["risk_score"] > 0
             
             if has_cve and has_cvss and has_risk:
-                print(f"  ✓ Vulnerability parsed with advanced features")
+                print(f"  [OK] Vulnerability parsed with advanced features")
                 print(f"    CVE IDs: {vuln.data.get('cve_ids', [])}")
                 print(f"    CVSS Score: {vuln.data.get('cvss_score', 'N/A')}")
                 print(f"    Risk Score: {vuln.data.get('risk_score', 'N/A')}")
                 print(f"    Severity: {vuln.data.get('severity', 'N/A')}")
-                print("\n✅ TEST 5 PASSED: Integrated parsing works")
+                print("\n[OK] TEST 5 PASSED: Integrated parsing works")
                 return True
             else:
-                print(f"  ✗ Missing advanced fields")
+                print(f"  [FAIL] Missing advanced fields")
                 print(f"    CVE: {has_cve}, CVSS: {has_cvss}, Risk: {has_risk}")
-                print("\n❌ TEST 5 FAILED: Advanced fields missing")
+                print("\n[FAIL] TEST 5 FAILED: Advanced fields missing")
                 return False
         else:
-            print("  ✗ No vulnerability entities found")
-            print("\n❌ TEST 5 FAILED: Parser didn't create vulnerability")
+            print("  [FAIL] No vulnerability entities found")
+            print("\n[FAIL] TEST 5 FAILED: Parser didn't create vulnerability")
             return False
     
     except Exception as e:
-        print(f"  ✗ Parser error: {e}")
-        print("\n❌ TEST 5 FAILED: Parser exception")
+        print(f"  [FAIL] Parser error: {e}")
+        print("\n[FAIL] TEST 5 FAILED: Parser exception")
         return False
 
 
@@ -266,7 +266,7 @@ def run_all_tests():
     total = len(results)
     
     for name, result in results:
-        status = "✅ PASS" if result else "❌ FAIL"
+        status = "[OK] PASS" if result else "[FAIL] FAIL"
         print(f"{status}: {name}")
     
     print("\n" + "="*60)

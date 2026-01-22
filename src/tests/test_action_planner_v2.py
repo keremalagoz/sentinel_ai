@@ -4,6 +4,7 @@
 import sys
 import time
 from typing import List, Tuple
+import pytest
 
 # Test edilecek moduller
 from src.ai.schemas import IntentType, RiskLevel, Intent, ToolSpec, FinalCommand
@@ -64,7 +65,7 @@ def run_test(name: str, test_func) -> bool:
         return False
 
 
-def test_tool_registry() -> bool:
+def _run_tool_registry() -> bool:
     """Tool Registry testleri"""
     print("\n" + "=" * 60)
     print("TEST: Tool Registry")
@@ -116,7 +117,11 @@ def test_tool_registry() -> bool:
     return failed == 0
 
 
-def test_command_builder() -> bool:
+def test_tool_registry() -> None:
+    assert _run_tool_registry() is True
+
+
+def _run_command_builder() -> bool:
     """Command Builder testleri"""
     print("\n" + "=" * 60)
     print("TEST: Command Builder")
@@ -178,7 +183,11 @@ def test_command_builder() -> bool:
     return failed == 0
 
 
-def test_policy_gate() -> bool:
+def test_command_builder() -> None:
+    assert _run_command_builder() is True
+
+
+def _run_policy_gate() -> bool:
     """Policy Gate testleri"""
     print("\n" + "=" * 60)
     print("TEST: Policy Gate")
@@ -198,11 +207,11 @@ def test_policy_gate() -> bool:
     else:
         failed += 1
     
-    # Test 2: Policy acik - uyari var
+    # Test 2: Policy acik - onay gerektiren intent bloklanir
     def check_policy_warning():
         gate = PolicyGate(enabled=True)
         allowed, msg = gate.check(IntentType.BRUTE_FORCE_SSH)
-        return allowed and msg is not None
+        return (not allowed) and (msg is not None)
     
     if run_test("Policy acik = uyari mesaji", check_policy_warning):
         passed += 1
@@ -224,7 +233,11 @@ def test_policy_gate() -> bool:
     return failed == 0
 
 
-def test_intent_resolver() -> bool:
+def test_policy_gate() -> None:
+    assert _run_policy_gate() is True
+
+
+def _run_intent_resolver() -> bool:
     """Intent Resolver testleri (LLM gerektirir)"""
     print("\n" + "=" * 60)
     print("TEST: Intent Resolver (LLM)")
@@ -253,7 +266,14 @@ def test_intent_resolver() -> bool:
     return failed == 0
 
 
-def test_orchestrator_e2e() -> bool:
+def test_intent_resolver() -> None:
+    resolver = IntentResolver(model="whiterabbitneo")
+    if not resolver.check_available():
+        pytest.skip("LLM mevcut degil")
+    assert _run_intent_resolver() is True
+
+
+def _run_orchestrator_e2e() -> bool:
     """End-to-end Orchestrator testleri"""
     print("\n" + "=" * 60)
     print("TEST: Orchestrator E2E")
@@ -297,7 +317,14 @@ def test_orchestrator_e2e() -> bool:
     return failed == 0
 
 
-def test_backward_compatibility() -> bool:
+def test_orchestrator_e2e() -> None:
+    orch = AIOrchestrator(model="whiterabbitneo")
+    if not orch.check_services()[0]:
+        pytest.skip("LLM mevcut degil")
+    assert _run_orchestrator_e2e() is True
+
+
+def _run_backward_compatibility() -> bool:
     """Legacy API uyumluluk testleri"""
     print("\n" + "=" * 60)
     print("TEST: Backward Compatibility")
@@ -349,6 +376,13 @@ def test_backward_compatibility() -> bool:
     return failed == 0
 
 
+def test_backward_compatibility() -> None:
+    orch = AIOrchestrator(model="whiterabbitneo")
+    if not orch.check_services()[0]:
+        pytest.skip("LLM mevcut degil")
+    assert _run_backward_compatibility() is True
+
+
 # =============================================================================
 # MAIN
 # =============================================================================
@@ -361,14 +395,14 @@ def main():
     results = []
     
     # Unit tests (LLM gerektirmez)
-    results.append(("Tool Registry", test_tool_registry()))
-    results.append(("Command Builder", test_command_builder()))
-    results.append(("Policy Gate", test_policy_gate()))
+    results.append(("Tool Registry", _run_tool_registry()))
+    results.append(("Command Builder", _run_command_builder()))
+    results.append(("Policy Gate", _run_policy_gate()))
     
     # Integration tests (LLM gerektirir)
-    results.append(("Intent Resolver", test_intent_resolver()))
-    results.append(("Orchestrator E2E", test_orchestrator_e2e()))
-    results.append(("Backward Compat", test_backward_compatibility()))
+    results.append(("Intent Resolver", _run_intent_resolver()))
+    results.append(("Orchestrator E2E", _run_orchestrator_e2e()))
+    results.append(("Backward Compat", _run_backward_compatibility()))
     
     # Summary
     print("\n" + "=" * 70)

@@ -1,31 +1,37 @@
 # SENTINEL AI - Policy Gate
 # Action Planner v2: Opsiyonel intent/action kontrolu
 #
-# Bu modul VARSAYILAN OLARAK KAPALI.
-# POLICY_ENABLED = True yapilirsa intent'ler kontrol edilir.
+# Bu modul VARSAYILAN OLARAK ACIK.
+# POLICY_ENABLED = False yapilirsa intent kontrolleri bypass edilir.
 # Modular tasarim: Toggle ile kolayca acilip kapatilabilir.
 
-from typing import Tuple, Optional, Set
-from src.ai.schemas import IntentType
+from typing import Tuple, Optional, Dict
+from src.ai.schemas import IntentType, RiskLevel
+from src.ai.execution_policy import ExecutionPolicy, TacticalIntent
+from src.ai.tool_registry import get_tool_for_intent
 
 
 # =============================================================================
 # CONFIGURATION
 # =============================================================================
 
-# Ana switch - False = tum kontroller bypass edilir
-POLICY_ENABLED = False
+# Ana switch - True = policy aktif (tek akış)
+POLICY_ENABLED = True
 
-# Engellenecek intent'ler (POLICY_ENABLED = True oldugunda)
-BLOCKED_INTENTS: Set[IntentType] = set()
-# Ornek: BLOCKED_INTENTS = {IntentType.SQL_INJECTION}
-
-# Uyari verilecek intent'ler (engellenmez ama kullanici uyarilir)
-WARN_INTENTS: Set[IntentType] = {
-    IntentType.BRUTE_FORCE_SSH,
-    IntentType.BRUTE_FORCE_HTTP,
-    IntentType.SQL_INJECTION,
-    IntentType.VULN_SCAN,
+# Intent -> TacticalIntent mapping (ExecutionPolicy icin)
+_INTENT_TO_TACTIC: Dict[IntentType, TacticalIntent] = {
+    IntentType.HOST_DISCOVERY: TacticalIntent.PING_SWEEP,
+    IntentType.PORT_SCAN: TacticalIntent.PORT_SCAN,
+    IntentType.SERVICE_DETECTION: TacticalIntent.SERVICE_DETECTION,
+    IntentType.OS_DETECTION: TacticalIntent.OS_FINGERPRINT,
+    IntentType.VULN_SCAN: TacticalIntent.VULN_SCAN,
+    IntentType.SSL_SCAN: TacticalIntent.SSL_TLS_ANALYSIS,
+    IntentType.WEB_DIR_ENUM: TacticalIntent.DIRECTORY_BRUTE_FORCE,
+    IntentType.DNS_LOOKUP: TacticalIntent.DNS_ENUMERATION,
+    IntentType.SUBDOMAIN_ENUM: TacticalIntent.SUBDOMAIN_ENUMERATION,
+    IntentType.BRUTE_FORCE_SSH: TacticalIntent.CREDENTIAL_BRUTE_FORCE,
+    IntentType.BRUTE_FORCE_HTTP: TacticalIntent.CREDENTIAL_BRUTE_FORCE,
+    IntentType.SQL_INJECTION: TacticalIntent.EXPLOIT_WEAKNESS,
 }
 
 
@@ -37,7 +43,7 @@ class PolicyGate:
     """
     Intent-based policy kontrolu.
     
-    Varsayilan olarak KAPALI (POLICY_ENABLED = False).
+    Varsayilan olarak ACIK (POLICY_ENABLED = True).
     Acildiginda intent'leri kontrol eder ve engeller/uyarir.
     
     Kullanim:
@@ -58,6 +64,7 @@ class PolicyGate:
             enabled: Policy aktif mi? None ise global POLICY_ENABLED kullanilir.
         """
         self._enabled = enabled if enabled is not None else POLICY_ENABLED
+        self._policy = ExecutionPolicy()
     
     @property
     def is_enabled(self) -> bool:
@@ -88,48 +95,55 @@ class PolicyGate:
         # Policy kapali - her sey serbest
         if not self._enabled:
             return (True, None)
-        
-        # Engellenen intent mi?
-        if intent_type in BLOCKED_INTENTS:
-            return (
-                False,
-                f"Bu islem engellenmistir: {intent_type.value}. "
-                f"Policy ayarlarindan degistirilebilir."
-            )
-        
-        # Uyari gerektiren intent mi?
-        if intent_type in WARN_INTENTS:
+
+        tactic = _INTENT_TO_TACTIC.get(intent_type)
+        if tactic:
+            # Sprint policy: confirm-required veya blocked
+            if not self._policy.is_tactic_allowed_auto(tactic):
+                if self._policy.requires_confirmation(tactic):
+                    return (
+                        False,
+                        f"Bu islem onay gerektirir: {intent_type.value}. "
+                        f"Lutfen manuel onay verin."
+                    )
+                return (
+                    False,
+                    f"Bu islem policy tarafindan engellendi: {intent_type.value}."
+                )
+
+        # Risk seviyesine gore uyari
+        tool_def = get_tool_for_intent(intent_type)
+        if tool_def and tool_def.risk_level in [RiskLevel.HIGH]:
             return (
                 True,
                 f"Dikkat: {intent_type.value} yuksek riskli bir islemdir. "
                 f"Sadece yetkili sistemlerde kullanin."
             )
-        
-        # Normal islem - gecis serbest
+
         return (True, None)
     
     def add_blocked_intent(self, intent_type: IntentType):
-        """Intent'i engelleme listesine ekle"""
-        BLOCKED_INTENTS.add(intent_type)
+        """Legacy - policy tek akis, disaridan engelleme desteklenmez"""
+        raise NotImplementedError("Policy tek akis: bloklama ExecutionPolicy ile yonetilir")
     
     def remove_blocked_intent(self, intent_type: IntentType):
-        """Intent'i engelleme listesinden cikar"""
-        BLOCKED_INTENTS.discard(intent_type)
+        """Legacy - policy tek akis, disaridan engelleme desteklenmez"""
+        raise NotImplementedError("Policy tek akis: bloklama ExecutionPolicy ile yonetilir")
     
     def add_warn_intent(self, intent_type: IntentType):
-        """Intent'i uyari listesine ekle"""
-        WARN_INTENTS.add(intent_type)
+        """Legacy - policy tek akis, disaridan uyari ekleme desteklenmez"""
+        raise NotImplementedError("Policy tek akis: uyari risk seviyesinden gelir")
     
     def remove_warn_intent(self, intent_type: IntentType):
-        """Intent'i uyari listesinden cikar"""
-        WARN_INTENTS.discard(intent_type)
+        """Legacy - policy tek akis, disaridan uyari ekleme desteklenmez"""
+        raise NotImplementedError("Policy tek akis: uyari risk seviyesinden gelir")
     
     def get_policy_status(self) -> dict:
         """Policy durumunu doner"""
         return {
             "enabled": self._enabled,
-            "blocked_intents": [i.value for i in BLOCKED_INTENTS],
-            "warn_intents": [i.value for i in WARN_INTENTS],
+            "blocked_intents": [i.value for i in self._policy.get_blocked_tactics()],
+            "warn_intents": ["high_risk"],
         }
 
 
@@ -198,11 +212,10 @@ if __name__ == "__main__":
         if msg:
             print(f"  -> {msg}")
     
-    # Test: Intent engelleme
-    print("\n[Test 3] SQL_INJECTION engellendi")
+    # Test: Risk uyari
+    print("\n[Test 3] Yuksek risk uyari")
     print("-" * 40)
     
-    gate.add_blocked_intent(IntentType.SQL_INJECTION)
     allowed, msg = gate.check(IntentType.SQL_INJECTION)
     print(f"allowed={allowed}")
     print(f"msg={msg}")

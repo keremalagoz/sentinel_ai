@@ -4,7 +4,7 @@
 # OpenAI response_format uyumlu, strict=True icin tasarlandi
 
 import re
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, field_validator, ConfigDict
 from typing import List, Literal, Optional, Dict, Any
 from enum import Enum
 
@@ -363,8 +363,8 @@ class ToolCommand(BaseModel):
 
         return normalized
     
-    class Config:
-        json_schema_extra = {
+    model_config = ConfigDict(
+        json_schema_extra={
             "examples": [
                 {
                     "tool": "nmap",
@@ -382,6 +382,7 @@ class ToolCommand(BaseModel):
                 }
             ]
         }
+    )
 
 
 class AIResponse(BaseModel):

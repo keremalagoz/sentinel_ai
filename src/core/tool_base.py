@@ -10,7 +10,7 @@ from dataclasses import dataclass
 from enum import Enum
 import time
 
-from PySide6.QtCore import QProcess, QTimer, Signal, QObject
+from PyQt6.QtCore import QProcess, QTimer, pyqtSignal, QObject
 
 
 class ToolStatus(str, Enum):
@@ -48,11 +48,11 @@ class ToolResult:
 
 class ToolExecutionSignals(QObject):
     """Qt signals for tool execution events"""
-    started = Signal(str)  # tool_id
-    stdout_ready = Signal(str, str)  # tool_id, data
-    stderr_ready = Signal(str, str)  # tool_id, data
-    finished = Signal(str, object)  # tool_id, ToolResult
-    error = Signal(str, str)  # tool_id, error_message
+    started = pyqtSignal(str)  # tool_id
+    stdout_ready = pyqtSignal(str, str)  # tool_id, data
+    stderr_ready = pyqtSignal(str, str)  # tool_id, data
+    finished = pyqtSignal(str, object)  # tool_id, ToolResult
+    error = pyqtSignal(str, str)  # tool_id, error_message
 
 
 class BaseTool(ABC):

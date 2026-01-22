@@ -137,7 +137,7 @@ class SecureCleaner:
             )
             return True
         except subprocess.TimeoutExpired:
-            print(f"⚠️  Pkexec timeout: {file_path}")
+            print(f"[WARNING] Pkexec timeout: {file_path}")
             return False
         except (subprocess.CalledProcessError, FileNotFoundError):
             return False

@@ -90,7 +90,7 @@ class SentinelMainWindow(QMainWindow):
         try:
             from src.core.sentinel_coordinator import SentinelCoordinator
             self._coordinator = SentinelCoordinator(db_path="sentinel_production.db")
-            print("[✓] SentinelCoordinator initialized (Integrated Tool System)")
+            print("[OK] SentinelCoordinator initialized (Integrated Tool System)")
         except Exception as e:
             print(f"[WARN] SentinelCoordinator initialization failed: {e}")
             self._coordinator = None
@@ -98,7 +98,7 @@ class SentinelMainWindow(QMainWindow):
         # AI Orchestrator (with coordinator for tool execution)
         from src.ai.orchestrator import AIOrchestrator
         self._orchestrator = AIOrchestrator(model="whiterabbitneo", coordinator=self._coordinator)
-        print("[✓] AIOrchestrator initialized (AI-Driven Tool Execution)")
+        print("[OK] AIOrchestrator initialized (AI-Driven Tool Execution)")
         
         self._ai_worker: AIWorker = None
         self._pending_command = None  # AI'dan gelen onay bekleyen komut
@@ -206,7 +206,11 @@ class SentinelMainWindow(QMainWindow):
         layout.setContentsMargins(12, 8, 12, 8)
         
         # Logo/Başlık
+<<<<<<< HEAD
         title = QLabel(">>> SENTINEL AI")
+=======
+        title = QLabel("SENTINEL AI")
+>>>>>>> a43a234 (fix(ai): stabilize action planner v2.1)
         title.setStyleSheet(f"""
             color: {Colors.ACCENT_PRIMARY};
             font-family: {Fonts.MONO};
@@ -245,7 +249,11 @@ class SentinelMainWindow(QMainWindow):
         
         # Üst satır: Hedef IP
         target_row = QHBoxLayout()
+<<<<<<< HEAD
         target_label = QLabel("[TARGET] Hedef:")
+=======
+        target_label = QLabel("Hedef:")
+>>>>>>> a43a234 (fix(ai): stabilize action planner v2.1)
         target_label.setStyleSheet(f"color: {Colors.TEXT_SECONDARY}; font-weight: bold;")
         target_label.setFixedWidth(80)
         target_row.addWidget(target_label)
@@ -329,7 +337,7 @@ class SentinelMainWindow(QMainWindow):
         self._btn_reject.clicked.connect(self._on_reject_command)
         btn_row.addWidget(self._btn_reject)
         
-        self._btn_approve = QPushButton("[OK] Çalıştır")
+    self._btn_approve = QPushButton("Çalıştır")
         self._btn_approve.setStyleSheet(self._get_button_style(success=True))
         self._btn_approve.setCursor(Qt.CursorShape.PointingHandCursor)
         self._btn_approve.clicked.connect(self._on_approve_command)
@@ -520,7 +528,7 @@ class SentinelMainWindow(QMainWindow):
         
         # Açıklama
         explanation = cmd.explanation or response.message
-        root_warning = " ⚠️ (Root yetkisi gerekli)" if cmd.requires_root else ""
+        root_warning = " (Root yetkisi gerekli)" if cmd.requires_root else ""
         self._explanation_label.setText(f"{explanation}{root_warning}")
         
         # Panel stilini risk seviyesine göre ayarla
