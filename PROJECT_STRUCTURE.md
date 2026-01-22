@@ -6,21 +6,21 @@
 
 ---
 
-## 📁 Dizin Yapısı
+## Dizin Yapısı
 
 ```
 sentinel_root/
-├── main.py                      # 🚀 Production Entry Point (Docker + Hibrit AI)
-├── main_developer.py            # 🔧 Developer Mode (Mock + Native Ollama)
-├── requirements.txt             # 📦 Python bağımlılıkları
-├── docker-compose.yml           # 🐳 Docker orchestration
-├── .env                         # 🔐 Çevre değişkenleri (API keys)
-├── .env.example                 # 📝 .env şablonu
-├── README.md                    # 📖 Proje ana dokümantasyonu
-├── NMAP_KURULUM.md             # 🛠️ Nmap kurulum rehberi
+├── main.py                      # Production Entry Point (Docker + Hibrit AI)
+├── main_developer.py            # Developer Mode (Mock + Native Ollama)
+├── requirements.txt             # Python bağımlılıkları
+├── docker-compose.yml           # Docker orchestration
+├── .env                         # Çevre değişkenleri (API keys)
+├── .env.example                 # .env şablonu
+├── README.md                    # Proje ana dokümantasyonu
+├── NMAP_KURULUM.md             # Nmap kurulum rehberi
 │
-├── src/                         # 📂 Ana kaynak kodu
-│   ├── ai/                      # 🤖 AI Modülleri
+├── src/                         # Ana kaynak kodu
+│   ├── ai/                      # AI Modülleri
 │   │   ├── orchestrator.py      # AI Orchestrator (Hibrit: Local + Cloud)
 │   │   ├── intent_resolver.py   # Intent detection & tool mapping
 │   │   ├── command_builder.py   # Komut parametreleri oluşturucu
@@ -29,7 +29,7 @@ sentinel_root/
 │   │   ├── schemas.py           # AI veri modelleri (Pydantic)
 │   │   └── tool_registry.py     # Tool kayıt sistemi
 │   │
-│   ├── core/                    # ⚙️ Core Sistemler
+│   ├── core/                    # Core Sistemler
 │   │   ├── sqlite_backend.py    # SQLite Backend (Hybrid JSON+FK schema)
 │   │   ├── entity_id_generator.py # Canonical Entity ID generator
 │   │   ├── parser_framework.py  # Parser framework + 3 parser
@@ -43,14 +43,14 @@ sentinel_root/
 │   │   ├── cleaner.py           # Secure file cleanup
 │   │   └── adapters/            # (Boş - gelecek için)
 │   │
-│   ├── ui/                      # 🎨 UI Bileşenleri
+│   ├── ui/                      # UI Bileşenleri
 │   │   ├── terminal_view.py     # Terminal emülatörü (PyQt6)
 │   │   └── styles.py            # UI renk ve font tanımları
 │   │
-│   ├── plugins/                 # 🔌 Plugin sistemi (gelecek)
+│   ├── plugins/                 # Plugin sistemi (gelecek)
 │   │   └── .gitkeep
 │   │
-│   └── tests/                   # 🧪 Test Suite
+│   └── tests/                   # Test Suite
 │       ├── test_sprint1.py      # Sprint 1 main test suite (59 tests)
 │       ├── test_sprint1_week1.py # Week 1 tests (backend + entity ID)
 │       ├── test_sprint1_week2.py # Week 2 tests (parser + tool + integration)
@@ -59,7 +59,7 @@ sentinel_root/
 │       ├── test_integration.py  # Full integration tests
 │       └── test_ui_integration.py # UI integration test window
 │
-├── docs/                        # 📚 Teknik Dokümantasyon
+├── docs/                        # Teknik Dokümantasyon
 │   ├── AGENT_RULES.md          # AI agent kuralları ve kısıtlamaları
 │   ├── entity_id_strategy.md   # Entity ID tasarım kararları
 │   ├── execution_history_model.md # Execution history veri modeli
@@ -67,40 +67,40 @@ sentinel_root/
 │   ├── sprint1_ready.md        # Sprint 1 completion raporu
 │   └── sqlite_schema.md        # SQLite veritabanı şeması
 │
-├── temp/                        # 🗂️ Geçici Dosyalar
+├── temp/                        # Geçici Dosyalar
 │   ├── sentinel_safe/          # Güvenli sandbox klasörü
 │   └── docs_archive/           # Eski/arşiv dokümanlar
 │
-├── docker/                      # 🐳 Docker Konfigürasyonları
+├── docker/                      # Docker Konfigürasyonları
 │   ├── api/                    # API container
 │   ├── llama/                  # Llama 3 container
 │   ├── tools/                  # Security tools container
 │   └── whiterabbitneo/         # WhiteRabbitNeo container
 │
-├── models/                      # 🧠 AI Model Dosyaları
+├── models/                      # AI Model Dosyaları
 │   ├── Modelfile.whiterabbitneo # Ollama modelfile
 │   └── whiterabbitneo-7b-q4.gguf # Model weights (eğer varsa)
 │
-├── sentinel_production.db       # 💾 Production veritabanı
-├── sentinel_dev.db             # 💾 Developer mode veritabanı
-└── sentinel_state.db           # 💾 Test/default veritabanı
+├── sentinel_production.db       # Production veritabanı
+├── sentinel_dev.db             # Developer mode veritabanı
+└── sentinel_state.db           # Test/default veritabanı
 
 ```
 
 ---
 
-## 🚀 Entry Points (Başlangıç Dosyaları)
+## Entry Points (Başlangıç Dosyaları)
 
 ### 1. **main.py** - Production Mode
 **Ne yapar**: Ana uygulama, hibrit AI + Docker containerlar ile çalışır
 
 **Özellikler**:
-- ✅ Docker Desktop gerektirir (VmmemWSL)
-- ✅ Hibrit AI: Local Llama 3 + Cloud GPT-4o-mini
-- ✅ Gerçek komutlar çalıştırır (nmap, gobuster, etc.)
-- ✅ Docker'da security tools
-- ✅ RAM: ~6-8GB (Docker + AI)
-- ✅ SentinelCoordinator entegrasyonu (integrated tools)
+- [OK] Docker Desktop gerektirir (VmmemWSL)
+- [OK] Hibrit AI: Local Llama 3 + Cloud GPT-4o-mini
+- [OK] Gerçek komutlar çalıştırır (nmap, gobuster, etc.)
+- [OK] Docker'da security tools
+- [OK] RAM: ~6-8GB (Docker + AI)
+- [OK] SentinelCoordinator entegrasyonu (integrated tools)
 
 **Çalıştırma**:
 ```powershell
@@ -115,13 +115,13 @@ python main.py
 **Ne yapar**: Geliştirme modu, mock execution + native Ollama
 
 **Özellikler**:
-- ✅ Docker gerektirmez (RAM tasarrufu)
-- ✅ Native Ollama (localhost:11434)
-- ✅ Mock execution (komutlar gerçekte çalışmaz)
-- ✅ Integrated tools: **Gerçek çalışır** (ping, nmap - eğer kuruluysa)
-- ✅ Test butonları (4 adet: Ping, Sweep, Portscan, Stats)
-- ✅ RAM: ~2-3GB (Docker yok)
-- ⚠️ Developer warnings/banners
+- [OK] Docker gerektirmez (RAM tasarrufu)
+- [OK] Native Ollama (localhost:11434)
+- [OK] Mock execution (komutlar gerçekte çalışmaz)
+- [OK] Integrated tools: **Gerçek çalışır** (ping, nmap - eğer kuruluysa)
+- [OK] Test butonları (4 adet: Ping, Sweep, Portscan, Stats)
+- [OK] RAM: ~2-3GB (Docker yok)
+- [WARNING] Developer warnings/banners
 
 **Çalıştırma**:
 ```powershell
@@ -132,7 +132,7 @@ python main_developer.py
 
 ---
 
-## 🧪 Test Dosyaları
+## Test Dosyaları
 
 ### **src/tests/test_sprint1.py**
 Sprint 1 (Action Planner v2.1) main test suite
@@ -219,7 +219,7 @@ python src/tests/test_ui_integration.py
 
 ---
 
-## ⚙️ Core Modüller
+## Core Modüller
 
 ### **src/core/sqlite_backend.py**
 SQLite Backend - Hybrid JSON+FK schema
@@ -398,7 +398,7 @@ DockerRunner - Container execution
 
 ---
 
-## 🤖 AI Modülleri
+## AI Modülleri
 
 ### **src/ai/orchestrator.py**
 AIOrchestrator - Hibrit AI System
@@ -458,7 +458,7 @@ ExecutionPolicy - İzin sistemi
 
 ---
 
-## 🎨 UI Modülleri
+## UI Modülleri
 
 ### **src/ui/terminal_view.py**
 TerminalView - Terminal emülatörü (PyQt6)
@@ -487,7 +487,7 @@ UI Stilleri - Renk ve font tanımları
 
 ---
 
-## 📚 Dokümantasyon Dosyaları
+## Dokümantasyon Dosyaları
 
 ### **docs/AGENT_RULES.md**
 AI agent kuralları ve kısıtlamaları
@@ -531,7 +531,7 @@ SQLite veritabanı şeması
 
 ---
 
-## 🐳 Docker Yapısı
+## Docker Yapısı
 
 ### **docker-compose.yml**
 Docker orchestration
@@ -558,7 +558,7 @@ Llama 3 container
 
 ---
 
-## 📦 Bağımlılıklar
+## Bağımlılıklar
 
 ### **requirements.txt**
 Python paketleri
@@ -577,7 +577,7 @@ pip install -r requirements.txt
 
 ---
 
-## 💾 Veritabanı Dosyaları
+## Veritabanı Dosyaları
 
 ### **sentinel_production.db**
 Production mode veritabanı (main.py)
@@ -592,7 +592,7 @@ Test/default veritabanı (test_ui_integration.py)
 
 ---
 
-## 🔐 Çevre Değişkenleri
+## Çevre Değişkenleri
 
 ### **.env**
 Gizli değişkenler (API keys)
@@ -616,7 +616,7 @@ Copy-Item .env.example .env
 
 ---
 
-## 🛠️ Geliştirme Workflow
+## Geliştirme Workflow
 
 ### 1. Developer Mode Test
 ```powershell
@@ -644,9 +644,9 @@ python main.py
 
 ---
 
-## 📊 Proje Durumu (21 Ocak 2026)
+## Proje Durumu (21 Ocak 2026)
 
-### ✅ Tamamlanan Sprintler
+### Tamamlanan Sprintler
 
 **Sprint 1 - Action Planner v2.1** (9 commit, 59/59 test):
 - SQLite Backend (Hybrid JSON+FK)
@@ -674,7 +674,7 @@ python main.py
 
 ---
 
-### 📝 Gelecek Öncelikler
+### Gelecek Öncelikler
 
 **Öncelik 3 - Additional Tools**:
 - 7 yeni tool (toplam 10)
@@ -715,7 +715,7 @@ nmap --version
 
 ---
 
-## 📖 İlgili Dosyalar
+## İlgili Dosyalar
 
 - [README.md](README.md) - Genel proje tanıtımı
 - [NMAP_KURULUM.md](NMAP_KURULUM.md) - Nmap kurulum rehberi

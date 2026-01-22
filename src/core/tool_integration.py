@@ -8,7 +8,7 @@ from typing import Optional, Callable, Dict, Any
 from dataclasses import dataclass
 import time
 
-from PySide6.QtCore import QObject, Signal
+from PyQt6.QtCore import QObject, pyqtSignal
 
 from src.core.tool_base import (
     BaseTool, ToolResult, ToolStatus, ToolExecutionSignals
@@ -44,11 +44,11 @@ class IntegratedToolResult:
 
 class IntegratedToolSignals(QObject):
     """Qt signals for integrated tool execution"""
-    started = Signal(str, str)  # tool_id, execution_id
-    tool_finished = Signal(str, object)  # tool_id, ToolResult
-    parsed = Signal(str, int)  # tool_id, entities_created
-    completed = Signal(str, object)  # tool_id, IntegratedToolResult
-    error = Signal(str, str)  # tool_id, error_message
+    started = pyqtSignal(str, str)  # tool_id, execution_id
+    tool_finished = pyqtSignal(str, object)  # tool_id, ToolResult
+    parsed = pyqtSignal(str, int)  # tool_id, entities_created
+    completed = pyqtSignal(str, object)  # tool_id, IntegratedToolResult
+    error = pyqtSignal(str, str)  # tool_id, error_message
 
 
 class IntegratedTool:

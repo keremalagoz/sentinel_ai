@@ -13,7 +13,7 @@ from pathlib import Path
 import sys
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
-from PySide6.QtCore import QCoreApplication, QTimer
+from PyQt6.QtCore import QCoreApplication, QTimer
 
 from src.core.tool_base import (
     PingTool, NmapPingSweepTool, NmapPortScanTool,

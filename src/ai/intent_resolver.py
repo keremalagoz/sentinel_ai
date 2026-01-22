@@ -6,7 +6,7 @@
 
 import os
 import json
-from typing import Optional, List, Dict
+from typing import Optional, List, Dict, Any
 from openai import OpenAI
 from dotenv import load_dotenv
 
@@ -202,6 +202,16 @@ class IntentResolver:
             json_str = self._extract_json(raw_response)
             data = json.loads(json_str)
             
+            is_valid, error = self._validate_payload(data)
+            if not is_valid:
+                return Intent(
+                    intent_type=IntentType.UNKNOWN,
+                    target=None,
+                    params={},
+                    needs_clarification=True,
+                    clarification_reason=f"Gecersiz JSON: {error}"
+                )
+
             # IntentType'a donustur
             intent_type_str = data.get("intent_type", "unknown")
             try:
@@ -257,6 +267,39 @@ class IntentResolver:
             return text[start:end + 1]
         
         return text
+
+    def _validate_payload(self, data: Dict[str, Any]) -> tuple[bool, str]:
+        """Intent JSON payload dogrulama (strict)"""
+        if not isinstance(data, dict):
+            return (False, "payload dict degil")
+
+        required_keys = {
+            "intent_type",
+            "target",
+            "params",
+            "needs_clarification",
+            "clarification_reason"
+        }
+
+        if set(data.keys()) != required_keys:
+            return (False, "beklenen alanlar eksik veya fazla")
+
+        if not isinstance(data["intent_type"], str):
+            return (False, "intent_type string degil")
+
+        if data["target"] is not None and not isinstance(data["target"], str):
+            return (False, "target string veya null olmali")
+
+        if not isinstance(data["params"], dict):
+            return (False, "params dict olmali")
+
+        if not isinstance(data["needs_clarification"], bool):
+            return (False, "needs_clarification boolean olmali")
+
+        if data["clarification_reason"] is not None and not isinstance(data["clarification_reason"], str):
+            return (False, "clarification_reason string veya null olmali")
+
+        return (True, "")
     
     def check_available(self) -> bool:
         """LLM servisinin kullanilabilir olup olmadigini kontrol et"""

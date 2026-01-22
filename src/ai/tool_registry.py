@@ -5,7 +5,7 @@
 # LLM bu bilgileri URETMEZ, sadece intent belirler.
 # Tool secimi, requires_root ve risk_level buradan gelir.
 
-from typing import Dict, Optional, List
+from typing import Dict, Optional, List, Any
 from src.ai.schemas import IntentType, ToolDef, ToolSpec, RiskLevel
 
 
@@ -69,6 +69,17 @@ TOOL_REGISTRY: Dict[IntentType, ToolDef] = {
             "ports": "-p {value}",
         }
     ),
+
+    IntentType.SSL_SCAN: ToolDef(
+        tool="nmap",
+        base_args=["--script", "ssl-enum-ciphers"],
+        requires_root=False,
+        risk_level=RiskLevel.MEDIUM,
+        description="SSL/TLS sertifika ve cipher analizi",
+        arg_templates={
+            "port": "-p {value}",
+        }
+    ),
     
     # =========================================================================
     # WEB ENUMERATION TOOLS
@@ -107,6 +118,15 @@ TOOL_REGISTRY: Dict[IntentType, ToolDef] = {
         requires_root=False,
         risk_level=RiskLevel.LOW,
         description="DNS sorgusu",
+        arg_templates={}
+    ),
+
+    IntentType.SUBDOMAIN_ENUM: ToolDef(
+        tool="nslookup",
+        base_args=[],
+        requires_root=False,
+        risk_level=RiskLevel.MEDIUM,
+        description="Subdomain kesfi (basit DNS sorgusu)",
         arg_templates={}
     ),
     
@@ -186,6 +206,77 @@ TOOL_REGISTRY: Dict[IntentType, ToolDef] = {
         description="Anlasılamadi, netlestime gerekli",
         arg_templates={}
     ),
+}
+
+
+# =============================================================================
+# EXECUTION REGISTRY - Intent -> Integrated Tool Mapping
+# =============================================================================
+
+_EXECUTION_REGISTRY: Dict[IntentType, Dict[str, Any]] = {
+    IntentType.HOST_DISCOVERY: {
+        "tool_id": "nmap_ping_sweep",
+        "target_arg": "target",
+        "param_map": {}
+    },
+    IntentType.PORT_SCAN: {
+        "tool_id": "nmap_port_scan",
+        "target_arg": "target",
+        "param_map": {
+            "ports": "ports",
+            "scan_type": "scan_type"
+        }
+    },
+    IntentType.SERVICE_DETECTION: {
+        "tool_id": "nmap_service_detection",
+        "target_arg": "target",
+        "param_map": {
+            "ports": "ports",
+            "intensity": "intensity"
+        }
+    },
+    IntentType.VULN_SCAN: {
+        "tool_id": "nmap_vuln_scan",
+        "target_arg": "target",
+        "param_map": {
+            "ports": "ports",
+            "scripts": "scripts"
+        }
+    },
+    IntentType.DNS_LOOKUP: {
+        "tool_id": "dns_lookup",
+        "target_arg": "domain",
+        "param_map": {
+            "record_type": "record_type"
+        }
+    },
+    IntentType.SSL_SCAN: {
+        "tool_id": "ssl_scan",
+        "target_arg": "target",
+        "param_map": {
+            "port": "port"
+        }
+    },
+    IntentType.WEB_DIR_ENUM: {
+        "tool_id": "gobuster_dir",
+        "target_arg": "url",
+        "param_map": {
+            "wordlist": "wordlist",
+            "extensions": "extensions"
+        }
+    },
+    IntentType.SUBDOMAIN_ENUM: {
+        "tool_id": "subdomain_enum",
+        "target_arg": "domain",
+        "param_map": {
+            "wordlist": "wordlist"
+        }
+    },
+    IntentType.WEB_VULN_SCAN: {
+        "tool_id": "web_app_scan",
+        "target_arg": "url",
+        "param_map": {}
+    },
 }
 
 
@@ -286,6 +377,47 @@ def build_tool_spec(
         requires_root=tool_def.requires_root,
         risk_level=tool_def.risk_level
     )
+
+
+def get_execution_tool_id(intent_type: IntentType) -> Optional[str]:
+    """
+    Intent'e gore IntegratedTool tool_id'sini getir.
+    """
+    mapping = _EXECUTION_REGISTRY.get(intent_type)
+    if not mapping:
+        return None
+    return mapping.get("tool_id")
+
+
+def build_execution_kwargs(
+    intent_type: IntentType,
+    target: Optional[str],
+    params: Optional[Dict[str, Any]] = None
+) -> Optional[Dict[str, Any]]:
+    """
+    Intent -> Tool kwargs mapping.
+
+    Returns:
+        kwargs dict or None if intent is not executable
+    """
+    mapping = _EXECUTION_REGISTRY.get(intent_type)
+    if not mapping:
+        return None
+
+    kwargs: Dict[str, Any] = {}
+    target_arg = mapping.get("target_arg")
+    if target_arg:
+        if not target:
+            return None
+        kwargs[target_arg] = target
+
+    param_map = mapping.get("param_map", {})
+    if params:
+        for param_key, tool_arg in param_map.items():
+            if param_key in params and params[param_key] is not None:
+                kwargs[tool_arg] = params[param_key]
+
+    return kwargs
 
 
 def print_registry_summary():

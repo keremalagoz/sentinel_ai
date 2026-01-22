@@ -116,11 +116,11 @@ PyQt arayüzünü dondurmak Ağır Suçtur.
 
 * **Sebep:** Windows console encoding (cp1254/cp1252) emoji karakterlerini desteklemez ve `UnicodeEncodeError` hatalarına yol açar.
 * **Alternatif:** Durum belirtmek için ASCII karakter kombinasyonları kullanılmalıdır:
-    * `[OK]` yerine ✅
-    * `[ERROR]` yerine ❌
-    * `[WARNING]` yerine ⚠️
-    * `[INFO]` yerine ℹ️
-    * `[BLOCKED]` yerine 🛑
+    * `[OK]` yerine "OK" etiketi
+    * `[ERROR]` yerine "ERROR" etiketi
+    * `[WARNING]` yerine "WARNING" etiketi
+    * `[INFO]` yerine "INFO" etiketi
+    * `[BLOCKED]` yerine "BLOCKED" etiketi
 * **Kapsam:** `.py`, `.sh`, `.md` (kod blokları dahil) ve tüm kaynak dosyaları.
 
 ---

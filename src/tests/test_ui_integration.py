@@ -1,7 +1,7 @@
 """Test UI Integration - Action Planner v2.1
 
 Minimal test window for ToolManager + TerminalView integration
-PySide6 version for Qt compatibility with QProcess
+PyQt6 version for Qt compatibility with QProcess
 """
 
 import sys
@@ -9,12 +9,12 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent))
 
-from PySide6.QtWidgets import (
+from PyQt6.QtWidgets import (
     QApplication, QMainWindow, QWidget, QVBoxLayout,
     QHBoxLayout, QLineEdit, QPushButton, QLabel, QTextEdit
 )
-from PySide6.QtCore import Qt, Slot
-from PySide6.QtGui import QTextCursor
+from PyQt6.QtCore import Qt, pyqtSlot
+from PyQt6.QtGui import QTextCursor
 
 from src.core.sentinel_coordinator import SentinelCoordinator
 
@@ -111,12 +111,12 @@ class TestWindow(QMainWindow):
         self.coordinator.tool_completed.connect(self._on_tool_completed)
         self.coordinator.tool_error.connect(self._on_tool_error)
     
-    @Slot(str, str)
+    @pyqtSlot(str, str)
     def _on_tool_started(self, tool_id: str, execution_id: str):
         """Tool started"""
         self.terminal.log(f"[START] {tool_id} ({execution_id})", "#00aaff")
     
-    @Slot(str, object)
+    @pyqtSlot(str, object)
     def _on_tool_completed(self, tool_id: str, result):
         """Tool completed"""
         # Display stdout
@@ -139,7 +139,7 @@ class TestWindow(QMainWindow):
             if result.error_message:
                 self.terminal.log(f"  Error: {result.error_message}", "#ff0000")
     
-    @Slot(str, str)
+    @pyqtSlot(str, str)
     def _on_tool_error(self, tool_id: str, error_message: str):
         """Tool error"""
         self.terminal.log(f"[ERROR] {tool_id}: {error_message}", "#ff0000")

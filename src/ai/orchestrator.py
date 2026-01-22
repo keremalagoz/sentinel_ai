@@ -22,7 +22,12 @@ from src.ai.schemas import (
     AIResponse,
 )
 from src.ai.intent_resolver import IntentResolver, get_intent_resolver
-from src.ai.tool_registry import build_tool_spec, get_tool_for_intent
+from src.ai.tool_registry import (
+    build_tool_spec,
+    get_tool_for_intent,
+    get_execution_tool_id,
+    build_execution_kwargs
+)
 from src.ai.command_builder import CommandBuilder, get_command_builder
 from src.ai.policy_gate import PolicyGate, get_policy_gate
 
@@ -313,114 +318,30 @@ class AIOrchestrator:
             result["message"] = ai_result["message"]
             return result
         
-        # Intent → Tool mapping
+        # Intent → Tool execution (registry tabanli)
         intent = ai_result["intent"]
         intent_type = intent.intent_type
-        command = ai_result["command"]
-        
-        # Intent type'a göre tool çalıştır
+
         try:
-            if intent_type == IntentType.HOST_DISCOVERY:
-                # Ping sweep - target from intent params or UI
-                target_range = intent.params.get("target", intent.target or target or "192.168.1.0/24")
-                self._coordinator.execute_ping_sweep(target_range=target_range)
-                result["tool_started"] = True
-                result["message"] = f"Ping sweep started: {target_range}"
-            
-            elif intent_type == IntentType.PORT_SCAN:
-                # Port scan - target and ports from intent
-                scan_target = intent.target or target or "127.0.0.1"
-                ports = intent.params.get("ports", "1-1000")
-                self._coordinator.execute_port_scan(target=scan_target, ports=ports)
-                result["tool_started"] = True
-                result["message"] = f"Port scan started: {scan_target} (ports: {ports})"
-            
-            elif intent_type == IntentType.SERVICE_DETECTION:
-                # Service detection (nmap -sV)
-                scan_target = intent.target or target or "127.0.0.1"
-                ports = intent.params.get("ports")  # Optional, can be None
-                intensity = intent.params.get("intensity", 5)
-                self._coordinator.execute_service_detection(
-                    target=scan_target,
-                    ports=ports,
-                    intensity=intensity
-                )
-                result["tool_started"] = True
-                result["message"] = f"Service detection started: {scan_target}"
-            
-            elif intent_type == IntentType.VULN_SCAN:
-                # Vulnerability scan (nmap --script vuln)
-                scan_target = intent.target or target or "127.0.0.1"
-                ports = intent.params.get("ports")  # Optional
-                scripts = intent.params.get("scripts", "vuln")
-                self._coordinator.execute_vuln_scan(
-                    target=scan_target,
-                    ports=ports,
-                    scripts=scripts
-                )
-                result["tool_started"] = True
-                result["message"] = f"Vulnerability scan started: {scan_target}"
-            
-            elif intent_type == IntentType.DNS_LOOKUP:
-                # DNS lookup (nslookup)
-                domain = intent.target or target or "example.com"
-                record_type = intent.params.get("record_type", "A")
-                self._coordinator.execute_dns_lookup(
-                    domain=domain,
-                    record_type=record_type
-                )
-                result["tool_started"] = True
-                result["message"] = f"DNS lookup started: {domain} (type: {record_type})"
-            
-            elif intent_type == IntentType.SSL_SCAN:
-                # SSL/TLS scan (openssl s_client)
-                scan_target = intent.target or target or "example.com"
-                port = intent.params.get("port", 443)
-                self._coordinator.execute_ssl_scan(
-                    target=scan_target,
-                    port=port
-                )
-                result["tool_started"] = True
-                result["message"] = f"SSL/TLS scan started: {scan_target}:{port}"
-            
-            elif intent_type == IntentType.WEB_DIR_ENUM:
-                # Web directory enumeration (gobuster dir)
-                target_url = intent.target or target or "http://example.com"
-                wordlist = intent.params.get("wordlist", "common.txt")
-                extensions = intent.params.get("extensions")
-                self._coordinator.execute_web_dir_enum(
-                    url=target_url,
-                    wordlist=wordlist,
-                    extensions=extensions
-                )
-                result["tool_started"] = True
-                result["message"] = f"Web directory enumeration started: {target_url}"
-            
-            elif intent_type == IntentType.SUBDOMAIN_ENUM:
-                # Subdomain enumeration (DNS bruteforce)
-                domain = intent.target or target or "example.com"
-                wordlist = intent.params.get("wordlist", "subdomains.txt")
-                self._coordinator.execute_subdomain_enum(
-                    domain=domain,
-                    wordlist=wordlist
-                )
-                result["tool_started"] = True
-                result["message"] = f"Subdomain enumeration started: {domain}"
-            
-            elif intent_type == IntentType.WEB_VULN_SCAN:
-                # Web application scanner (technology fingerprinting)
-                target_url = intent.target or target or "http://example.com"
-                self._coordinator.execute_web_app_scan(url=target_url)
-                result["tool_started"] = True
-                result["message"] = f"Web application scan started: {target_url}"
-            
-            else:
-                # Diğer intent'ler için henüz tool yok
-                result["message"] = f"Tool execution not implemented for: {intent_type.value}"
+            final_target = intent.target or target or intent.params.get("target")
+            tool_id = get_execution_tool_id(intent_type)
+            kwargs = build_execution_kwargs(intent_type, final_target, intent.params)
+
+            if not tool_id or not kwargs:
+                result["message"] = f"Tool execution not available for: {intent_type.value}"
                 result["success"] = False
                 return result
-            
+
+            started = self._coordinator.manager.execute_tool(tool_id, callback=None, **kwargs)
+
+            result["tool_started"] = bool(started)
+            result["message"] = (
+                f"Execution started: {tool_id} ({final_target})"
+                if started else
+                f"Tool not registered: {tool_id}"
+            )
             result["success"] = True
+            return result
             
         except Exception as e:
             result["message"] = f"Tool execution failed: {str(e)}"

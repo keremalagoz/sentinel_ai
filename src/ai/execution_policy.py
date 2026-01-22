@@ -5,7 +5,7 @@ Sprint 1 Locked Policy Configuration
 
 from enum import Enum
 from typing import List
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 
 
 class RiskLevel(Enum):
@@ -150,8 +150,9 @@ class ExecutionPolicy(BaseModel):
             ]
         return []
     
-    class Config:
-        frozen = False  # Allow runtime modification (for Sprint 2+ policy updates)
+    model_config = ConfigDict(
+        frozen=False  # Allow runtime modification (for Sprint 2+ policy updates)
+    )
 
 
 # ========================================
@@ -228,9 +229,9 @@ if __name__ == "__main__":
     # Example 4: Validate Sprint 1 compliance
     try:
         validate_policy_sprint1(policy)
-        print("\n✅ Policy compliant with Sprint 1 rules")
+        print("\n[OK] Policy compliant with Sprint 1 rules")
     except ValueError as e:
-        print(f"\n❌ Policy violation: {e}")
+        print(f"\n[FAIL] Policy violation: {e}")
     
     # Example 5: Invalid policy (would fail validation)
     try:
@@ -240,4 +241,4 @@ if __name__ == "__main__":
         )
         validate_policy_sprint1(invalid_policy)
     except ValueError as e:
-        print(f"\n❌ Expected violation caught: {e}")
+        print(f"\n[FAIL] Expected violation caught: {e}")

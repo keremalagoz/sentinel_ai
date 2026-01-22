@@ -1,7 +1,7 @@
 # Sprint 1 Pre-Implementation Checklist
 
 **Date:** 20 Ocak 2026  
-**Status:** ✅ READY TO START
+**Status:** [OK] READY TO START
 
 ---
 
@@ -9,7 +9,7 @@
 
 All architectural decisions finalized and documented. Implementation can begin.
 
-### 1. Entity ID Generation Strategy ✅
+### 1. Entity ID Generation Strategy [OK]
 
 **Document:** [entity_id_strategy.md](entity_id_strategy.md)
 
@@ -26,7 +26,7 @@ All architectural decisions finalized and documented. Implementation can begin.
 
 ---
 
-### 2. SQLite Backend Schema ✅
+### 2. SQLite Backend Schema [OK]
 
 **Document:** [sqlite_schema.md](sqlite_schema.md)
 
@@ -43,7 +43,7 @@ All architectural decisions finalized and documented. Implementation can begin.
 
 ---
 
-### 3. Execution History Model ✅
+### 3. Execution History Model [OK]
 
 **Document:** [execution_history_model.md](execution_history_model.md)
 
@@ -61,7 +61,7 @@ All architectural decisions finalized and documented. Implementation can begin.
 
 ---
 
-### 4. Execution Policy - Safe by Default ✅
+### 4. Execution Policy - Safe by Default [OK]
 
 **Document:** [src/ai/execution_policy.py](../src/ai/execution_policy.py)
 
@@ -147,14 +147,14 @@ All architectural decisions finalized and documented. Implementation can begin.
 
 Sprint 1 complete when:
 
-1. ✅ 3 tools working end-to-end (ping, nmap ping, nmap port scan)
-2. ✅ Entity deduplication working (same host from 2 parsers = 1 entity)
-3. ✅ Parser failure handling (PARTIAL_SUCCESS, raw output saved)
-4. ✅ SQLite persistence (checkpoint/restore working)
-5. ✅ Memory < 100MB for 10k entities
-6. ✅ Query performance < 100ms for 10k entities
-7. ✅ Policy enforcement (exploit blocked, confirmation required)
-8. ✅ Unit test coverage > 80%
+1. [OK] 3 tools working end-to-end (ping, nmap ping, nmap port scan)
+2. [OK] Entity deduplication working (same host from 2 parsers = 1 entity)
+3. [OK] Parser failure handling (PARTIAL_SUCCESS, raw output saved)
+4. [OK] SQLite persistence (checkpoint/restore working)
+5. [OK] Memory < 100MB for 10k entities
+6. [OK] Query performance < 100ms for 10k entities
+7. [OK] Policy enforcement (exploit blocked, confirmation required)
+8. [OK] Unit test coverage > 80%
 
 ---
 
@@ -162,27 +162,27 @@ Sprint 1 complete when:
 
 | Risk | Mitigation | Status |
 |------|------------|--------|
-| Memory explosion | SQLite backend + TTL pruning | ✅ Mitigated |
-| Duplicate entities | Merkezi EntityIDGenerator | ✅ Mitigated |
-| Parser failure | PARTIAL_SUCCESS policy + history | ✅ Mitigated |
-| Legal risk | allow_persistent_changes=False | ✅ Mitigated |
-| Complexity overload | ToolDef CORE only (8 fields) | ✅ Mitigated |
-| Scope creep | Explicit Sprint 2 defer list | ✅ Mitigated |
+| Memory explosion | SQLite backend + TTL pruning | [OK] Mitigated |
+| Duplicate entities | Merkezi EntityIDGenerator | [OK] Mitigated |
+| Parser failure | PARTIAL_SUCCESS policy + history | [OK] Mitigated |
+| Legal risk | allow_persistent_changes=False | [OK] Mitigated |
+| Complexity overload | ToolDef CORE only (8 fields) | [OK] Mitigated |
+| Scope creep | Explicit Sprint 2 defer list | [OK] Mitigated |
 
 ---
 
 ## Architecture Review Sign-Off
 
-**Critical Analysis Completed:** ✅  
-**Showstopper Check:** ✅  
-**Design Lock:** ✅  
-**GO/NO-GO Decision:** ✅ GO
+**Critical Analysis Completed:** [OK]  
+**Showstopper Check:** [OK]  
+**Design Lock:** [OK]  
+**GO/NO-GO Decision:** [OK] GO
 
 **Pre-Sprint 1 Documents:**
-1. ✅ entity_id_strategy.md
-2. ✅ sqlite_schema.md
-3. ✅ execution_history_model.md
-4. ✅ execution_policy.py
+1. [OK] entity_id_strategy.md
+2. [OK] sqlite_schema.md
+3. [OK] execution_history_model.md
+4. [OK] execution_policy.py
 
 **Implementation Guidelines:**
 - Kilitli kararlara aykırı değişiklik yasak
@@ -197,15 +197,15 @@ Sprint 1 complete when:
 
 Agent feedback during implementation:
 
-✅ **"Bu doğru, devam"** - Compliant with locked decisions  
-⚠️ **"Bu kilitli karara aykırı"** - Rule violation detected  
-🔥 **"Bu implementation ileride patlar"** - Technical debt warning
+[OK] **"Bu dogru, devam"** - Compliant with locked decisions  
+[WARNING] **"Bu kilitli karara aykiri"** - Rule violation detected  
+[ALERT] **"Bu implementation ileride patlar"** - Technical debt warning
 
 ---
 
 ## Sprint 1 Start
 
-**Ready to start:** ✅ YES
+**Ready to start:** [OK] YES
 
 **Next Step:** Begin Week 1 foundation implementation
 

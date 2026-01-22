@@ -365,7 +365,7 @@ class NmapPingSweepParser(BaseParser):
             if 'Host is up' in line:
                 ip = self._extract_ip(line)
                 
-                # ✅ CORRECT: Use ID generator
+                # CORRECT: Use ID generator
                 host = self._create_host_entity(
                     ip=ip,
                     is_alive=True,
@@ -383,11 +383,11 @@ class NmapPingSweepParser(BaseParser):
 ### Anti-Pattern (FORBIDDEN)
 
 ```python
-# ❌ WRONG: Parser creates ID directly
+# WRONG: Parser creates ID directly
 class BadParser(BaseParser):
     def parse(self, output: str) -> List[BaseEntity]:
         host = HostEntity(
-            id=f"my_custom_{ip}",  # ❌ WRONG! Non-canonical ID
+            id=f"my_custom_{ip}",  # WRONG: Non-canonical ID
             ip_address=ip
         )
         return [host]

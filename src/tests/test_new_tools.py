@@ -16,7 +16,7 @@ import os
 # Add parent directory to path
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../..')))
 
-from PySide6.QtWidgets import QApplication
+from PyQt6.QtWidgets import QApplication
 from src.core.sentinel_coordinator import SentinelCoordinator
 
 
@@ -42,22 +42,22 @@ def test_tool_registration():
         "web_app_scan"
     ]
     
-    print(f"✅ Expected tools: {len(expected_tools)}")
-    print(f"✅ Registered tools: {len(tools)}")
+    print(f"[OK] Expected tools: {len(expected_tools)}")
+    print(f"[OK] Registered tools: {len(tools)}")
     
     for tool in expected_tools:
         if tool in tools:
-            print(f"  ✓ {tool}")
+            print(f"  [OK] {tool}")
         else:
-            print(f"  ✗ {tool} - MISSING!")
+            print(f"  [FAIL] {tool} - MISSING!")
     
     coordinator.cleanup()
     
     if len(tools) == len(expected_tools):
-        print("\n✅ TEST 1 PASSED: All tools registered")
+        print("\n[OK] TEST 1 PASSED: All tools registered")
         return True
     else:
-        print(f"\n❌ TEST 1 FAILED: Expected {len(expected_tools)}, got {len(tools)}")
+        print(f"\n[FAIL] TEST 1 FAILED: Expected {len(expected_tools)}, got {len(tools)}")
         return False
 
 
@@ -92,16 +92,16 @@ def test_tool_command_building():
     for name, tool, params in tests:
         try:
             cmd = tool.build_command(**params)
-            print(f"  ✓ {name}: {' '.join(cmd[:5])}..." if len(cmd) > 5 else f"  ✓ {name}: {' '.join(cmd)}")
+            print(f"  [OK] {name}: {' '.join(cmd[:5])}..." if len(cmd) > 5 else f"  [OK] {name}: {' '.join(cmd)}")
         except Exception as e:
-            print(f"  ✗ {name}: {e}")
+            print(f"  [FAIL] {name}: {e}")
             all_passed = False
     
     if all_passed:
-        print("\n✅ TEST 2 PASSED: All commands build successfully")
+        print("\n[OK] TEST 2 PASSED: All commands build successfully")
         return True
     else:
-        print("\n❌ TEST 2 FAILED: Some commands failed")
+        print("\n[FAIL] TEST 2 FAILED: Some commands failed")
         return False
 
 
@@ -134,13 +134,13 @@ def test_parser_imports():
         
         for name, parser_class in parsers:
             parser = parser_class()
-            print(f"  ✓ {name}")
+            print(f"  [OK] {name}")
         
-        print("\n✅ TEST 3 PASSED: All parsers imported successfully")
+        print("\n[OK] TEST 3 PASSED: All parsers imported successfully")
         return True
         
     except Exception as e:
-        print(f"\n❌ TEST 3 FAILED: {e}")
+        print(f"\n[FAIL] TEST 3 FAILED: {e}")
         return False
 
 
@@ -166,18 +166,18 @@ def test_coordinator_methods():
     
     for method in methods:
         if hasattr(coordinator, method):
-            print(f"  ✓ {method}")
+            print(f"  [OK] {method}")
         else:
-            print(f"  ✗ {method} - NOT FOUND!")
+            print(f"  [FAIL] {method} - NOT FOUND!")
             all_found = False
     
     coordinator.cleanup()
     
     if all_found:
-        print("\n✅ TEST 4 PASSED: All coordinator methods exist")
+        print("\n[OK] TEST 4 PASSED: All coordinator methods exist")
         return True
     else:
-        print("\n❌ TEST 4 FAILED: Some methods missing")
+        print("\n[FAIL] TEST 4 FAILED: Some methods missing")
         return False
 
 
@@ -201,13 +201,13 @@ def test_orchestrator_mappings():
         ]
         
         for intent in intents:
-            print(f"  ✓ {intent.value}")
+            print(f"  [OK] {intent.value}")
         
-        print("\n✅ TEST 5 PASSED: All intent types exist")
+        print("\n[OK] TEST 5 PASSED: All intent types exist")
         return True
         
     except Exception as e:
-        print(f"\n❌ TEST 5 FAILED: {e}")
+        print(f"\n[FAIL] TEST 5 FAILED: {e}")
         return False
 
 
@@ -244,7 +244,7 @@ def run_all_tests():
     total = len(results)
     
     for name, result in results:
-        status = "✅ PASS" if result else "❌ FAIL"
+        status = "[OK] PASS" if result else "[FAIL] FAIL"
         print(f"{status}: {name}")
     
     print("\n" + "="*60)

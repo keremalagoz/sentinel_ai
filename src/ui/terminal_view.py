@@ -119,7 +119,7 @@ class TerminalView(QWidget):
         action_layout.setContentsMargins(0, 0, 0, 0)
         action_layout.setSpacing(10)
         
-        self._btn_yes = QPushButton("✓  YES")
+        self._btn_yes = QPushButton("YES")
         self._btn_yes.setStyleSheet(ACTION_BTN_YES_STYLE)
         self._btn_yes.setCursor(Qt.CursorShape.PointingHandCursor)
         self._btn_yes.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
@@ -421,7 +421,7 @@ class TerminalView(QWidget):
             self._status_badge.setText("Tool Complete")
             self._status_badge.setStyleSheet(get_badge_style("success"))
             self._log(
-                f"[✓] {tool_id} completed: {result.entities_created} entities created",
+                f"[OK] {tool_id} completed: {result.entities_created} entities created",
                 Colors.SUCCESS
             )
         else:
