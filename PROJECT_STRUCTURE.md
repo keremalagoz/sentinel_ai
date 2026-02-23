@@ -27,7 +27,6 @@ sentinel_root/
 │   │   ├── orchestrator.py      # AI Orchestrator (Hibrit: Local + Cloud)
 │   │   ├── intent_resolver.py   # Intent detection (LLM -> intent)
 │   │   ├── command_builder.py   # Komut parametreleri oluşturucu
-│   │   ├── execution_policy.py  # Execution policy (izin sistemi)
 │   │   ├── schemas.py           # AI veri modelleri (Pydantic)
 │   │   └── tool_registry.py     # Tool kayıt sistemi
 │   │
@@ -329,7 +328,6 @@ IntegratedTool + ToolManager
 **Sorumluluklar**:
 - Tool + Parser + Backend orchestration
 - End-to-end workflow
-- Policy enforcement (ExecutionPolicy)
 - Signal routing
 
 **Workflow**:
@@ -439,16 +437,6 @@ CommandBuilder - Komut parametreleri oluşturma
 - Tool parametrelerini hazırlama
 - Template filling
 - Validation
-
----
-
-### **src/ai/execution_policy.py**
-ExecutionPolicy - İzin sistemi
-
-**Sorumluluklar**:
-- Tool execution izni
-- Stage-based restrictions
-- Whitelist/blacklist
 
 ---
 

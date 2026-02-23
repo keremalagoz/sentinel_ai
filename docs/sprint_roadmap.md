@@ -25,7 +25,6 @@ Temel akış:
   - `tool_registry.py`
   - `command_builder.py`
   - `orchestrator.py`
-  - `execution_policy.py`
 - **Core Katman:** `src/core/`
   - `process_manager.py`
   - `execution_manager.py`
@@ -73,8 +72,8 @@ Temel akış:
    - Test faili: `test_parser_framework.py::TestParserHelpers::test_create_vulnerability_entity`
 2. **Dokümantasyon-kod senkronizasyonu**
    - README, PROJECT_STRUCTURE, son_durum güncel kalmalı
-3. **ExecutionPolicy netleştirme**
-   - Tek policy katmanı korunmalı
+3. **Intent/Registry uyumu**
+  - Intent -> tool mapping kapsamı tutarlı genişletilmeli
 
 ---
 

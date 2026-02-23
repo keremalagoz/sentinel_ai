@@ -235,7 +235,7 @@ python main_developer.py
 [OK] Hızlı LLM Yanıt - Network overhead yok (2-3x hızlı)  
 [OK] Mock Execution - Komutlar çalıştırılmaz, güvenli  
 [OK] Action Planner Testi - Intent, Tool, Command çıktılarını görüntüle  
-[OK] Execution Policy - Production ile aynı mantık  
+[OK] Deterministik komut akışı - Production ile aynı mantık  
 
 UYARI: Developer mode gerçek güvenlik testleri için kullanılamaz!
 

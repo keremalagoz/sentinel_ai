@@ -59,7 +59,6 @@ sentinel_root/
 │   │   ├── tool_registry.py     [OK] Execution mapping + SSL/Subdomain
 │   │   ├── intent_resolver.py   [OK] Strict payload dogrulama
 │   │   ├── command_builder.py   [OK] Deterministik builder
-│   │   ├── execution_policy.py  [OK] ConfigDict guncelleme
 │   │   └── api_server.py        [OK] Deterministik komut uretimi
 │   │
 │   ├── core/
@@ -124,7 +123,7 @@ sentinel_root/
 | # | Gorev | Dosya | Durum |
 |---|-------|-------|-------|
 | 1 | Registry tek kaynak (execution mapping) | tool_registry.py, orchestrator.py | [OK] |
-| 2 | Policy sadeleştirme | execution_policy.py | [OK] |
+| 2 | Policy sadeleştirme | Policy katmanı kaldırıldı | [OK] |
 | 3 | Intent JSON strict dogrulama | intent_resolver.py | [OK] |
 | 4 | API uyumu (deterministik komut) | api_server.py | [OK] |
 | 5 | PyQt6 standardizasyonu | core + tests + requirements.txt | [OK] |

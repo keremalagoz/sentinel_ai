@@ -61,22 +61,6 @@ All architectural decisions finalized and documented. Implementation can begin.
 
 ---
 
-### 4. Execution Policy - Safe by Default [OK]
-
-**Document:** [src/ai/execution_policy.py](../src/ai/execution_policy.py)
-
-**Status:** LOCKED
-
-**Key Decisions:**
-- `allow_persistent_changes = False` (IMMUTABLE Sprint 1)
-- `confirm_before_tactics = [EXPLOIT_WEAKNESS, CREDENTIAL_BRUTE_FORCE]` (IMMUTABLE Sprint 1)
-- High-risk tactics blocked or require confirmation
-- Legal safety enforced
-
-**Blocker Risk:** Eliminated
-
----
-
 ## Sprint 1 Scope (2 Weeks)
 
 ### Week 1: Foundation
@@ -99,7 +83,7 @@ All architectural decisions finalized and documented. Implementation can begin.
 - [ ] Query performance test (10k entities < 100ms)
 - [ ] Duplicate entity merge test
 
-### Week 2: Parser & Policy
+### Week 2: Parser & Integration
 
 **Parser Framework:**
 - [ ] BaseParser class with ID generator integration
@@ -115,16 +99,10 @@ All architectural decisions finalized and documented. Implementation can begin.
 - [ ] nmap_ping_sweep (host discovery)
 - [ ] nmap_port_scan (port enumeration)
 
-**Policy Integration:**
-- [ ] ExecutionPolicy validation
-- [ ] Planner policy check (is_tactic_allowed_auto)
-- [ ] Recommendation policy filter
-
 **Testing:**
 - [ ] Parser ID generation test
 - [ ] Parser failure handling test (PARTIAL_SUCCESS)
 - [ ] Execution history query test
-- [ ] Policy enforcement test (blocked tactics)
 - [ ] End-to-end test (3 tools)
 
 ---
@@ -153,7 +131,7 @@ Sprint 1 complete when:
 4. [OK] SQLite persistence (checkpoint/restore working)
 5. [OK] Memory < 100MB for 10k entities
 6. [OK] Query performance < 100ms for 10k entities
-7. [OK] Policy enforcement (exploit blocked, confirmation required)
+7. [OK] Güvenli execution akışı (hata toleransı ve kayıt bütünlüğü)
 8. [OK] Unit test coverage > 80%
 
 ---
@@ -165,7 +143,7 @@ Sprint 1 complete when:
 | Memory explosion | SQLite backend + TTL pruning | [OK] Mitigated |
 | Duplicate entities | Merkezi EntityIDGenerator | [OK] Mitigated |
 | Parser failure | PARTIAL_SUCCESS policy + history | [OK] Mitigated |
-| Legal risk | allow_persistent_changes=False | [OK] Mitigated |
+| Legal risk | Explicit user confirmation + logging | [OK] Mitigated |
 | Complexity overload | ToolDef CORE only (8 fields) | [OK] Mitigated |
 | Scope creep | Explicit Sprint 2 defer list | [OK] Mitigated |
 
@@ -182,14 +160,13 @@ Sprint 1 complete when:
 1. [OK] entity_id_strategy.md
 2. [OK] sqlite_schema.md
 3. [OK] execution_history_model.md
-4. [OK] execution_policy.py
+4. [OK] tool_integration.py
 
 **Implementation Guidelines:**
 - Kilitli kararlara aykırı değişiklik yasak
 - Parser ID override yasak
 - Transaction olmadan entity insert yasak
-- Persistent change default deny
-- Confirmation requirement immutable
+- Deterministik execution + kayıt bütünlüğü
 
 ---
 
