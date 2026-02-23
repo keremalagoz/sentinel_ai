@@ -1,6 +1,6 @@
 # SENTINEL AI - Proje Durum Raporu
 
-**Tarih:** 22 Ocak 2026  
+**Tarih:** 23 Şubat 2026  
 **Ekip:** Kerem (AI/Data/Backend) & Yiğit (System/UI/Security)
 
 ---
@@ -13,7 +13,7 @@
 |-------|---------|-------|
 | Klasör yapısı | Kerem | [OK] |
 | Git branch yapısı (main, develop, dev_kerem, dev_yigit) | Kerem | [OK] |
-| Docker Llama servisi (GPU Enabled) | Kerem/Yiğit | [OK] |
+| Docker WhiteRabbitNeo servisi (GPU Enabled) | Kerem/Yiğit | [OK] |
 | Docker API servisi | Kerem | [OK] |
 | requirements.txt | Yiğit | [OK] |
 | README.md | Kerem | [OK] |
@@ -50,7 +50,7 @@ sentinel_root/
 ├── README.md                    [OK] Emoji temizligi + dev mode dokumani
 ├── PROJECT_STRUCTURE.md         [OK] Emoji temizligi
 ├── docker-compose.yml           [OK] GPU Support & WhiteRabbitNeo
-├── son_durum.md                 [OK] Guncellendi (22 Ocak 2026)
+├── son_durum.md                 [OK] Guncellendi (23 Şubat 2026)
 │
 ├── src/
 │   ├── ai/                      (Kerem)
@@ -59,7 +59,6 @@ sentinel_root/
 │   │   ├── tool_registry.py     [OK] Execution mapping + SSL/Subdomain
 │   │   ├── intent_resolver.py   [OK] Strict payload dogrulama
 │   │   ├── command_builder.py   [OK] Deterministik builder
-│   │   ├── policy_gate.py       [OK] Tek policy akis
 │   │   ├── execution_policy.py  [OK] ConfigDict guncelleme
 │   │   └── api_server.py        [OK] Deterministik komut uretimi
 │   │
@@ -82,10 +81,9 @@ sentinel_root/
 │       ├── test_new_tools.py         [OK] Emoji temizligi
 │       └── test_ui_integration.py    [OK] PyQt6 standardizasyonu
 │
-├── docs/
-│   └── Detayli Fazlandirilmis.pdf
+├── docs/                        Teknik dokumantasyon
 │
-└── temp/                        Session loglari
+└── temp/                        Session loglari + sentinel_safe
 ```
 
 ---
@@ -94,7 +92,7 @@ sentinel_root/
 
 | Container | Durum | Port | İçerik |
 |-----------|-------|------|--------|
-| sentinel-llama | Kontrol edilmedi | 8001 | Llama 3 AI (8B model) |
+| sentinel-whiterabbitneo | Kontrol edilmedi | 8002 | WhiteRabbitNeo AI (Ollama) |
 | sentinel-api | Kontrol edilmedi | 8000 | API Backend |
 | sentinel-tools | Kontrol edilmedi | - | Nmap, Gobuster, Nikto, Hydra |
 
@@ -126,7 +124,7 @@ sentinel_root/
 | # | Gorev | Dosya | Durum |
 |---|-------|-------|-------|
 | 1 | Registry tek kaynak (execution mapping) | tool_registry.py, orchestrator.py | [OK] |
-| 2 | Policy tek akis | policy_gate.py, execution_policy.py | [OK] |
+| 2 | Policy sadeleştirme | execution_policy.py | [OK] |
 | 3 | Intent JSON strict dogrulama | intent_resolver.py | [OK] |
 | 4 | API uyumu (deterministik komut) | api_server.py | [OK] |
 | 5 | PyQt6 standardizasyonu | core + tests + requirements.txt | [OK] |
@@ -134,7 +132,7 @@ sentinel_root/
 
 ### Test Durumu
 
-- pytest: src/tests/test_action_planner_v2.py -> 6/6 PASSED (22 Ocak 2026)
+- pytest: src/tests/test_action_planner_v2.py -> 5/5 PASSED (23 Şubat 2026)
 
 ### Yeni Akis (v2.1 Stabil)
 
@@ -143,9 +141,6 @@ User Input
     |
     v
 [Intent Resolver] --> LLM sadece intent belirler
-    |
-    v
-[Policy Gate] --> Tek policy akis (aktif)
     |
     v
 [Tool Registry] --> Intent -> Tool (deterministic)
@@ -216,4 +211,4 @@ User Input
 
 ---
 
-*Son Güncelleme: 22 Ocak 2026*
+*Son Güncelleme: 23 Şubat 2026*

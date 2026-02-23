@@ -5,7 +5,7 @@
 ![Python](https://img.shields.io/badge/Python-3.11+-3776AB?style=for-the-badge&logo=python&logoColor=white)
 ![PyQt6](https://img.shields.io/badge/PyQt6-GUI-41CD52?style=for-the-badge&logo=qt&logoColor=white)
 ![Docker](https://img.shields.io/badge/Docker-Container-2496ED?style=for-the-badge&logo=docker&logoColor=white)
-![Llama](https://img.shields.io/badge/Llama_3-Local_AI-FF6F00?style=for-the-badge&logo=meta&logoColor=white)
+![WhiteRabbitNeo](https://img.shields.io/badge/WhiteRabbitNeo-Local_AI-FF6F00?style=for-the-badge&logo=meta&logoColor=white)
 ![License](https://img.shields.io/badge/License-MIT-green?style=for-the-badge)
 
 **Hibrit AI Destekli Güvenlik Test Aracı**
@@ -18,11 +18,11 @@
 
 ## Proje Hakkında
 
-SENTINEL AI, siber güvenlik testlerini yapay zeka destekli komutlarla otomatikleştiren bir masaüstü uygulamasıdır. Hibrit AI mimarisi sayesinde hem yerel (Llama 3) hem de bulut (OpenAI GPT-4) yapay zeka modellerini kullanarak güvenlik taramalarını yönetir.
+SENTINEL AI, siber güvenlik testlerini yapay zeka destekli komutlarla otomatikleştiren bir masaüstü uygulamasıdır. Hibrit AI mimarisi sayesinde hem yerel (WhiteRabbitNeo) hem de bulut (OpenAI GPT-4) yapay zeka modellerini kullanarak güvenlik taramalarını yönetir.
 
 ### Özellikler
 
-- **Hibrit AI Motoru** - Basit görevler için Local Llama 3, karmaşık senaryolar için Cloud AI
+- **Hibrit AI Motoru** - Basit görevler için WhiteRabbitNeo, karmaşık senaryolar için Cloud AI
 - **Modern PyQt6 Arayüzü** - Donmayan, responsive terminal ve sonuç görüntüleme
 - **Docker Altyapısı** - İzole ve taşınabilir servis mimarisi
 - **Güvenli Yetki Yönetimi** - Pkexec ile şifresiz root işlemleri
@@ -36,19 +36,19 @@ SENTINEL AI, siber güvenlik testlerini yapay zeka destekli komutlarla otomatikl
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
-│                        SENTINEL AI                               │
+│                        SENTINEL AI                              │
 ├─────────────────────────────────────────────────────────────────┤
 │  ┌─────────────┐    ┌─────────────┐    ┌─────────────┐          │
 │  │   PyQt6     │    │   AI        │    │   Process   │          │
 │  │   GUI       │◄──►│ Orchestrator│◄──►│   Manager   │          │
 │  └─────────────┘    └──────┬──────┘    └──────┬──────┘          │
-│                            │                   │                 │
-│         ┌──────────────────┼───────────────────┤                 │
-│         ▼                  ▼                   ▼                 │
+│                            │                   │                │
+│         ┌──────────────────┼───────────────────┤                │
+│         ▼                  ▼                   ▼                │
 │  ┌─────────────┐    ┌─────────────┐    ┌─────────────┐          │
 │  │ Local LLM   │    │ Cloud API   │    │ Linux       │          │
-│  │ (Llama 3)   │    │ (OpenAI)    │    │ Tools       │          │
-│  │ Port: 8001  │    │             │    │ (nmap, etc) │          │
+│  │ (WhiteRabbitNeo)││ (OpenAI)    │    │ Tools       │          │
+│  │ Port: 8002  │    │             │    │ (nmap, etc) │          │
 │  └─────────────┘    └─────────────┘    └─────────────┘          │
 └─────────────────────────────────────────────────────────────────┘
 ```
@@ -59,37 +59,50 @@ SENTINEL AI, siber güvenlik testlerini yapay zeka destekli komutlarla otomatikl
 
 ```
 sentinel_root/
-├── src/                      # Kaynak kodlar
-│   ├── core/                 # Backend mantığı
-│   │   ├── adapters/         # Araç çıktı parserleri
-│   │   │   └── nmap_adapter.py  # Nmap XML parser
-│   │   ├── process_manager.py   # QProcess wrapper
-│   │   ├── models.py            # Pydantic veri modelleri
-│   │   ├── cleaner.py           # Güvenli dosya temizleyici
-│   │   ├── interfaces.py        # Plugin arayüzleri
-│   │   └── plugin_manager.py    # Plugin yükleyici
-│   ├── ui/                   # PyQt6 arayüz dosyaları
-│   │   ├── terminal_view.py     # Terminal widget
-│   │   └── results_view.py      # Sonuç tablosu
-│   ├── ai/                   # Yapay zeka modülleri
-│   │   ├── schemas.py           # JSON şemaları
-│   │   ├── orchestrator.py      # AI karar motoru
-│   │   └── masking.py           # Veri maskeleme
-│   ├── plugins/              # Harici araç eklentileri
-│   └── tests/                # Unit testler
+├── main.py                   # Production giriş noktası
+├── main_developer.py         # Developer mode giriş noktası
+├── api_server.py             # API modunda komut üretimi
+├── requirements.txt          # Python bağımlılıkları
+├── docker-compose.yml        # Docker servis tanımları
+├── .env                      # Çevre değişkenleri
+├── .env.example              # .env şablonu
+├── PROJECT_STRUCTURE.md      # Proje yapısı rehberi
+├── README.md                 # Bu dosya
+├── son_durum.md              # Durum raporu
+├── data/                     # Veri klasörü
 ├── docker/                   # Docker yapılandırmaları
-│   ├── llama/                # Llama 3 servisi
-│   │   ├── Dockerfile
-│   │   └── pull_model.sh
-│   └── api/                  # API servisi
+│   ├── api/                  # API servisi
+│   │   └── Dockerfile
+│   ├── tools/                # Security tools servisi
+│   │   └── Dockerfile
+│   └── whiterabbitneo/       # WhiteRabbitNeo LLM servisi
 │       └── Dockerfile
 ├── docs/                     # Dokümantasyon
-├── temp/                     # Session logları (gitignore)
-├── main.py                      # Uygulama giriş noktası
-├── requirements.txt             # Python bağımlılıkları
-├── docker-compose.yml           # Docker servis tanımları
-├── .env.example                 # Ortam değişkenleri şablonu
-└── README.md                    # Bu dosya
+│   ├── AGENT_RULES.md
+│   ├── entity_id_strategy.md
+│   ├── execution_history_model.md
+│   ├── execution_state_model.md
+│   ├── sprint_roadmap.md
+│   ├── sprint1_ready.md
+│   └── sqlite_schema.md
+├── models/                   # Model dosyaları ve modelfile'lar
+│   ├── model1.gguf
+│   ├── model2.gguf
+│   ├── Modelfile.model1
+│   ├── Modelfile.model2
+│   ├── Modelfile.whiterabbitneo
+│   └── whiterabbitneo-7b-q4.gguf
+├── src/                      # Kaynak kodlar
+│   ├── ai/                   # Yapay zeka modülleri
+│   ├── core/                 # Backend mantığı
+│   ├── ui/                   # PyQt6 arayüz dosyaları
+│   ├── plugins/              # Harici araç eklentileri
+│   └── tests/                # Unit testler
+├── temp/                     # Geçici dosyalar
+│  └── sentinel_safe/
+├── sentinel_production.db    # Production veritabanı
+├── sentinel_dev.db           # Developer mode veritabanı
+└── sentinel_state.db         # Test/default veritabanı
 ```
 
 ---
@@ -112,7 +125,7 @@ SENTINEL AI iki farklı modda çalışabilir:
 - **İşletim Sistemi:** Linux (Ubuntu 20.04+ önerilir)
 - **Python:** 3.11+
 - **Docker:** 20.10+ & Docker Compose
-- **RAM:** Minimum 8GB (Llama 3 için 16GB önerilir)
+- **RAM:** Minimum 8GB (WhiteRabbitNeo için 16GB önerilir)
 - **Disk:** 10GB+ (Model indirme için)
 
 ### Gereksinimler (Developer Mode)
@@ -157,9 +170,9 @@ nano .env
 # Servisleri arka planda başlat
 docker-compose up -d
 
-# İlk çalıştırmada Llama 3 modeli indirilecek (~4.7GB)
+# İlk çalıştırmada WhiteRabbitNeo modeli indirilecek
 # İndirme durumunu izle:
-docker-compose logs -f llama-service
+docker-compose logs -f whiterabbitneo-service
 ```
 
 ### 5. Uygulamayı Başlatın
@@ -222,7 +235,7 @@ python main_developer.py
 [OK] Hızlı LLM Yanıt - Network overhead yok (2-3x hızlı)  
 [OK] Mock Execution - Komutlar çalıştırılmaz, güvenli  
 [OK] Action Planner Testi - Intent, Tool, Command çıktılarını görüntüle  
-[OK] Policy Gate - Production ile aynı mantık  
+[OK] Execution Policy - Production ile aynı mantık  
 
 UYARI: Developer mode gerçek güvenlik testleri için kullanılamaz!
 
@@ -232,8 +245,9 @@ UYARI: Developer mode gerçek güvenlik testleri için kullanılamaz!
 
 | Servis | Port | Açıklama |
 |--------|------|----------|
-| `llama-service` | 8001 | Local Llama 3 LLM API |
+| `whiterabbitneo-service` | 8002 | WhiteRabbitNeo LLM API (Ollama) |
 | `api-service` | 8000 | Backend API (Orchestrator) |
+| `tools-service` | - | Security tools (nmap, gobuster, nikto, hydra) |
 
 ### Docker Komutları
 
@@ -271,10 +285,10 @@ docker-compose down -v
 
 ```
 Kullanıcı: "192.168.1.0/24 ağını tara"
-AI → {"tool": "nmap", "arguments": ["-sn", "192.168.1.0/24"]}
+AI → {"intent_type": "host_discovery", "target": "192.168.1.0/24", "params": {}}
 
 Kullanıcı: "80 portundaki web sunucusunun dizinlerini bul"
-AI → {"tool": "gobuster", "arguments": ["dir", "-u", "http://target", "-w", "wordlist.txt"]}
+AI → {"intent_type": "web_dir_enum", "target": "http://target", "params": {"port": "80"}}
 ```
 
 ---
@@ -320,7 +334,7 @@ pytest --cov=src src/tests/
 
 ```bash
 # Tek dosya executable oluştur
-pyinstaller --onefile --name sentinel-ai --windowed src/main.py
+pyinstaller --onefile --name sentinel-ai --windowed main.py
 
 # Çıktı: dist/sentinel-ai
 ```
@@ -365,8 +379,8 @@ Bu proje MIT lisansı altında lisanslanmıştır. Detaylar için [LICENSE](LICE
 
 ## İletişim
 
-- **GitHub:** [macsclub/sentinel_ai](https://github.com/macsclub/sentinel_ai)
-- **Issues:** [GitHub Issues](https://github.com/macsclub/sentinel_ai/issues)
+- **GitHub:** [keremalagoz/sentinel_ai](https://github.com/keremalagoz/sentinel_ai)
+- **Issues:** [GitHub Issues](https://github.com/keremalagoz/sentinel_ai/issues)
 
 ---
 
