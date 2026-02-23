@@ -2,7 +2,7 @@
 # Action Planner v2: Intent-Based Architecture
 #
 # Yeni Akis (v2):
-#   User Input -> Intent Resolver -> Policy Gate -> Tool Registry -> Command Builder -> Execution
+#   User Input -> Intent Resolver -> Tool Registry -> Command Builder -> Execution
 #
 # LLM sadece intent belirler, tool/arguman/risk belirleme deterministic.
 
@@ -29,7 +29,6 @@ from src.ai.tool_registry import (
     build_execution_kwargs
 )
 from src.ai.command_builder import CommandBuilder, get_command_builder
-from src.ai.policy_gate import PolicyGate, get_policy_gate
 
 load_dotenv()
 
@@ -40,15 +39,13 @@ class AIOrchestrator:
     
     Yeni Mimari:
     1. Intent Resolver: LLM sadece kullanici niyetini belirler
-    2. Policy Gate: Opsiyonel intent kontrolu (varsayilan kapali)
-    3. Tool Registry: Intent -> Tool mapping (deterministic)
-    4. Command Builder: ToolSpec -> FinalCommand (deterministic)
+    2. Tool Registry: Intent -> Tool mapping (deterministic)
+    3. Command Builder: ToolSpec -> FinalCommand (deterministic)
     
     Avantajlar:
     - LLM daha dar scope'ta calisir (sadece intent)
     - Tool metadata (requires_root, risk) statik, LLM'den bagimsiz
     - Her katman ayri test edilebilir
-    - Policy gate kolayca eklenip cikartilabilir
     """
     
     def __init__(self, model: str = "whiterabbitneo", coordinator=None):
@@ -65,7 +62,6 @@ class AIOrchestrator:
         # V2 Components
         self._intent_resolver = IntentResolver(model=model)
         self._command_builder = CommandBuilder()
-        self._policy_gate = PolicyGate()
         
         # Cache
         self._last_intent: Optional[Intent] = None
@@ -93,8 +89,7 @@ class AIOrchestrator:
                 "command": FinalCommand veya None,
                 "message": str,
                 "intent": Intent,
-                "needs_clarification": bool,
-                "policy_warning": str veya None
+                "needs_clarification": bool
             }
         """
         result = {
@@ -102,8 +97,7 @@ class AIOrchestrator:
             "command": None,
             "message": "",
             "intent": None,
-            "needs_clarification": False,
-            "policy_warning": None
+            "needs_clarification": False
         }
         
         # =====================================================================
@@ -134,19 +128,7 @@ class AIOrchestrator:
             return result
         
         # =====================================================================
-        # 2. POLICY GATE - Opsiyonel kontrol
-        # =====================================================================
-        allowed, policy_message = self._policy_gate.check(intent.intent_type)
-        
-        if not allowed:
-            result["message"] = policy_message
-            return result
-        
-        if policy_message:
-            result["policy_warning"] = policy_message
-        
-        # =====================================================================
-        # 3. TOOL REGISTRY - Intent -> ToolSpec
+        # 2. TOOL REGISTRY - Intent -> ToolSpec
         # =====================================================================
         # Target: UI'dan gelen, intent'ten cikan, veya params'tan
         final_target = target or intent.target or intent.params.get("target")
@@ -177,7 +159,7 @@ class AIOrchestrator:
         self._last_tool_spec = tool_spec
         
         # =====================================================================
-        # 4. COMMAND BUILDER - ToolSpec -> FinalCommand
+        # 3. COMMAND BUILDER - ToolSpec -> FinalCommand
         # =====================================================================
         tool_def = get_tool_for_intent(intent.intent_type)
         explanation = tool_def.description if tool_def else ""
@@ -240,8 +222,6 @@ class AIOrchestrator:
             "version": "v2",
             "model": self._model,
             "llm_available": self._intent_resolver.check_available(),
-            "policy_enabled": self._policy_gate.is_enabled,
-            "policy_status": self._policy_gate.get_policy_status(),
             "last_intent": self._last_intent.intent_type.value if self._last_intent else None,
         }
     
@@ -261,13 +241,6 @@ class AIOrchestrator:
         self._model = model
         self._intent_resolver = IntentResolver(model=model)
     
-    def enable_policy(self):
-        """Policy gate'i aktif et"""
-        self._policy_gate.enable()
-    
-    def disable_policy(self):
-        """Policy gate'i devre disi birak"""
-        self._policy_gate.disable()
     
     # =========================================================================
     # TOOL EXECUTION - AI-Driven Workflow
@@ -438,5 +411,3 @@ if __name__ == "__main__":
             print(f"Root: {result['command'].requires_root}")
             print(f"Risk: {result['command'].risk_level.value}")
         
-        if result['policy_warning']:
-            print(f"Warning: {result['policy_warning']}")
