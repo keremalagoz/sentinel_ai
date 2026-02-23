@@ -19,7 +19,6 @@ from src.core.parser_framework import (
     SslScanParser, GobusterDirParser, SubdomainEnumParser, WebAppScanParser
 )
 from src.core.sqlite_backend import SQLiteBackend
-from src.ai.execution_policy import ExecutionPolicy
 
 
 class SentinelCoordinator(QObject):
@@ -58,13 +57,9 @@ class SentinelCoordinator(QObject):
         # Backend
         self.backend = SQLiteBackend(db_path)
         
-        # Policy
-        self.policy = ExecutionPolicy()
-        
         # Tool Manager
         self.manager = ToolManager(
-            backend=self.backend,
-            policy=self.policy
+            backend=self.backend
         )
         
         # Register tools

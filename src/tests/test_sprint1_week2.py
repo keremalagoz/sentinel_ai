@@ -28,7 +28,6 @@ from src.core.tool_integration import (
 from src.core.sqlite_backend import (
     SQLiteBackend, EntityType, ExecutionStatus, ParseStatus
 )
-from src.ai.execution_policy import ExecutionPolicy
 
 
 class TestPingToolIntegration(unittest.TestCase):
@@ -48,7 +47,6 @@ class TestPingToolIntegration(unittest.TestCase):
         self.db_path = self.temp_file.name
         
         self.backend = SQLiteBackend(self.db_path)
-        self.policy = ExecutionPolicy()
         
         # Create integrated tool
         tool = PingTool(timeout=10)
@@ -56,8 +54,7 @@ class TestPingToolIntegration(unittest.TestCase):
         self.integrated_tool = IntegratedTool(
             tool=tool,
             parser=parser,
-            backend=self.backend,
-            policy=self.policy
+            backend=self.backend
         )
         
         self.result = None

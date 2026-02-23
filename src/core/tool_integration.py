@@ -15,7 +15,6 @@ from src.core.tool_base import (
 )
 from src.core.parser_framework import BaseParser, ToolExecutor as ParserExecutor
 from src.core.sqlite_backend import SQLiteBackend, ExecutionStatus, ParseStatus
-from src.ai.execution_policy import ExecutionPolicy
 
 
 @dataclass
@@ -71,7 +70,6 @@ class IntegratedTool:
         tool: BaseTool,
         parser: BaseParser,
         backend: SQLiteBackend,
-        policy: Optional[ExecutionPolicy] = None,
         signals: Optional[IntegratedToolSignals] = None
     ):
         """
@@ -81,13 +79,11 @@ class IntegratedTool:
             tool: Tool instance (PingTool, etc.)
             parser: Parser instance (PingParser, etc.)
             backend: SQLite backend for state management
-            policy: Execution policy (default: safe policy)
             signals: Optional Qt signals
         """
         self.tool = tool
         self.parser = parser
         self.backend = backend
-        self.policy = policy or ExecutionPolicy()
         self.signals = signals or IntegratedToolSignals()
         
         # Parser executor for state integration
@@ -241,7 +237,6 @@ class ToolManager:
     def __init__(
         self,
         backend: SQLiteBackend,
-        policy: Optional[ExecutionPolicy] = None,
         signals: Optional[IntegratedToolSignals] = None
     ):
         """
@@ -249,11 +244,9 @@ class ToolManager:
         
         Args:
             backend: SQLite backend
-            policy: Execution policy
             signals: Optional shared signals
         """
         self.backend = backend
-        self.policy = policy or ExecutionPolicy()
         self.signals = signals or IntegratedToolSignals()
         
         self._tools: Dict[str, IntegratedTool] = {}
@@ -274,7 +267,6 @@ class ToolManager:
             tool=tool,
             parser=parser,
             backend=self.backend,
-            policy=self.policy,
             signals=self.signals
         )
         
