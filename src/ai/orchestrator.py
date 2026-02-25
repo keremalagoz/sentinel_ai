@@ -6,8 +6,8 @@
 #
 # LLM sadece intent belirler, tool/arguman/risk belirleme deterministic.
 
-import os
 from typing import Optional, Dict, Any
+import logging
 from dotenv import load_dotenv
 
 # V2 Imports
@@ -31,6 +31,7 @@ from src.ai.tool_registry import (
 from src.ai.command_builder import CommandBuilder, get_command_builder
 
 load_dotenv()
+logger = logging.getLogger(__name__)
 
 
 class AIOrchestrator:
@@ -103,7 +104,7 @@ class AIOrchestrator:
         # =====================================================================
         # 1. INTENT RESOLVER - LLM sadece niyet belirler
         # =====================================================================
-        print(f"[Orchestrator] Resolving intent for: '{user_input[:50]}...'")
+        logger.debug("Resolving intent for input='%s...'", user_input[:50])
         
         intent = self._intent_resolver.resolve(user_input, target)
         self._last_intent = intent
@@ -134,11 +135,13 @@ class AIOrchestrator:
         final_target = target or intent.target or intent.params.get("target")
         
         # Debug logging
-        print(f"[Orchestrator] Target resolution:")
-        print(f"  UI target: {target}")
-        print(f"  Intent target: {intent.target}")
-        print(f"  Intent params: {intent.params}")
-        print(f"  Final target: {final_target}")
+        logger.debug(
+            "Target resolution ui_target=%s intent_target=%s intent_params=%s final_target=%s",
+            target,
+            intent.target,
+            intent.params,
+            final_target,
+        )
         
         # Target validation
         if not final_target:
@@ -233,7 +236,7 @@ class AIOrchestrator:
             (local_available, cloud_available)
         """
         local = self._intent_resolver.check_available()
-        cloud = os.getenv("OPENAI_API_KEY") is not None
+        cloud = False  # Local-only mode
         return (local, cloud)
     
     def set_model(self, model: str):

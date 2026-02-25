@@ -6,13 +6,16 @@
 
 import os
 import json
+import logging
+import time
 from typing import Optional, List, Dict, Any
 from openai import OpenAI
 from dotenv import load_dotenv
 
-from src.ai.schemas import Intent, IntentType, INTENT_SCHEMA
+from src.ai.schemas import Intent, IntentType
 
 load_dotenv()
+logger = logging.getLogger(__name__)
 
 
 # =============================================================================
@@ -97,15 +100,25 @@ class IntentResolver:
     LLM sadece niyet belirler, tool/argumanlar Registry'den gelir.
     """
     
-    def __init__(self, model: str = "whiterabbitneo", base_url: str = None):
+    def __init__(
+        self,
+        model: str = "whiterabbitneo",
+        base_url: str = None,
+        request_timeout: Optional[float] = None,
+        max_attempts: Optional[int] = None,
+    ):
         """
         IntentResolver'i baslat.
         
         Args:
-            model: Kullanilacak model (whiterabbitneo, llama3:8b, gpt-4o-mini)
+            model: Kullanilacak local model (whiterabbitneo, llama3:8b, vb.)
             base_url: Ollama endpoint (default: localhost:11434)
+            request_timeout: Her LLM istegi icin timeout (saniye)
+            max_attempts: LLM istegi icin max deneme sayisi
         """
         self._model = model
+        self._request_timeout = float(request_timeout or os.getenv("INTENT_LLM_TIMEOUT", "20"))
+        self._max_attempts = max(1, int(max_attempts or os.getenv("INTENT_LLM_MAX_ATTEMPTS", "2")))
         
         # Local Ollama client
         self._base_url = base_url or os.getenv("OLLAMA_URL", "http://localhost:11434")
@@ -113,13 +126,6 @@ class IntentResolver:
             base_url=f"{self._base_url}/v1",
             api_key="ollama"  # Ollama requires dummy key
         )
-        
-        # Cloud client (fallback)
-        openai_key = os.getenv("OPENAI_API_KEY")
-        if openai_key and openai_key != "your_openai_api_key_here":
-            self._cloud_client = OpenAI(api_key=openai_key)
-        else:
-            self._cloud_client = None
     
     def resolve(self, user_input: str, target_hint: Optional[str] = None) -> Intent:
         """
@@ -144,20 +150,12 @@ class IntentResolver:
         
         try:
             # Local LLM cagir
-            response = self._call_local(messages)
+            response = self._call_local_with_retry(messages)
             return self._parse_response(response)
             
         except Exception as e:
-            print(f"[IntentResolver] Error: {e}")
-            
-            # Cloud fallback
-            if self._cloud_client:
-                try:
-                    response = self._call_cloud(messages)
-                    return self._parse_response(response)
-                except Exception as cloud_error:
-                    print(f"[IntentResolver] Cloud fallback failed: {cloud_error}")
-            
+            logger.warning("Intent resolver failed after retries: %s", e)
+
             # Hata durumunda UNKNOWN don
             return Intent(
                 intent_type=IntentType.UNKNOWN,
@@ -166,6 +164,33 @@ class IntentResolver:
                 needs_clarification=True,
                 clarification_reason=f"AI hatasi: {str(e)}"
             )
+
+    def _call_local_with_retry(self, messages: List[Dict[str, str]]) -> str:
+        """Local çağrıyı timeout+retry ile çalıştır."""
+        last_error: Optional[Exception] = None
+
+        for attempt in range(1, self._max_attempts + 1):
+            try:
+                return self._call_local(messages)
+            except Exception as exc:
+                last_error = exc
+                if attempt >= self._max_attempts:
+                    break
+
+                # Hafif backoff: 0.2s, 0.4s, 0.6s ...
+                backoff = 0.2 * attempt
+                logger.debug(
+                    "IntentResolver attempt %s/%s failed, retrying in %.1fs: %s",
+                    attempt,
+                    self._max_attempts,
+                    backoff,
+                    exc,
+                )
+                time.sleep(backoff)
+
+        if last_error:
+            raise last_error
+        raise RuntimeError("Intent resolver failed without explicit error")
     
     def _call_local(self, messages: List[Dict[str, str]]) -> str:
         """Local Ollama LLM cagrisi"""
@@ -173,21 +198,8 @@ class IntentResolver:
             model=self._model,
             messages=messages,
             temperature=0.1,  # Dusuk temperature = tutarli cikti
-            max_tokens=300
-        )
-        return response.choices[0].message.content
-    
-    def _call_cloud(self, messages: List[Dict[str, str]]) -> str:
-        """Cloud OpenAI cagrisi (fallback)"""
-        if not self._cloud_client:
-            raise RuntimeError("Cloud client not configured")
-        
-        response = self._cloud_client.chat.completions.create(
-            model="gpt-4o-mini",
-            messages=messages,
-            response_format={"type": "json_schema", "json_schema": INTENT_SCHEMA},
-            temperature=0.1,
-            max_tokens=300
+            max_tokens=300,
+            timeout=self._request_timeout,
         )
         return response.choices[0].message.content
     

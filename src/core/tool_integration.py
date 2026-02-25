@@ -4,9 +4,10 @@ Sprint 1 Week 2: Tool + Parser + State integration
 Complete workflow: execute → parse → store → history
 """
 
-from typing import Optional, Callable, Dict, Any
+from typing import Optional, Callable, Dict, Any, Deque, Tuple
 from dataclasses import dataclass
 import time
+from collections import deque
 
 from PyQt6.QtCore import QObject, pyqtSignal
 
@@ -237,7 +238,9 @@ class ToolManager:
     def __init__(
         self,
         backend: SQLiteBackend,
-        signals: Optional[IntegratedToolSignals] = None
+        signals: Optional[IntegratedToolSignals] = None,
+        max_concurrent: int = 2,
+        max_queue_size: int = 100,
     ):
         """
         Initialize tool manager.
@@ -245,11 +248,17 @@ class ToolManager:
         Args:
             backend: SQLite backend
             signals: Optional shared signals
+            max_concurrent: Aynı anda çalışabilecek maksimum tool sayısı
+            max_queue_size: Bekleyen iş kuyruğu üst limiti
         """
         self.backend = backend
         self.signals = signals or IntegratedToolSignals()
+        self.max_concurrent = max(1, int(max_concurrent))
+        self.max_queue_size = max(1, int(max_queue_size))
         
         self._tools: Dict[str, IntegratedTool] = {}
+        self._active_count = 0
+        self._queue: Deque[Tuple[str, Optional[Callable[[IntegratedToolResult], None]], Dict[str, Any]]] = deque()
     
     def register_tool(
         self,
@@ -291,14 +300,59 @@ class ToolManager:
             **tool_kwargs: Tool parameters
             
         Returns:
-            True if tool found and started, False otherwise
+            True if tool found and started/queued, False otherwise
         """
         tool = self._tools.get(tool_id)
         if not tool:
             return False
-        
-        tool.execute(callback=callback, **tool_kwargs)
+
+        # Müsait slot varsa hemen başlat
+        if self._active_count < self.max_concurrent:
+            return self._start_tool(tool_id, callback, tool_kwargs)
+
+        # Aksi halde kuyruğa al
+        if len(self._queue) >= self.max_queue_size:
+            return False
+
+        self._queue.append((tool_id, callback, dict(tool_kwargs)))
         return True
+
+    def _start_tool(
+        self,
+        tool_id: str,
+        callback: Optional[Callable[[IntegratedToolResult], None]],
+        tool_kwargs: Dict[str, Any],
+    ) -> bool:
+        """Tool çalıştırmayı başlat ve tamamlanınca kuyruğu ilerlet."""
+        tool = self._tools.get(tool_id)
+        if not tool:
+            return False
+
+        self._active_count += 1
+
+        def _wrapped_callback(result: IntegratedToolResult):
+            try:
+                if callback:
+                    callback(result)
+            finally:
+                self._active_count = max(0, self._active_count - 1)
+                self._drain_queue()
+
+        try:
+            tool.execute(callback=_wrapped_callback, **tool_kwargs)
+            return True
+        except Exception:
+            self._active_count = max(0, self._active_count - 1)
+            return False
+
+    def _drain_queue(self) -> None:
+        """Müsait kapasite oldukça kuyruktaki işleri başlat."""
+        while self._queue and self._active_count < self.max_concurrent:
+            tool_id, callback, kwargs = self._queue.popleft()
+            started = self._start_tool(tool_id, callback, kwargs)
+            if not started:
+                # Başlatılamayan işleri düşür (ör. tool unregister/running hatası)
+                continue
     
     def cancel_tool(self, tool_id: str) -> bool:
         """
@@ -310,9 +364,26 @@ class ToolManager:
         tool = self._tools.get(tool_id)
         if not tool:
             return False
+
+        # Kuyruktaki bekleyen işleri de temizle
+        self._queue = deque(
+            (t_id, cb, kwargs)
+            for (t_id, cb, kwargs) in self._queue
+            if t_id != tool_id
+        )
         
         tool.cancel()
         return True
+
+    @property
+    def active_executions(self) -> int:
+        """Aktif çalışan tool sayısı"""
+        return self._active_count
+
+    @property
+    def queued_executions(self) -> int:
+        """Kuyrukta bekleyen iş sayısı"""
+        return len(self._queue)
     
     @property
     def registered_tools(self) -> list[str]:

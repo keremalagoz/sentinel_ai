@@ -5,7 +5,7 @@
 #
 # Bu dosya tüm bileşenleri bir araya getirir:
 # - PyQt6 GUI
-# - AI Orchestrator (Hibrit: Local Llama 3 + Cloud GPT-4o-mini)
+# - AI Orchestrator (Local LLM)
 # - Process Manager (QProcess tabanlı)
 # - Docker Runner (Güvenlik araçları container'da)
 
@@ -104,7 +104,7 @@ class SentinelMainWindow(QMainWindow):
         self._pending_command = None  # AI'dan gelen onay bekleyen komut
         
         # Pencere ayarları
-        self.setWindowTitle("SENTINEL AI - Hibrit Güvenlik Test Aracı")
+        self.setWindowTitle("SENTINEL AI - Local Güvenlik Test Aracı")
         self.setMinimumSize(1000, 700)
         self.setStyleSheet(f"background-color: {Colors.BG_PRIMARY}; color: {Colors.TEXT_PRIMARY};")
         
@@ -221,10 +221,6 @@ class SentinelMainWindow(QMainWindow):
         self._status_local = QLabel("● Local AI")
         self._status_local.setStyleSheet(f"color: {Colors.TEXT_MUTED};")
         layout.addWidget(self._status_local)
-        
-        self._status_cloud = QLabel("● Cloud AI")
-        self._status_cloud.setStyleSheet(f"color: {Colors.TEXT_MUTED};")
-        layout.addWidget(self._status_cloud)
         
         return header
     
@@ -415,7 +411,7 @@ class SentinelMainWindow(QMainWindow):
     def _check_services(self):
         """AI servis durumlarını kontrol et."""
         try:
-            local_ok, cloud_ok = self._orchestrator.check_services()
+            local_ok, _ = self._orchestrator.check_services()
             
             if local_ok:
                 self._status_local.setText("● Local AI")
@@ -423,13 +419,6 @@ class SentinelMainWindow(QMainWindow):
             else:
                 self._status_local.setText("○ Local AI")
                 self._status_local.setStyleSheet(f"color: {Colors.TEXT_MUTED};")
-            
-            if cloud_ok:
-                self._status_cloud.setText("● Cloud AI")
-                self._status_cloud.setStyleSheet(f"color: {Colors.SUCCESS_BRIGHT};")
-            else:
-                self._status_cloud.setText("○ Cloud AI")
-                self._status_cloud.setStyleSheet(f"color: {Colors.TEXT_MUTED};")
         except Exception:
             pass
     

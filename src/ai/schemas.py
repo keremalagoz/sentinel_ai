@@ -558,15 +558,15 @@ def validate_command(data: dict) -> ToolCommand:
     return ToolCommand.model_validate(data)
 
 
-def get_openai_response_format() -> dict:
+def get_response_format() -> dict:
     """
-    OpenAI API için response_format parametresi.
+    JSON şema zorlaması kullanan istemciler için response_format parametresi.
     
     Kullanım:
         response = client.chat.completions.create(
-            model="gpt-4o-mini",
+            model="your-model",
             messages=[...],
-            response_format=get_openai_response_format()
+            response_format=get_response_format()
         )
     """
     return {
