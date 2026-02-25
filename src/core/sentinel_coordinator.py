@@ -23,16 +23,16 @@ from src.ai.tool_registry import validate_execution_registry
 
 
 DEFAULT_TOOL_CATALOG = [
-    (PingTool, PingParser, 10),
-    (NmapPingSweepTool, NmapPingSweepParser, 30),
-    (NmapPortScanTool, NmapPortScanParser, 120),
-    (NmapServiceDetectionTool, NmapServiceDetectionParser, 180),
-    (NmapVulnScanTool, NmapVulnScanParser, 300),
-    (DnsLookupTool, DnsLookupParser, 30),
-    (SslScanTool, SslScanParser, 60),
-    (GobusterDirTool, GobusterDirParser, 300),
-    (SubdomainEnumTool, SubdomainEnumParser, 120),
-    (WebAppScanTool, WebAppScanParser, 60),
+    (PingTool, PingParser, 10, 2),
+    (NmapPingSweepTool, NmapPingSweepParser, 30, 1),
+    (NmapPortScanTool, NmapPortScanParser, 120, 1),
+    (NmapServiceDetectionTool, NmapServiceDetectionParser, 180, 1),
+    (NmapVulnScanTool, NmapVulnScanParser, 300, 1),
+    (DnsLookupTool, DnsLookupParser, 30, 2),
+    (SslScanTool, SslScanParser, 60, 2),
+    (GobusterDirTool, GobusterDirParser, 300, 1),
+    (SubdomainEnumTool, SubdomainEnumParser, 120, 1),
+    (WebAppScanTool, WebAppScanParser, 60, 2),
 ]
 
 
@@ -87,10 +87,11 @@ class SentinelCoordinator(QObject):
     
     def _register_default_tools(self):
         """Register Action Planner v2.1 tools"""
-        for tool_cls, parser_cls, timeout in DEFAULT_TOOL_CATALOG:
+        for tool_cls, parser_cls, timeout, tool_limit in DEFAULT_TOOL_CATALOG:
             self.manager.register_tool(
                 tool=tool_cls(timeout=timeout),
-                parser=parser_cls()
+                parser=parser_cls(),
+                max_concurrent=tool_limit,
             )
 
         # Drift guard: AI execution mapping <-> registered tools
