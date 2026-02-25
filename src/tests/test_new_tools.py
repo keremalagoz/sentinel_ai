@@ -14,6 +14,7 @@ from src.core.sqlite_backend import SQLiteBackend
 from src.core.tool_base import (
     DnsLookupTool,
     GobusterDirTool,
+    NmapPortScanTool,
     NmapServiceDetectionTool,
     NmapVulnScanTool,
     SslScanTool,
@@ -222,3 +223,54 @@ def test_tool_manager_cancel_clears_queued_items():
     assert manager.queued_executions == 0
 
     backend.close()
+
+
+def test_tool_manager_per_tool_limit_allows_other_tool_progress():
+    """Aynı tool limiti doluyken farklı tool global slotta çalışabilmeli."""
+    backend = SQLiteBackend(":memory:")
+    manager = ToolManager(
+        backend=backend,
+        max_concurrent=2,
+        max_queue_size=10,
+        default_per_tool_limit=1,
+    )
+
+    class _DummyIntegratedTool:
+        def execute(self, callback=None, **kwargs):
+            pass
+
+        def cancel(self):
+            pass
+
+    manager._tools["tool_a"] = _DummyIntegratedTool()
+    manager._tools["tool_b"] = _DummyIntegratedTool()
+
+    # İlk A çalışır
+    assert manager.execute_tool("tool_a", target="127.0.0.1") is True
+    assert manager.active_executions == 1
+
+    # İkinci A, per-tool limite takılıp kuyruğa düşer
+    assert manager.execute_tool("tool_a", target="127.0.0.2") is True
+    assert manager.active_executions == 1
+    assert manager.queued_executions == 1
+
+    # B ise global boş slotta çalışabilir
+    assert manager.execute_tool("tool_b", target="127.0.0.3") is True
+    assert manager.active_executions == 2
+    assert manager.queued_executions == 1
+
+    backend.close()
+
+
+def test_adaptive_timeout_estimation_for_scan_tools():
+    """Port/senaryo büyüdükçe timeout tahmini artmalı."""
+    port_tool = NmapPortScanTool(timeout=120)
+    vuln_tool = NmapVulnScanTool(timeout=300)
+
+    small_scan = port_tool.estimate_timeout(ports="80,443", scan_type="sT")
+    large_scan = port_tool.estimate_timeout(ports="1-5000", scan_type="sT")
+    assert large_scan > small_scan
+
+    default_vuln = vuln_tool.estimate_timeout(ports="80,443", scripts="vuln")
+    custom_script_vuln = vuln_tool.estimate_timeout(ports="80,443", scripts="vuln,default")
+    assert custom_script_vuln >= default_vuln
