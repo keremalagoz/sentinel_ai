@@ -28,7 +28,7 @@
 | Interactive Patterns | Yiğit | [OK] |
 | Session Loglama | Yiğit | [OK] |
 
-### Sprint 2: Hibrit AI Komut Motoru [OK]
+### Sprint 2: Local AI Komut Motoru [OK]
 
 | Görev | Sorumlu | Durum |
 |-------|---------|-------|
