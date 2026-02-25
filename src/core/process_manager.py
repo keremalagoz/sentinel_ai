@@ -1,9 +1,31 @@
 from PyQt6.QtCore import QObject, QProcess, pyqtSignal
 from datetime import datetime
 import os
+import sys
 import shlex
+import subprocess
 
 from src.core.execution_manager import get_execution_manager, ExecutionMode
+
+
+def _get_console_encoding() -> str:
+    """Get the correct console encoding for the OS"""
+    if sys.platform == "win32":
+        try:
+            # Get OEM code page (what cmd.exe uses)
+            result = subprocess.run(
+                ["chcp"], capture_output=True, shell=True, text=True
+            )
+            # Output: "Active code page: 857" or similar
+            cp = result.stdout.strip().split(":")[-1].strip()
+            return f"cp{cp}"
+        except Exception:
+            return "cp1254"  # Turkish Windows fallback
+    return "utf-8"
+
+
+# Cache it once at module load
+_CONSOLE_ENCODING = _get_console_encoding()
 
 
 class AdvancedProcessManager(QObject):
@@ -92,12 +114,10 @@ class AdvancedProcessManager(QObject):
     def _handle_stdout(self) -> None:
         """
         Standart çıktıyı okur ve sinyalle yayınlar.
-        
-        Encoding: UTF-8 ile decode, hatalı karakterler replace edilir.
-        Nmap gibi araçlar bazen garip karakterler üretir.
+        Windows'ta OEM code page, Linux'ta UTF-8 kullanılır.
         """
         data = self._process.readAllStandardOutput()
-        text = data.data().decode("utf-8", errors="replace")
+        text = data.data().decode(_CONSOLE_ENCODING, errors="replace")
         
         self.sig_output_stream.emit(text, "stdout")
         
@@ -108,7 +128,7 @@ class AdvancedProcessManager(QObject):
     def _handle_stderr(self) -> None:
         """Hata çıktısını okur ve sinyalle yayınlar."""
         data = self._process.readAllStandardError()
-        text = data.data().decode("utf-8", errors="replace")
+        text = data.data().decode(_CONSOLE_ENCODING, errors="replace")
         
         self.sig_output_stream.emit(text, "stderr")
         

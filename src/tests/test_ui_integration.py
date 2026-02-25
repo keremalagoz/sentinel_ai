@@ -49,7 +49,7 @@ class SimpleTerminal(QWidget):
         self.output.ensureCursorVisible()
 
 
-class TestWindow(QMainWindow):
+class DemoWindow(QMainWindow):
     """Test window for UI integration"""
     
     def __init__(self):
@@ -184,6 +184,6 @@ class TestWindow(QMainWindow):
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
-    window = TestWindow()
+    window = DemoWindow()
     window.show()
     sys.exit(app.exec())

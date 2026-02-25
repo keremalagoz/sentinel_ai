@@ -7,7 +7,7 @@
 # [OK] WSL/Docker kapalı - RAM tasarrufu (~6GB)
 # [OK] Mock execution - Gerçek komut çalıştırmaz, sadece gösterir
 # [OK] LLM yanıt süresi 2-3x daha hızlı
-# [OK] Policy gate production ile aynı
+# [OK] Execution policy production ile aynı
 #
 # Gereksinimler:
 # 1. Native Ollama kurulu olmalı: https://ollama.com/download

@@ -85,6 +85,7 @@ class BaseTool(ABC):
         self.timer: Optional[QTimer] = None
         self.status = ToolStatus.IDLE
         self.started_at: Optional[float] = None
+        self._effective_timeout = timeout
         
         self._stdout_buffer = []
         self._stderr_buffer = []
@@ -102,6 +103,24 @@ class BaseTool(ABC):
             List of command line arguments [program, arg1, arg2, ...]
         """
         pass
+
+    def estimate_timeout(self, **kwargs) -> int:
+        """
+        Tool özel timeout tahmini (override edilebilir).
+        Varsayılan: statik self.timeout.
+        """
+        return int(self.timeout)
+
+    def _compute_effective_timeout(self, kwargs: Dict[str, Any], timeout_override: Optional[int] = None) -> int:
+        """Final timeout değerini hesapla (override > estimate > default)."""
+        if timeout_override is not None:
+            try:
+                return max(5, min(3600, int(timeout_override)))
+            except Exception:
+                pass
+
+        estimated = self.estimate_timeout(**kwargs)
+        return max(5, min(3600, int(estimated)))
     
     def execute(
         self,
@@ -121,9 +140,16 @@ class BaseTool(ABC):
         self._result_callback = callback
         self._stdout_buffer = []
         self._stderr_buffer = []
+
+        local_kwargs = dict(kwargs)
+        timeout_override = local_kwargs.pop("_timeout", None)
+        if timeout_override is None:
+            timeout_override = local_kwargs.pop("timeout_override", None)
+
+        self._effective_timeout = self._compute_effective_timeout(local_kwargs, timeout_override)
         
         # Build command
-        command = self.build_command(**kwargs)
+        command = self.build_command(**local_kwargs)
         if not command:
             self._handle_error("Empty command")
             return
@@ -148,7 +174,7 @@ class BaseTool(ABC):
         self.started_at = time.time()
         
         self.process.start(program, args)
-        self.timer.start(self.timeout * 1000)
+        self.timer.start(self._effective_timeout * 1000)
         
         self.signals.started.emit(self.tool_id)
     
@@ -234,7 +260,7 @@ class BaseTool(ABC):
             exit_code=-1,
             started_at=self.started_at or time.time(),
             finished_at=time.time(),
-            error_message=f"Execution timeout after {self.timeout} seconds"
+            error_message=f"Execution timeout after {self._effective_timeout} seconds"
         )
         
         self._emit_result(result)
@@ -344,6 +370,37 @@ class NmapPortScanTool(BaseTool):
     
     def __init__(self, timeout: int = 120, signals: Optional[ToolExecutionSignals] = None):
         super().__init__("nmap_port_scan", timeout, signals)
+
+    @staticmethod
+    def _estimate_port_count(ports: str) -> int:
+        if not ports:
+            return 1000
+
+        total = 0
+        for part in str(ports).split(","):
+            part = part.strip()
+            if not part:
+                continue
+            if "-" in part:
+                try:
+                    start, end = part.split("-", 1)
+                    total += max(0, int(end) - int(start) + 1)
+                except Exception:
+                    total += 1
+            else:
+                total += 1
+
+        return max(1, min(total, 65535))
+
+    def estimate_timeout(self, **kwargs) -> int:
+        ports = kwargs.get("ports", "1-1000")
+        scan_type = str(kwargs.get("scan_type", "sT"))
+
+        port_count = self._estimate_port_count(ports)
+        factor = {"sT": 1.0, "sS": 0.8, "sU": 1.6}.get(scan_type, 1.1)
+        estimate = int((20 + port_count * 0.12) * factor)
+
+        return max(20, min(900, estimate))
     
     def build_command(
         self,
@@ -380,6 +437,14 @@ class NmapServiceDetectionTool(BaseTool):
     
     def __init__(self, timeout: int = 180, signals: Optional[ToolExecutionSignals] = None):
         super().__init__("nmap_service_detection", timeout, signals)
+
+    def estimate_timeout(self, **kwargs) -> int:
+        ports = kwargs.get("ports")
+        intensity = int(kwargs.get("intensity", 5))
+        port_count = NmapPortScanTool._estimate_port_count(ports) if ports else 1000
+
+        estimate = int(30 + port_count * 0.18 + intensity * 8)
+        return max(30, min(1200, estimate))
     
     def build_command(
         self,
@@ -422,6 +487,15 @@ class NmapVulnScanTool(BaseTool):
     
     def __init__(self, timeout: int = 300, signals: Optional[ToolExecutionSignals] = None):
         super().__init__("nmap_vuln_scan", timeout, signals)
+
+    def estimate_timeout(self, **kwargs) -> int:
+        ports = kwargs.get("ports")
+        scripts = str(kwargs.get("scripts", "vuln"))
+        port_count = NmapPortScanTool._estimate_port_count(ports) if ports else 1000
+
+        script_factor = 1.0 if scripts == "vuln" else 1.3
+        estimate = int((60 + port_count * 0.25) * script_factor)
+        return max(60, min(1800, estimate))
     
     def build_command(
         self,
@@ -492,6 +566,15 @@ class GobusterDirTool(BaseTool):
     
     def __init__(self, timeout: int = 300, signals: Optional[ToolExecutionSignals] = None):
         super().__init__("gobuster_dir", timeout, signals)
+
+    def estimate_timeout(self, **kwargs) -> int:
+        extensions = kwargs.get("extensions")
+        ext_count = 0
+        if extensions:
+            ext_count = len([e for e in str(extensions).split(",") if e.strip()])
+
+        estimate = 120 + (ext_count * 20)
+        return max(60, min(1800, estimate))
     
     def build_command(
         self,

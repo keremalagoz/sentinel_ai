@@ -19,7 +19,21 @@ from src.core.parser_framework import (
     SslScanParser, GobusterDirParser, SubdomainEnumParser, WebAppScanParser
 )
 from src.core.sqlite_backend import SQLiteBackend
-from src.ai.execution_policy import ExecutionPolicy
+from src.ai.tool_registry import validate_execution_registry
+
+
+DEFAULT_TOOL_CATALOG = [
+    (PingTool, PingParser, 10, 2),
+    (NmapPingSweepTool, NmapPingSweepParser, 30, 1),
+    (NmapPortScanTool, NmapPortScanParser, 120, 1),
+    (NmapServiceDetectionTool, NmapServiceDetectionParser, 180, 1),
+    (NmapVulnScanTool, NmapVulnScanParser, 300, 1),
+    (DnsLookupTool, DnsLookupParser, 30, 2),
+    (SslScanTool, SslScanParser, 60, 2),
+    (GobusterDirTool, GobusterDirParser, 300, 1),
+    (SubdomainEnumTool, SubdomainEnumParser, 120, 1),
+    (WebAppScanTool, WebAppScanParser, 60, 2),
+]
 
 
 class SentinelCoordinator(QObject):
@@ -58,13 +72,9 @@ class SentinelCoordinator(QObject):
         # Backend
         self.backend = SQLiteBackend(db_path)
         
-        # Policy
-        self.policy = ExecutionPolicy()
-        
         # Tool Manager
         self.manager = ToolManager(
-            backend=self.backend,
-            policy=self.policy
+            backend=self.backend
         )
         
         # Register tools
@@ -77,65 +87,17 @@ class SentinelCoordinator(QObject):
     
     def _register_default_tools(self):
         """Register Action Planner v2.1 tools"""
-        # Ping
-        self.manager.register_tool(
-            tool=PingTool(timeout=10),
-            parser=PingParser()
-        )
-        
-        # Nmap Ping Sweep
-        self.manager.register_tool(
-            tool=NmapPingSweepTool(timeout=30),
-            parser=NmapPingSweepParser()
-        )
-        
-        # Nmap Port Scan
-        self.manager.register_tool(
-            tool=NmapPortScanTool(timeout=120),
-            parser=NmapPortScanParser()
-        )
-        
-        # Nmap Service Detection
-        self.manager.register_tool(
-            tool=NmapServiceDetectionTool(timeout=180),
-            parser=NmapServiceDetectionParser()
-        )
-        
-        # Nmap Vulnerability Scan
-        self.manager.register_tool(
-            tool=NmapVulnScanTool(timeout=300),
-            parser=NmapVulnScanParser()
-        )
-        
-        # DNS Lookup
-        self.manager.register_tool(
-            tool=DnsLookupTool(timeout=30),
-            parser=DnsLookupParser()
-        )
-        
-        # SSL/TLS Scan
-        self.manager.register_tool(
-            tool=SslScanTool(timeout=60),
-            parser=SslScanParser()
-        )
-        
-        # Web Directory Enumeration
-        self.manager.register_tool(
-            tool=GobusterDirTool(timeout=300),
-            parser=GobusterDirParser()
-        )
-        
-        # Subdomain Enumeration
-        self.manager.register_tool(
-            tool=SubdomainEnumTool(timeout=120),
-            parser=SubdomainEnumParser()
-        )
-        
-        # Web Application Scanner
-        self.manager.register_tool(
-            tool=WebAppScanTool(timeout=60),
-            parser=WebAppScanParser()
-        )
+        for tool_cls, parser_cls, timeout, tool_limit in DEFAULT_TOOL_CATALOG:
+            self.manager.register_tool(
+                tool=tool_cls(timeout=timeout),
+                parser=parser_cls(),
+                max_concurrent=tool_limit,
+            )
+
+        # Drift guard: AI execution mapping <-> registered tools
+        is_valid, errors = validate_execution_registry(set(self.manager.registered_tools))
+        if not is_valid:
+            raise RuntimeError("Registry consistency check failed: " + "; ".join(errors))
     
     def execute_ping(self, target: str, count: int = 4) -> bool:
         """
@@ -364,6 +326,10 @@ class SentinelCoordinator(QObject):
     def get_backend_stats(self) -> dict:
         """Get backend statistics"""
         return self.backend.get_stats()
+
+    def get_runtime_metrics(self) -> dict:
+        """ToolManager runtime performans metriklerini getir."""
+        return self.manager.get_runtime_metrics()
     
     def _on_tool_started(self, tool_id: str, execution_id: str):
         """Forward tool started event to UI"""

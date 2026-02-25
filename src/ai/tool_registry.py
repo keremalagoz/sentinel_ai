@@ -5,7 +5,7 @@
 # LLM bu bilgileri URETMEZ, sadece intent belirler.
 # Tool secimi, requires_root ve risk_level buradan gelir.
 
-from typing import Dict, Optional, List, Any
+from typing import Dict, Optional, List, Any, Set, Tuple
 from src.ai.schemas import IntentType, ToolDef, ToolSpec, RiskLevel
 
 
@@ -387,6 +387,48 @@ def get_execution_tool_id(intent_type: IntentType) -> Optional[str]:
     if not mapping:
         return None
     return mapping.get("tool_id")
+
+
+def get_execution_intents() -> Set[IntentType]:
+    """Execution mapping'i olan intent'leri getir."""
+    return set(_EXECUTION_REGISTRY.keys())
+
+
+def get_required_execution_tool_ids() -> Set[str]:
+    """Execution mapping için zorunlu tool_id listesini getir."""
+    return {
+        mapping["tool_id"]
+        for mapping in _EXECUTION_REGISTRY.values()
+        if mapping.get("tool_id")
+    }
+
+
+def validate_execution_registry(registered_tool_ids: Optional[Set[str]] = None) -> Tuple[bool, List[str]]:
+    """
+    Execution registry tutarlılığını doğrula.
+
+    Kontroller:
+    1) Execution intent'lerin ToolDef'i var mı?
+    2) Execution intent'lerde tool boş mu?
+    3) (Opsiyonel) Execution tool_id'ler gerçekten register edilmiş mi?
+    """
+    errors: List[str] = []
+
+    for intent_type in _EXECUTION_REGISTRY.keys():
+        tool_def = TOOL_REGISTRY.get(intent_type)
+        if tool_def is None:
+            errors.append(f"Missing ToolDef for execution intent: {intent_type.value}")
+            continue
+        if not tool_def.tool:
+            errors.append(f"Execution intent has empty tool: {intent_type.value}")
+
+    if registered_tool_ids is not None:
+        required_ids = get_required_execution_tool_ids()
+        missing_ids = sorted(required_ids - set(registered_tool_ids))
+        for tool_id in missing_ids:
+            errors.append(f"Execution tool_id not registered in coordinator: {tool_id}")
+
+    return (len(errors) == 0, errors)
 
 
 def build_execution_kwargs(

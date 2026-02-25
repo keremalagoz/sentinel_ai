@@ -10,7 +10,7 @@ from src.ui.terminal_view import TerminalView
 from src.ui.styles import Colors
 
 
-class TestWindow(QMainWindow):
+class DemoWindow(QMainWindow):
     def __init__(self):
         super().__init__()
         self.setWindowTitle("SENTINEL AI - Terminal Test")
@@ -47,7 +47,7 @@ def main():
     
     app.setStyle("Fusion")
     
-    window = TestWindow()
+    window = DemoWindow()
     window.show()
     sys.exit(app.exec())
 

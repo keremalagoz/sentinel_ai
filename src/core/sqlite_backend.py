@@ -11,7 +11,7 @@ from pathlib import Path
 from typing import Dict, List, Optional, Any, Set
 from datetime import datetime
 from contextlib import contextmanager
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 
 
 class EntityType:
@@ -59,8 +59,7 @@ class BaseEntity(BaseModel):
     confidence: float = 1.0
     data: Dict[str, Any]
     
-    class Config:
-        arbitrary_types_allowed = True
+    model_config = ConfigDict(arbitrary_types_allowed=True)
 
 
 class ToolExecutionResult(BaseModel):

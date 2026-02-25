@@ -3,7 +3,7 @@
 **Classification:** INTERNAL/RESTRICTED  
 **Version:** 2.2-STRICT (Corporate Standard)  
 **Enforcement:** MANDATORY  
-**Single Source of Truth:** `docs/Detaylı Fazlandırılmış.pdf`
+**Single Source of Truth:** `docs/sprint_roadmap.md`
 
 ---
 
@@ -25,13 +25,13 @@ Bu doküman, Sentinel AI projesinde görev alan Yapay Zeka Asistanı (Agent) iç
 
 Backend servisleri için "Lokalde çalışsın" teklifi kesinlikle yasaktır.
 
-* **AI Engine:** Llama 3 servisi `docker/llama/Dockerfile` içinde yaşar.
+* **AI Engine:** WhiteRabbitNeo servisi `docker/whiterabbitneo/Dockerfile` içinde yaşar.
 * **API:** Orchestrator servisi `docker/api/Dockerfile` içinde yaşar.
 * **Kural:** Agent, backend kodu yazarken daima konteyner bağlamını (volume paths, network aliases) kontrol etmek zorundadır.
 
 ### 2.2. Dosya Sistemi Otoritesi
 
-`docs/Detaylı Fazlandırılmış.pdf` [Sayfa 1] içerisinde belirtilen hiyerarşi kutsaldır.
+`docs/sprint_roadmap.md` dosyasında belirtilen hiyerarşi kutsaldır.
 
 * **Yasak:** `/scripts`, `/bin`, `/utils` gibi tanımlanmamış klasörler oluşturulamaz.
 * **Zorunlu:** İş mantığı `/src/core`, Arayüz `/src/ui`, Zeka `/src/ai` altında toplanır.
@@ -67,7 +67,7 @@ Agent, şu an hangi branch üzerinde çalıştığını bağlamdan (context) anl
 Kullanıcı "bunu commitle" dediğinde, Agent otomatik olarak Conventional Commits formatında mesaj hazırlar.
 
 * `feat(ui): add dark mode toggle to terminal view`
-* `fix(docker): resolve llama connection timeout in container`
+* `fix(docker): resolve whiterabbitneo service connection timeout`
 * `refactor (core): optimize nmap xml parsing logic`
 * `docs(sprint2): update orchestrator sequence diagrams`
 
@@ -145,6 +145,6 @@ Agent, zaman yolcusu değildir. Mevcut Sprint dışındaki özellikler önerilem
 
 1.  **Mevcut Durum Analizi:** `son_durum.md` dosyasını oku.
 2.  **Hedef:** Sadece aktif Sprint maddelerine odaklan.
-3.  **Definition of Done:** Kodun bittiğini iddia etmeden önce, PDF dokümanındaki "Başarı Kriterleri"ni kontrol et ve kullanıcıya raporla.
+3.  **Definition of Done:** Kodun bittiğini iddia etmeden önce, `docs/sprint_roadmap.md` içindeki "Başarı Kriterleri"ni kontrol et ve kullanıcıya raporla.
 
 **YASAL UYARI:** Bu protokollerin ihlali, projenin mimari bütünlüğünü bozacağı için Agent tarafından reddedilmeli ve düzeltici eylem önerilmelidir.

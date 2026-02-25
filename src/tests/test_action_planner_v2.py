@@ -16,7 +16,6 @@ from src.ai.tool_registry import (
 )
 from src.ai.intent_resolver import IntentResolver
 from src.ai.command_builder import CommandBuilder
-from src.ai.policy_gate import PolicyGate
 from src.ai.orchestrator import AIOrchestrator
 
 
@@ -187,54 +186,6 @@ def test_command_builder() -> None:
     assert _run_command_builder() is True
 
 
-def _run_policy_gate() -> bool:
-    """Policy Gate testleri"""
-    print("\n" + "=" * 60)
-    print("TEST: Policy Gate")
-    print("=" * 60)
-    
-    passed = 0
-    failed = 0
-    
-    # Test 1: Policy kapali - her sey serbest
-    def check_policy_disabled():
-        gate = PolicyGate(enabled=False)
-        allowed, _ = gate.check(IntentType.SQL_INJECTION)
-        return allowed
-    
-    if run_test("Policy kapali = her sey serbest", check_policy_disabled):
-        passed += 1
-    else:
-        failed += 1
-    
-    # Test 2: Policy acik - onay gerektiren intent bloklanir
-    def check_policy_warning():
-        gate = PolicyGate(enabled=True)
-        allowed, msg = gate.check(IntentType.BRUTE_FORCE_SSH)
-        return (not allowed) and (msg is not None)
-    
-    if run_test("Policy acik = uyari mesaji", check_policy_warning):
-        passed += 1
-    else:
-        failed += 1
-    
-    # Test 3: Toggle calisiyor
-    def check_toggle():
-        gate = PolicyGate(enabled=False)
-        gate.enable()
-        return gate.is_enabled
-    
-    if run_test("Toggle calisiyor", check_toggle):
-        passed += 1
-    else:
-        failed += 1
-    
-    print(f"\nPolicy Gate Tests: {passed}/{passed+failed} passed")
-    return failed == 0
-
-
-def test_policy_gate() -> None:
-    assert _run_policy_gate() is True
 
 
 def _run_intent_resolver() -> bool:
@@ -397,7 +348,6 @@ def main():
     # Unit tests (LLM gerektirmez)
     results.append(("Tool Registry", _run_tool_registry()))
     results.append(("Command Builder", _run_command_builder()))
-    results.append(("Policy Gate", _run_policy_gate()))
     
     # Integration tests (LLM gerektirir)
     results.append(("Intent Resolver", _run_intent_resolver()))

@@ -1,106 +1,41 @@
 # SENTINEL AI - Proje Durum Raporu
 
-**Tarih:** 22 Ocak 2026  
+**Tarih:** 25 Şubat 2026  
 **Ekip:** Kerem (AI/Data/Backend) & Yiğit (System/UI/Security)
 
 ---
 
 ## Tamamlanan Sprintler
 
-### Sprint 0: Proje Altyapısı [OK]
+### Sprint 0-2 [OK]
 
-| Görev | Sorumlu | Durum |
-|-------|---------|-------|
-| Klasör yapısı | Kerem | [OK] |
-| Git branch yapısı (main, develop, dev_kerem, dev_yigit) | Kerem | [OK] |
-| Docker Llama servisi (GPU Enabled) | Kerem/Yiğit | [OK] |
-| Docker API servisi | Kerem | [OK] |
-| requirements.txt | Yiğit | [OK] |
-| README.md | Kerem | [OK] |
-
-### Sprint 1: Akıllı Süreç Motoru [OK]
-
-| Görev | Sorumlu | Durum |
-|-------|---------|-------|
-| AdvancedProcessManager | Yiğit | [OK] |
-| Terminal View | Yiğit | [OK] |
-| Styles (tema, renkler) | Yiğit | [OK] |
-| Interactive Patterns | Yiğit | [OK] |
-| Session Loglama | Yiğit | [OK] |
-
-### Sprint 2: Hibrit AI Komut Motoru [OK]
-
-| Görev | Sorumlu | Durum |
-|-------|---------|-------|
-| JSON Şemaları (schemas.py) | Kerem | [OK] |
-| AI Orchestrator (orchestrator.py) | Kerem | [OK] |
-| Docker Tools Container | Kerem | [OK] |
-| Docker Runner Helper | Kerem | [OK] |
-| main.py (GUI entegrasyonu) | Yiğit | [OK] |
+- Proje altyapısı, Docker servisleri ve temel UI/Core iskeleti tamamlandı.
+- Action Planner v2.1 deterministic akışı devreye alındı.
+- Local AI (WhiteRabbitNeo/Ollama) ile intent çözümleme stabilize edildi.
 
 ---
 
-## Mevcut Dosya Yapısı (Kritik Dosyalar)
+## Mevcut Durum (Özet)
 
-```
-sentinel_root/
-├── main.py                      [OK] PRODUCTION - Docker Full Stack
-├── main_developer.py            [OK] Developer Mode (Native Ollama)
-├── requirements.txt             [OK] PyQt6 standardizasyonu
-├── README.md                    [OK] Emoji temizligi + dev mode dokumani
-├── PROJECT_STRUCTURE.md         [OK] Emoji temizligi
-├── docker-compose.yml           [OK] GPU Support & WhiteRabbitNeo
-├── son_durum.md                 [OK] Guncellendi (22 Ocak 2026)
-│
-├── src/
-│   ├── ai/                      (Kerem)
-│   │   ├── schemas.py           [OK] ConfigDict + legacy uyum
-│   │   ├── orchestrator.py      [OK] Registry tek kaynak
-│   │   ├── tool_registry.py     [OK] Execution mapping + SSL/Subdomain
-│   │   ├── intent_resolver.py   [OK] Strict payload dogrulama
-│   │   ├── command_builder.py   [OK] Deterministik builder
-│   │   ├── policy_gate.py       [OK] Tek policy akis
-│   │   ├── execution_policy.py  [OK] ConfigDict guncelleme
-│   │   └── api_server.py        [OK] Deterministik komut uretimi
-│   │
-│   ├── core/
-│   │   ├── execution_manager.py [OK] Sprint 3 Core
-│   │   ├── cleaner.py           [OK] Guvenli temizleme
-│   │   ├── validators.py        [OK] Input validation
-│   │   ├── process_manager.py   [OK] ExecutionManager entegrasyonu
-│   │   ├── tool_base.py         [OK] PyQt6 sinyaller
-│   │   ├── tool_integration.py  [OK] PyQt6 sinyaller
-│   │   └── sentinel_coordinator.py [OK] PyQt6 sinyaller
-│   │
-│   ├── ui/
-│   │   ├── terminal_view.py     [OK] Emoji temizligi
-│   │   └── styles.py            [OK]
-│   │
-│   └── tests/
-│       ├── test_action_planner_v2.py [OK] Pytest uyarilari temizlendi
-│       ├── test_advanced_parsers.py  [OK] Emoji temizligi
-│       ├── test_new_tools.py         [OK] Emoji temizligi
-│       └── test_ui_integration.py    [OK] PyQt6 standardizasyonu
-│
-├── docs/
-│   └── Detayli Fazlandirilmis.pdf
-│
-└── temp/                        Session loglari
-```
+- Mimari: Local-only LLM + deterministic tool execution
+- Kararlılık: Queue/backpressure, per-tool limit, retry/backoff aktif
+- Güvenilirlik: Registry drift guard (startup + test) aktif
+- Gözlemlenebilirlik: Runtime telemetry (`queue_wait_ms`, `tool_run_ms`) mevcut
+- Test: Full suite **111 passed**
 
 ---
 
-## Docker Servisleri
+## Docker Servisleri (Beklenen)
 
-| Container | Durum | Port | İçerik |
-|-----------|-------|------|--------|
-| sentinel-llama | Kontrol edilmedi | 8001 | Llama 3 AI (8B model) |
-| sentinel-api | Kontrol edilmedi | 8000 | API Backend |
-| sentinel-tools | Kontrol edilmedi | - | Nmap, Gobuster, Nikto, Hydra |
+| Container | Port | İçerik |
+|-----------|------|--------|
+| sentinel-whiterabbitneo | 8002 | WhiteRabbitNeo AI (Ollama) |
+| sentinel-api | 8000 | API Backend |
+| sentinel-tools | - | Nmap, Gobuster, Nikto, Hydra |
 
 ---
 
-## Aktif Sprint: Sprint 3
+## Aktif Sprint: Sprint 3.5 (Stabilizasyon / Sertleştirme)
 
 ### Sprint 3: Güvenlik, Yetki ve Temizlik
 
@@ -115,47 +50,22 @@ sentinel_root/
 
 ---
 
-## Mini Sprint: Action Planner v2.1 Stabilizasyon
+### Sprint 3.5: Performans ve Güvenilirlik Sertleştirme
 
-**Tarih:** 22 Ocak 2026  
-**Sorumlu:** Kerem  
-**Amaç:** Karar motorunu sprint planina girmeden stabil hale getirmek
+| Görev | Sorumlu | Durum | Açıklama |
+|-------|---------|-------|----------|
+| Queue backpressure | Kerem | [OK] | ToolManager kuyruk taşmasını kontrollü reddetme |
+| Global concurrency limiti | Kerem | [OK] | Eşzamanlı çalışma üst sınırı |
+| Per-tool concurrency limiti | Kerem | [OK] | Tool bazlı paralellik kontrolü |
+| Local LLM timeout/retry | Kerem | [OK] | intent_resolver timeout + retry + backoff |
+| Registry drift guard | Kerem | [OK] | Startup doğrulama + test guard |
+| Adaptif timeout tahmini | Kerem | [OK] | Tool bazlı tahmini timeout stratejisi |
+| Runtime telemetry yüzeyi | Kerem | [OK] | queue_wait_ms/tool_run_ms metrikleri |
 
-### Tamamlanan Duzeltmeler
+### Test Durumu (Güncel)
 
-| # | Gorev | Dosya | Durum |
-|---|-------|-------|-------|
-| 1 | Registry tek kaynak (execution mapping) | tool_registry.py, orchestrator.py | [OK] |
-| 2 | Policy tek akis | policy_gate.py, execution_policy.py | [OK] |
-| 3 | Intent JSON strict dogrulama | intent_resolver.py | [OK] |
-| 4 | API uyumu (deterministik komut) | api_server.py | [OK] |
-| 5 | PyQt6 standardizasyonu | core + tests + requirements.txt | [OK] |
-| 6 | Emoji temizligi | kod + dokumantasyon | [OK] |
-
-### Test Durumu
-
-- pytest: src/tests/test_action_planner_v2.py -> 6/6 PASSED (22 Ocak 2026)
-
-### Yeni Akis (v2.1 Stabil)
-
-```
-User Input
-    |
-    v
-[Intent Resolver] --> LLM sadece intent belirler
-    |
-    v
-[Policy Gate] --> Tek policy akis (aktif)
-    |
-    v
-[Tool Registry] --> Intent -> Tool (deterministic)
-    |
-    v
-[Command Builder] --> ToolSpec + Params --> Final Command
-    |
-    v
-[Execution Layer]
-```
+- Full test suite: **111 passed**
+- P0 doğrulama: `scripts/p0_validation.py --with-pytest` başarılı
 
 ---
 
@@ -174,7 +84,7 @@ User Input
 
 | Görev | Sorumlu | Durum | Açıklama |
 |-------|---------|-------|----------|
-| Maskeleme Servisi (masking.py) | Kerem | [TODO] | IP/hostname maskeleme |
+| Maskeleme Servisi (masking.py) | Kerem | [TODO] | Opsiyonel cloud mode için IP/hostname maskeleme |
 | Öneri Şeması | Kerem | [OK] | schemas.py'da SuggestionSchema var |
 | Öneri Üretici (suggestion_engine.py) | Kerem | [TODO] | Bulgulara göre sonraki adım önerileri |
 | UI Öneri Paneli | Yiğit | [TODO] | Önerileri kartlar halinde göster |
@@ -190,18 +100,14 @@ User Input
 
 ## Siradaki Adimlar
 
-### Yigit Icin (Sprint 3 Kalanlar)
+1. Dokümantasyon senkronizasyonunu tamamla
+    - README, PROJECT_STRUCTURE, sprint_roadmap, son_durum tutarlılığı
 
-1. UI Security Indicators - Oncelik: ORTA
-   - TerminalView'da root uyarisi gosterimi
+2. Sprint 4 veri modeli/adapter başlangıcı
+    - `models.py` + `nmap_adapter.py` ilk iterasyon
 
-2. Settings Menu - Oncelik: DUSUK
-   - Temizlik sikligi ve auto-clean ayarlari
-
-### Kerem Icin (Sprint 4 Hazirlik)
-
-1. models.py tasarimi - Oncelik: YUKSEK
-   - Nmap XML ciktilarini karsilayacak Pydantic modelleri
+3. Runtime telemetry UI görünürlüğü
+    - Tool kuyruğu ve çalışma sürelerinin arayüzde gösterimi
 
 ---
 
@@ -211,9 +117,9 @@ User Input
 |--------|-----------|
 | main | Sprint 0 + 1 |
 | develop | Sprint 0 + 1 + 2 + 3 (core) |
-| dev_kerem | Sprint 0 + 1 + 2 + 3 + v2.1 stabilizasyon |
+| dev_kerem | Sprint 0 + 1 + 2 + 3 + v2.1 + 3.5 sertleştirme |
 | dev_yigit | Sprint 0 + 1 + 2 + 3 (core) |
 
 ---
 
-*Son Güncelleme: 22 Ocak 2026*
+*Son Güncelleme: 25 Şubat 2026*

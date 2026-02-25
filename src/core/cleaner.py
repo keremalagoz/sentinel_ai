@@ -3,7 +3,6 @@ import os
 import shutil
 import platform
 import random
-import subprocess
 from pathlib import Path
 from typing import Optional, List
 from datetime import datetime, timedelta
@@ -67,13 +66,8 @@ class SecureCleaner:
             # Sadece Linux ve Native modda ise pkexec dene
             return self._privileged_delete(file_path)
             
-        except (OSError, IOError) as e:
-            # Dosya sistemi hataları
-            print(f"[ERROR] Silme hatasi ({file_path}): {e}")
-            return False
         except Exception as e:
-            # Beklenmeyen hatalar
-            print(f"[CRITICAL] Unexpected error in delete ({file_path}): {e}")
+            print(f"[ERROR] Silme hatasi ({file_path}): {e}")
             return False
 
     def _is_safe_path(self, path: str) -> bool:
@@ -101,7 +95,7 @@ class SecureCleaner:
             
         return False
         
-    def _secure_overwrite(self, file_path: str) -> None:
+    def _secure_overwrite(self, file_path: str):
         """
         Dosyanın içeriğini rastgele byte'larla doldurur.
         SSD'lerde %100 garanti vermez ama HDD'lerde kurtarmayı zorlaştırır.
@@ -113,7 +107,7 @@ class SecureCleaner:
             
             with open(file_path, "rb+") as f:
                 f.write(os.urandom(write_len))
-        except (OSError, IOError):
+        except Exception:
             pass # Overwrite hatası kritik değil, silmeye devam et
 
     def _privileged_delete(self, file_path: str) -> bool:
@@ -127,6 +121,7 @@ class SecureCleaner:
             return False # Docker'da ise container içinden silinmeliydi, host'tan değil
             
         # Pkexec çağrısı (Timeout ekli)
+        import subprocess
         try:
             subprocess.run(
                 ["pkexec", "rm", "-f", file_path],
@@ -138,8 +133,6 @@ class SecureCleaner:
             return True
         except subprocess.TimeoutExpired:
             print(f"[WARNING] Pkexec timeout: {file_path}")
-            return False
-        except (subprocess.CalledProcessError, FileNotFoundError):
             return False
         except Exception:
             return False
@@ -174,8 +167,6 @@ class SecureCleaner:
                 if mtime < cutoff:
                     if self.delete(str(item), secure=False):
                         deleted_count += 1
-            except (OSError, PermissionError):
-                continue
             except Exception:
                 continue
                 

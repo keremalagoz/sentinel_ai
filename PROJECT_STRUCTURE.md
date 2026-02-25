@@ -1,31 +1,49 @@
-# SENTINEL AI - Proje Yapısı ve Klavuzu
+# SENTINEL AI - Proje Yapısı (Sadeleştirilmiş)
 
-**Versiyon**: Sprint 1 Complete + UI Integration (Öncelik 1)  
-**Tarih**: 21 Ocak 2026  
-**Mimari**: Action Planner v2.1 (SQLite Backend + Integrated Tools)
+**Versiyon**: Action Planner v2.1 - Stabilizasyon/P0 Sertleştirme  
+**Tarih**: 25 Şubat 2026  
+**Mimari**: Local-Only LLM + Deterministic Execution + Runtime Hardening
+
+> Not: Bu doküman sadeleştirme sürecindedir. Öncelik, mevcut çalışma mimarisi ve aktif modüllerin net gösterimidir.
 
 ---
 
-## Dizin Yapısı
+## Hızlı Mimari Özeti
+
+Ana akış:
+
+`User Input -> Intent Resolver -> Tool Registry -> Command Builder -> ToolManager -> Parser -> SQLite`
+
+Sistem garantileri:
+- Queue backpressure
+- Global/per-tool concurrency limit
+- Local LLM timeout/retry/backoff
+- Registry drift guard
+- Runtime telemetry (`queue_wait_ms`, `tool_run_ms`)
+
+---
+
+## Dizin Yapısı (Özet)
 
 ```
 sentinel_root/
-├── main.py                      # Production Entry Point (Docker + Hibrit AI)
-├── main_developer.py            # Developer Mode (Mock + Native Ollama)
+├── main.py                      # Production Entry Point (Docker + Local AI)
+├── main_developer.py            # Developer Mode (Native Ollama)
+├── api_server.py                # API modunda komut üretimi
 ├── requirements.txt             # Python bağımlılıkları
 ├── docker-compose.yml           # Docker orchestration
-├── .env                         # Çevre değişkenleri (API keys)
+├── .env                         # Yerel/servis değişkenleri
 ├── .env.example                 # .env şablonu
 ├── README.md                    # Proje ana dokümantasyonu
-├── NMAP_KURULUM.md             # Nmap kurulum rehberi
+├── PROJECT_STRUCTURE.md         # Proje yapısı ve kılavuz
+├── son_durum.md                 # Proje durum raporu
+├── data/                        # Veri klasörü
 │
 ├── src/                         # Ana kaynak kodu
-│   ├── ai/                      # AI Modülleri
-│   │   ├── orchestrator.py      # AI Orchestrator (Hibrit: Local + Cloud)
-│   │   ├── intent_resolver.py   # Intent detection & tool mapping
+│   ├── ai/                      # AI Modülleri (Local-only)
+│   │   ├── orchestrator.py      # AI Orchestrator (Local-Only)
+│   │   ├── intent_resolver.py   # Intent detection (LLM -> intent)
 │   │   ├── command_builder.py   # Komut parametreleri oluşturucu
-│   │   ├── policy_gate.py       # Risk politika kontrolü
-│   │   ├── execution_policy.py  # Execution policy (izin sistemi)
 │   │   ├── schemas.py           # AI veri modelleri (Pydantic)
 │   │   └── tool_registry.py     # Tool kayıt sistemi
 │   │
@@ -51,36 +69,41 @@ sentinel_root/
 │   │   └── .gitkeep
 │   │
 │   └── tests/                   # Test Suite
-│       ├── test_sprint1.py      # Sprint 1 main test suite (59 tests)
+│       ├── test_sprint1.py      # Sprint 1 main test suite
 │       ├── test_sprint1_week1.py # Week 1 tests (backend + entity ID)
 │       ├── test_sprint1_week2.py # Week 2 tests (parser + tool + integration)
 │       ├── test_parser_framework.py # Parser isolated tests
 │       ├── test_action_planner_v2.py # Action Planner v2 tests
 │       ├── test_integration.py  # Full integration tests
-│       └── test_ui_integration.py # UI integration test window
+│       ├── test_ui_integration.py # UI integration test window
+│       ├── test_new_tools.py    # ToolManager + parser + telemetry testleri
+│       ├── test_advanced_parsers.py # Geniş parser senaryoları
+│       └── test_registry_consistency.py # Registry drift guard testleri
 │
 ├── docs/                        # Teknik Dokümantasyon
 │   ├── AGENT_RULES.md          # AI agent kuralları ve kısıtlamaları
 │   ├── entity_id_strategy.md   # Entity ID tasarım kararları
 │   ├── execution_history_model.md # Execution history veri modeli
 │   ├── execution_state_model.md # Execution state management
+│   ├── sprint_roadmap.md       # Sprint planı ve kapsam
 │   ├── sprint1_ready.md        # Sprint 1 completion raporu
 │   └── sqlite_schema.md        # SQLite veritabanı şeması
 │
 ├── temp/                        # Geçici Dosyalar
-│   ├── sentinel_safe/          # Güvenli sandbox klasörü
-│   └── docs_archive/           # Eski/arşiv dokümanlar
+│   └── sentinel_safe/          # Güvenli sandbox klasörü
 │
 ├── docker/                      # Docker Konfigürasyonları
 │   ├── api/                    # API container
-│   ├── llama/                  # Llama 3 container
 │   ├── tools/                  # Security tools container
 │   └── whiterabbitneo/         # WhiteRabbitNeo container
 │
 ├── models/                      # AI Model Dosyaları
-│   ├── Modelfile.whiterabbitneo # Ollama modelfile
-│   └── whiterabbitneo-7b-q4.gguf # Model weights (eğer varsa)
-│
+│   ├── model1.gguf
+│   ├── model2.gguf
+│   ├── Modelfile.model1
+│   ├── Modelfile.model2
+│   ├── Modelfile.whiterabbitneo
+│   └── whiterabbitneo-7b-q4.gguf
 ├── sentinel_production.db       # Production veritabanı
 ├── sentinel_dev.db             # Developer mode veritabanı
 └── sentinel_state.db           # Test/default veritabanı
@@ -89,46 +112,17 @@ sentinel_root/
 
 ---
 
-## Entry Points (Başlangıç Dosyaları)
+## Entry Points (Kısa)
 
 ### 1. **main.py** - Production Mode
-**Ne yapar**: Ana uygulama, hibrit AI + Docker containerlar ile çalışır
-
-**Özellikler**:
-- [OK] Docker Desktop gerektirir (VmmemWSL)
-- [OK] Hibrit AI: Local Llama 3 + Cloud GPT-4o-mini
-- [OK] Gerçek komutlar çalıştırır (nmap, gobuster, etc.)
-- [OK] Docker'da security tools
-- [OK] RAM: ~6-8GB (Docker + AI)
-- [OK] SentinelCoordinator entegrasyonu (integrated tools)
-
-**Çalıştırma**:
-```powershell
-python main.py
-```
-
-**Use Case**: Gerçek penetrasyon testleri, production deployment
+- Docker + local AI ile gerçek komut yürütümü
+- Ana kullanım: production güvenlik testleri
 
 ---
 
 ### 2. **main_developer.py** - Developer Mode
-**Ne yapar**: Geliştirme modu, mock execution + native Ollama
-
-**Özellikler**:
-- [OK] Docker gerektirmez (RAM tasarrufu)
-- [OK] Native Ollama (localhost:11434)
-- [OK] Mock execution (komutlar gerçekte çalışmaz)
-- [OK] Integrated tools: **Gerçek çalışır** (ping, nmap - eğer kuruluysa)
-- [OK] Test butonları (4 adet: Ping, Sweep, Portscan, Stats)
-- [OK] RAM: ~2-3GB (Docker yok)
-- [WARNING] Developer warnings/banners
-
-**Çalıştırma**:
-```powershell
-python main_developer.py
-```
-
-**Use Case**: Geliştirme, test, düşük RAM, Docker sorunları
+- Native Ollama ile geliştirme/deneme modu
+- Ana kullanım: UI + AI akış geliştirme ve hızlı doğrulama
 
 ---
 
@@ -200,7 +194,7 @@ Full integration tests
 ---
 
 ### **src/tests/test_ui_integration.py**
-UI integration test window (PySide6)
+UI integration test window (PyQt6)
 
 **Ne yapar**: Minimal test window, SentinelCoordinator + TerminalView entegrasyonu
 
@@ -325,7 +319,6 @@ IntegratedTool + ToolManager
 **Sorumluluklar**:
 - Tool + Parser + Backend orchestration
 - End-to-end workflow
-- Policy enforcement (ExecutionPolicy)
 - Signal routing
 
 **Workflow**:
@@ -352,7 +345,7 @@ SentinelCoordinator - UI ↔ ToolManager Bridge
 
 **Sorumluluklar**:
 - UI ve ToolManager arasında köprü
-- Qt Signal routing (PySide6)
+- Qt Signal routing (PyQt6)
 - 3 tool registration (ping, sweep, portscan)
 - Backend stats query
 
@@ -378,7 +371,7 @@ AdvancedProcessManager (QProcess wrapper)
 - Process lifecycle management
 - Output streaming (stdout/stderr)
 - Docker execution support
-- Mock execution (developer mode)
+- ExecutionManager entegrasyonu
 
 **Özellikler**:
 - Auth handling (sudo/docker)
@@ -401,13 +394,13 @@ DockerRunner - Container execution
 ## AI Modülleri
 
 ### **src/ai/orchestrator.py**
-AIOrchestrator - Hibrit AI System
+AIOrchestrator - Local AI System
 
 **Sorumluluklar**:
 - Intent detection
 - Tool selection
 - Command generation
-- Hibrit: Local Llama 3 (reasoning) + Cloud GPT-4o-mini (fallback)
+- Local-only: WhiteRabbitNeo/Ollama
 
 **API**:
 ```python
@@ -419,11 +412,11 @@ response = orchestrator.process("192.168.1.1'i tara", target="192.168.1.1")
 ---
 
 ### **src/ai/intent_resolver.py**
-IntentResolver - Intent → Tool mapping
+IntentResolver - LLM tabanli intent tespiti
 
 **Sorumluluklar**:
 - Kullanıcı intent'i tespit etme
-- Tool önerme
+- Strict JSON doğrulama
 - Context tracking
 
 ---
@@ -435,26 +428,6 @@ CommandBuilder - Komut parametreleri oluşturma
 - Tool parametrelerini hazırlama
 - Template filling
 - Validation
-
----
-
-### **src/ai/policy_gate.py**
-PolicyGate - Risk kontrolü
-
-**Sorumluluklar**:
-- Risk seviyesi belirleme (LOW/MEDIUM/HIGH)
-- Onay gereksinimi kontrolü
-- Root yetki kontrolü
-
----
-
-### **src/ai/execution_policy.py**
-ExecutionPolicy - İzin sistemi
-
-**Sorumluluklar**:
-- Tool execution izni
-- Stage-based restrictions
-- Whitelist/blacklist
 
 ---
 
@@ -537,10 +510,9 @@ SQLite veritabanı şeması
 Docker orchestration
 
 **Servisler**:
-- `llama`: Llama 3 model server
-- `whiterabbitneo`: WhiteRabbitNeo model server
-- `tools`: Security tools container (nmap, gobuster, etc.)
-- `api`: Sentinel API (gelecek)
+- `whiterabbitneo-service`: WhiteRabbitNeo model server
+- `tools-service`: Security tools container (nmap, gobuster, etc.)
+- `api-service`: Sentinel API
 
 ---
 
@@ -551,10 +523,10 @@ Security tools container
 
 ---
 
-### **docker/llama/Dockerfile**
-Llama 3 container
+### **docker/whiterabbitneo/Dockerfile**
+WhiteRabbitNeo container
 
-**İçerik**: Ollama + Llama 3 model
+**İçerik**: Ollama + WhiteRabbitNeo model
 
 ---
 
@@ -564,11 +536,12 @@ Llama 3 container
 Python paketleri
 
 **Ana Paketler**:
-- `PyQt6` / `PySide6`: UI framework
-- `openai`: Cloud API
+- `PyQt6`: UI framework
 - `pydantic`: Veri validasyonu
-- `pytest`: Test framework
-- `requests`: HTTP client
+- `python-dotenv`: Ortam değişkenleri
+- `defusedxml`: Güvenli XML işleme
+- `fastapi`: API server
+- `uvicorn`: ASGI server
 
 **Kurulum**:
 ```powershell
@@ -595,12 +568,12 @@ Test/default veritabanı (test_ui_integration.py)
 ## Çevre Değişkenleri
 
 ### **.env**
-Gizli değişkenler (API keys)
+Yerel/servis yapılandırma değişkenleri
 
 **İçerik**:
 ```bash
-OPENAI_API_KEY=sk-...
-OPENAI_MODEL=gpt-4o-mini
+OLLAMA_BASE_URL=http://localhost:11434
+OLLAMA_MODEL=whiterabbitneo
 ```
 
 **Not**: `.gitignore` ile korunur, commit edilmez
@@ -633,18 +606,18 @@ python src/tests/test_ui_integration.py
 ### 3. Unit Tests
 ```powershell
 python -m pytest src/tests/test_sprint1.py -v
-# 59 test çalıştır
+# güncel testleri çalıştır
 ```
 
 ### 4. Production Test
 ```powershell
 python main.py
-# Docker'ı başlat, hibrit AI test et
+# Docker'ı başlat, local AI test et
 ```
 
 ---
 
-## Proje Durumu (21 Ocak 2026)
+## Proje Durumu (25 Şubat 2026)
 
 ### Tamamlanan Sprintler
 
