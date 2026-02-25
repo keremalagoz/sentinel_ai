@@ -58,6 +58,13 @@ class InputValidator:
         if hostname == "localhost":
             return True
             
+        # Internal domain istisnalari (.local, .lan, .internal, .home)
+        internal_tlds = (".local", ".lan", ".internal", ".home", ".localdomain")
+        if any(hostname.endswith(tld) for tld in internal_tlds):
+            # Basit kontrol: sadece guvenli karakterler icersin
+            internal_pattern = re.compile(r'^[a-zA-Z0-9][a-zA-Z0-9\-\.]*$')
+            return bool(internal_pattern.match(hostname))
+            
         # IP adresi ise
         if InputValidator.validate_ip(hostname):
             return True
