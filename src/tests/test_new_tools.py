@@ -274,3 +274,24 @@ def test_adaptive_timeout_estimation_for_scan_tools():
     default_vuln = vuln_tool.estimate_timeout(ports="80,443", scripts="vuln")
     custom_script_vuln = vuln_tool.estimate_timeout(ports="80,443", scripts="vuln,default")
     assert custom_script_vuln >= default_vuln
+
+
+def test_tool_manager_runtime_metrics_shape():
+    """Runtime metric çıktısı temel alanları içermeli."""
+    backend = SQLiteBackend(":memory:")
+    manager = ToolManager(backend=backend, max_concurrent=1, max_queue_size=3)
+
+    metrics = manager.get_runtime_metrics()
+
+    assert "active_executions" in metrics
+    assert "queued_executions" in metrics
+    assert "per_tool_active" in metrics
+    assert "avg_queue_wait_ms" in metrics
+    assert "avg_tool_run_ms" in metrics
+    assert "recent_count" in metrics
+
+    assert isinstance(metrics["active_executions"], int)
+    assert isinstance(metrics["queued_executions"], int)
+    assert isinstance(metrics["per_tool_active"], dict)
+
+    backend.close()

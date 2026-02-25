@@ -6,6 +6,7 @@
 
 import subprocess
 from typing import List, Tuple, Optional
+import time
 
 
 CONTAINER_NAME = "sentinel-tools"
@@ -13,6 +14,12 @@ CONTAINER_NAME = "sentinel-tools"
 # Cache for list_available_tools (container basladiginda bir kez kontrol edilir)
 _tools_cache = None
 _tools_cache_valid = False
+
+# Cache for is_container_running (kısa TTL + hata backoff)
+_container_running_cache: Optional[bool] = None
+_container_cache_time = 0.0
+_container_cache_ttl = 1.5
+_container_backoff_until = 0.0
 
 
 def is_container_running() -> bool:
@@ -23,6 +30,18 @@ def is_container_running() -> bool:
         True: Container çalışıyor
         False: Container çalışmıyor veya yok
     """
+    global _container_running_cache, _container_cache_time, _container_backoff_until
+
+    now = time.time()
+
+    # Backoff penceresinde tekrar docker çağrısı yapma
+    if now < _container_backoff_until:
+        return bool(_container_running_cache)
+
+    # TTL içindeyse cache dön
+    if _container_running_cache is not None and (now - _container_cache_time) < _container_cache_ttl:
+        return _container_running_cache
+
     try:
         # Timeout ekle: Docker daemon yanıt vermezse UI donmasın (2 sn yeterli)
         result = subprocess.run(
@@ -31,10 +50,19 @@ def is_container_running() -> bool:
             text=True,
             timeout=2
         )
-        return result.stdout.strip() == "true"
+        is_running = result.stdout.strip() == "true"
+        _container_running_cache = is_running
+        _container_cache_time = now
+        return is_running
     except subprocess.TimeoutExpired:
+        _container_running_cache = False
+        _container_cache_time = now
+        _container_backoff_until = now + 2.0
         return False
     except Exception:
+        _container_running_cache = False
+        _container_cache_time = now
+        _container_backoff_until = now + 2.0
         return False
 
 
@@ -128,8 +156,11 @@ def list_available_tools(force_refresh: bool = False) -> List[str]:
 
 def invalidate_tools_cache():
     """Container yeniden basladiginda cache'i sifirla."""
-    global _tools_cache_valid
+    global _tools_cache_valid, _container_running_cache, _container_cache_time, _container_backoff_until
     _tools_cache_valid = False
+    _container_running_cache = None
+    _container_cache_time = 0.0
+    _container_backoff_until = 0.0
 
 
 # =============================================================================

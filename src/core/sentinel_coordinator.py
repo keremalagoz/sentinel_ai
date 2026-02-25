@@ -326,6 +326,10 @@ class SentinelCoordinator(QObject):
     def get_backend_stats(self) -> dict:
         """Get backend statistics"""
         return self.backend.get_stats()
+
+    def get_runtime_metrics(self) -> dict:
+        """ToolManager runtime performans metriklerini getir."""
+        return self.manager.get_runtime_metrics()
     
     def _on_tool_started(self, tool_id: str, execution_id: str):
         """Forward tool started event to UI"""

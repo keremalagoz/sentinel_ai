@@ -209,6 +209,25 @@ def test_adaptive_timeout_estimation() -> None:
     _ok("Adaptif timeout tahmini doğrulandı")
 
 
+def test_runtime_metrics_shape() -> None:
+    backend = SQLiteBackend(":memory:")
+    manager = ToolManager(backend=backend, max_concurrent=1, max_queue_size=3)
+
+    metrics = manager.get_runtime_metrics()
+    required = {
+        "active_executions",
+        "queued_executions",
+        "per_tool_active",
+        "avg_queue_wait_ms",
+        "avg_tool_run_ms",
+        "recent_count",
+    }
+    assert required.issubset(set(metrics.keys()))
+
+    backend.close()
+    _ok("Runtime telemetry shape doğrulandı")
+
+
 def run_optional_pytest() -> None:
     cmd = [
         str(ROOT / ".venv" / "Scripts" / "python.exe"),
@@ -234,6 +253,7 @@ def main() -> int:
         test_intent_resolver_retry_exhausted,
         test_orchestrator_local_only_service_state,
         test_adaptive_timeout_estimation,
+        test_runtime_metrics_shape,
     ]
 
     failed = 0

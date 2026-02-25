@@ -12,6 +12,7 @@
 import sys
 import os
 import subprocess
+import logging
 
 # Check if running in API mode
 if os.getenv("SENTINEL_MODE") == "api" or "--api" in sys.argv:
@@ -39,6 +40,13 @@ from src.ui.styles import Colors, Fonts
 from src.ai.orchestrator import get_orchestrator
 from src.ai.schemas import AIResponse, RiskLevel
 from src.core.cleaner import get_cleaner
+
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="[%(levelname)s] %(name)s: %(message)s",
+)
+logger = logging.getLogger(__name__)
 
 
 # =============================================================================
@@ -90,15 +98,15 @@ class SentinelMainWindow(QMainWindow):
         try:
             from src.core.sentinel_coordinator import SentinelCoordinator
             self._coordinator = SentinelCoordinator(db_path="sentinel_production.db")
-            print("[OK] SentinelCoordinator initialized (Integrated Tool System)")
+            logger.info("SentinelCoordinator initialized (Integrated Tool System)")
         except Exception as e:
-            print(f"[WARN] SentinelCoordinator initialization failed: {e}")
+            logger.warning("SentinelCoordinator initialization failed: %s", e)
             self._coordinator = None
         
         # AI Orchestrator (with coordinator for tool execution)
         from src.ai.orchestrator import AIOrchestrator
         self._orchestrator = AIOrchestrator(model="whiterabbitneo", coordinator=self._coordinator)
-        print("[OK] AIOrchestrator initialized (AI-Driven Tool Execution)")
+        logger.info("AIOrchestrator initialized (AI-Driven Tool Execution)")
         
         self._ai_worker: AIWorker = None
         self._pending_command = None  # AI'dan gelen onay bekleyen komut
@@ -126,9 +134,9 @@ class SentinelMainWindow(QMainWindow):
         # Geçici dosyaları temizle (Secure Cleaner)
         try:
             deleted = get_cleaner().cleanup_old_sessions(days=3)
-            print(f"[CLEANUP] Temizlik: {deleted} eski session silindi.")
+            logger.info("Cleanup complete: %s old sessions deleted", deleted)
         except Exception as e:
-            print(f"[CLEANUP] Temizlik hatasi: {e}")
+            logger.warning("Cleanup error: %s", e)
         
         # Docker kapatma seçenekleri
         if os.name == 'nt':
@@ -581,8 +589,8 @@ def main():
     app = QApplication(sys.argv)
     app.setStyle("Fusion")
     
-    print("[*] SENTINEL AI baslatiliyor...")
-    print("    Docker servisleri baslatiliyor (Bekleyiniz)...")
+    logger.info("SENTINEL AI starting...")
+    logger.info("Docker services are starting...")
     
     # Docker servislerini başlat ve BEKLE
     if os.name == 'nt':
@@ -596,13 +604,13 @@ def main():
                 creationflags=subprocess.CREATE_NO_WINDOW,
                 check=True  # Hata varsa exception fırlat
             )
-            print("[OK] Docker servisleri hazir.")
+            logger.info("Docker services ready")
         except subprocess.CalledProcessError:
-            print("[ERROR] Docker baslatilamadi! Lutfen Docker Desktop'in acik oldugundan emin olun.")
+            logger.error("Docker could not be started. Ensure Docker Desktop is running.")
             # İsterseniz burada sys.exit() diyerek uygulamayı kapatabiliriz
             # ama belki kullanıcı local tool kullanmak ister diye devam ediyoruz.
         except Exception as e:
-            print(f"[ERROR] Beklenmedik hata: {str(e)}")
+            logger.exception("Unexpected startup error: %s", e)
     
     window = SentinelMainWindow()
     window.show()
