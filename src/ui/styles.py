@@ -1,73 +1,233 @@
 """
-SENTINEL AI - Modern Design System
-Professional Tactical Dashboard Aesthetic
+SENTINEL AI - Design System (Sprint 4)
+Theme: Deep Space (Cursor/VSCode Inspired)
 """
 
 import re
 
-
 class Colors:
-    """Modern Dark Theme - Professional Color Palette"""
+    """Modern Dark Theme Palette - Deep Space"""
     
-    BG_PRIMARY = "#0d1117"
-    BG_SECONDARY = "#161b22"
-    BG_TERTIARY = "#21262d"
-    BG_ELEVATED = "#1c2128"
+    # Base Backgrounds
+    BG_PRIMARY = "#09090b"      # App Background (Deepest Black)
+    BG_SECONDARY = "#18181b"    # Panel Background (Chat/Terminal)
+    BG_TERTIARY = "#27272a"     # Hover/Active States
+    BG_ELEVATED = "#3f3f46"     # Borders / Dividers
     
-    BORDER_DEFAULT = "rgba(48, 54, 61, 0.6)"
-    BORDER_MUTED = "rgba(48, 54, 61, 0.4)"
+    # Accents
+    ACCENT_PRIMARY = "#3b82f6"  # Bright Blue (Cursor Style)
+    ACCENT_HOVER = "#2563eb"    # Darker Blue
+    ACCENT_SUBTLE = "rgba(59, 130, 246, 0.1)" # Low Opacity Blue
     
-    ACCENT_PRIMARY = "#58a6ff"
-    ACCENT_SECONDARY = "#bc8cff"
-    ACCENT_MUTED = "rgba(88, 166, 255, 0.15)"
+    # Text
+    TEXT_PRIMARY = "#f4f4f5"    # Almost White
+    TEXT_SECONDARY = "#a1a1aa"  # Muted Gray
+    TEXT_DIM = "#71717a"        # Dim Gray
     
-    SUCCESS = "#238636"
-    SUCCESS_BRIGHT = "#3fb950"
-    SUCCESS_MUTED = "rgba(35, 134, 54, 0.15)"
-    
-    WARNING = "#d29922"
-    WARNING_MUTED = "rgba(210, 153, 34, 0.15)"
-    
-    DANGER = "#f85149"
-    DANGER_MUTED = "rgba(248, 81, 73, 0.15)"
-    
-    SECURE = "#6e40c9"
-    SECURE_MUTED = "rgba(110, 64, 201, 0.15)"
-    
-    TEXT_PRIMARY = "#e6edf3"
-    TEXT_SECONDARY = "#8b949e"
-    TEXT_MUTED = "#6e7681"
-    TEXT_PLACEHOLDER = "#484f58"
-
+    # Status
+    SUCCESS = "#22c55e"
+    WARNING = "#eab308"
+    DANGER = "#ef4444"
+    SECURE = "#8b5cf6"          # Purple
 
 class Fonts:
     """Typography System"""
+    UI = "'Inter', 'Segoe UI', system-ui, sans-serif"
+    MONO = "'JetBrains Mono', 'Fira Code', 'Consolas', monospace"
     
-    MONO = "'JetBrains Mono', 'Fira Code', 'SF Mono', 'Consolas', monospace"
+    SIZE_XS = "11px"
     SIZE_SM = "12px"
     SIZE_MD = "13px"
     SIZE_LG = "14px"
+    SIZE_XL = "16px"
 
+# --- GLOBAL WIDGET STYLES ---
+
+MAIN_WINDOW_STYLE = f"""
+    QMainWindow {{
+        background-color: {Colors.BG_PRIMARY};
+    }}
+    QWidget {{
+        color: {Colors.TEXT_PRIMARY};
+        font-family: {Fonts.UI};
+        font-size: {Fonts.SIZE_MD};
+    }}
+    QToolTip {{
+        background-color: {Colors.BG_TERTIARY};
+        color: {Colors.TEXT_PRIMARY};
+        border: 1px solid {Colors.BG_ELEVATED};
+        padding: 4px;
+    }}
+"""
+
+# Alias for backward compatibility
+GLOBAL_STYLE = MAIN_WINDOW_STYLE
+
+HEADER_STYLE = f"""
+    QFrame#Header {{
+        background-color: {Colors.BG_PRIMARY};
+        border-bottom: 1px solid {Colors.BG_ELEVATED};
+    }}
+    QLabel#Logo {{
+        color: {Colors.TEXT_PRIMARY};
+        font-weight: bold;
+        font-size: 14px;
+    }}
+    QPushButton#HeaderBtn {{
+        background-color: transparent;
+        color: {Colors.TEXT_SECONDARY};
+        border: none;
+        padding: 6px 12px;
+        border-radius: 4px;
+    }}
+    QPushButton#HeaderBtn:hover {{
+        background-color: {Colors.BG_TERTIARY};
+        color: {Colors.TEXT_PRIMARY};
+    }}
+"""
+
+TAB_BAR_STYLE = f"""
+    QFrame#TabBar {{
+        background-color: {Colors.BG_PRIMARY};
+        border-bottom: 1px solid {Colors.BG_ELEVATED};
+    }}
+    QPushButton.tab {{
+        background-color: transparent;
+        color: {Colors.TEXT_SECONDARY};
+        border: none;
+        padding: 8px 16px;
+        border-bottom: 2px solid transparent;
+    }}
+    QPushButton.tab:hover {{
+        color: {Colors.TEXT_PRIMARY};
+        background-color: {Colors.BG_TERTIARY};
+    }}
+    QPushButton.tab-active {{
+        color: {Colors.TEXT_PRIMARY};
+        border-bottom: 2px solid {Colors.ACCENT_PRIMARY};
+    }}
+    QPushButton#AddTab {{
+        background-color: transparent;
+        color: {Colors.TEXT_DIM};
+        border: none;
+        padding: 8px;
+    }}
+    QPushButton#AddTab:hover {{
+        color: {Colors.ACCENT_PRIMARY};
+    }}
+"""
+
+SPLITTER_STYLE = f"""
+    QSplitter::handle {{
+        background-color: {Colors.BG_PRIMARY};
+    }}
+    QSplitter::handle:horizontal {{
+        width: 1px;
+    }}
+    QSplitter::handle:vertical {{
+        height: 1px;
+    }}
+"""
+
+# --- CHAT INTERFACE STYLES ---
+
+CHAT_CONTAINER_STYLE = f"""
+    QWidget {{
+        background-color: {Colors.BG_SECONDARY};
+    }}
+"""
+
+CHAT_BUBBLE_USER = f"""
+    QFrame {{
+        background-color: {Colors.ACCENT_PRIMARY};
+        border-radius: 12px;
+        padding: 10px;
+        border-top-right-radius: 2px;
+    }}
+    QLabel {{
+        color: white;
+        selection-background-color: white;
+        selection-color: {Colors.ACCENT_PRIMARY};
+    }}
+"""
+
+CHAT_BUBBLE_AI = f"""
+    QFrame {{
+        background-color: {Colors.BG_TERTIARY};
+        border-radius: 12px;
+        padding: 10px;
+        border-top-left-radius: 2px;
+    }}
+    QLabel {{
+        color: {Colors.TEXT_PRIMARY};
+    }}
+"""
+
+CHAT_INPUT_AREA = f"""
+    QFrame {{
+        background-color: {Colors.BG_PRIMARY};
+        border-top: 1px solid {Colors.BG_ELEVATED};
+        padding: 16px;
+    }}
+    QTextEdit {{
+        background-color: {Colors.BG_TERTIARY};
+        border-radius: 8px;
+        border: 1px solid transparent;
+        padding: 8px;
+        color: {Colors.TEXT_PRIMARY};
+        font-family: {Fonts.UI};
+    }}
+    QTextEdit:focus {{
+        border: 1px solid {Colors.ACCENT_PRIMARY};
+    }}
+"""
+
+# --- TERMINAL STYLES ---
+
+TERMINAL_THEME = f"""
+    QTextEdit {{
+        background-color: {Colors.BG_SECONDARY};
+        color: {Colors.TEXT_SECONDARY};
+        font-family: {Fonts.MONO};
+        font-size: {Fonts.SIZE_MD};
+        border: none;
+        selection-background-color: {Colors.BG_ELEVATED};
+    }}
+"""
+
+SCROLLBAR_MODERN = f"""
+    QScrollBar:vertical {{
+        background: transparent;
+        width: 10px;
+        margin: 0px;
+    }}
+    QScrollBar::handle:vertical {{
+        background: {Colors.BG_ELEVATED};
+        min-height: 20px;
+        border-radius: 5px;
+        margin: 2px;
+    }}
+    QScrollBar::handle:vertical:hover {{
+        background: {Colors.TEXT_DIM};
+    }}
+    QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {{
+        height: 0px;
+    }}
+    QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical {{
+        background: none;
+    }}
+"""
+
+# --- UTILS ---
 
 class InteractivePatterns:
-    """Interaktif prompt algılama"""
-    
+    """Legacy Pattern matching for Terminal (Keep for backward compatibility)"""
     PASSWORD_PATTERNS = [
         r'(?:password|passwd).{0,40}:\s*$',
         r'(?:parola|şifre|sifre).{0,40}:\s*$',
-        r'(?:passphrase).{0,40}:\s*$',
-        r'(?:secret|token|pin).{0,20}:\s*$',
-    ]
-    
+    ] 
     YESNO_PATTERNS = [
         r'\[y/n\]\s*:?\s*$',
-        r'\[Y/n\]\s*:?\s*$',
-        r'\[y/N\]\s*:?\s*$',
-        r'\[Y/N\]\s*:?\s*$',
-        r'\(y/n\)\s*:?\s*$',
-        r'\(Y/N\)\s*:?\s*$',
-        r'\[yes/no\]\s*:?\s*$',
-        r'\[E/H\]\s*:?\s*$',
         r'(?:continue|proceed|confirm).{0,20}\?\s*$',
     ]
     
@@ -83,203 +243,3 @@ class InteractivePatterns:
     def is_yesno_prompt(cls, text: str) -> bool:
         last_line = text.strip().split('\n')[-1] if text.strip() else ""
         return bool(cls.COMPILED_YESNO.search(last_line))
-
-
-MAIN_CONTAINER_STYLE = f"""
-    QWidget {{
-        background-color: {Colors.BG_PRIMARY};
-        color: {Colors.TEXT_PRIMARY};
-    }}
-"""
-
-TERMINAL_OUTPUT_STYLE = f"""
-    QTextEdit {{
-        background-color: {Colors.BG_PRIMARY};
-        color: {Colors.TEXT_PRIMARY};
-        font-family: {Fonts.MONO};
-        font-size: {Fonts.SIZE_MD};
-        border: 1px solid {Colors.BORDER_MUTED};
-        border-radius: 8px;
-        padding: 16px;
-        selection-background-color: {Colors.ACCENT_MUTED};
-    }}
-    
-    QScrollBar:vertical {{
-        background-color: transparent;
-        width: 8px;
-        margin: 4px 2px;
-    }}
-    
-    QScrollBar::handle:vertical {{
-        background-color: {Colors.BG_TERTIARY};
-        border-radius: 4px;
-        min-height: 40px;
-    }}
-    
-    QScrollBar::handle:vertical:hover {{
-        background-color: {Colors.TEXT_MUTED};
-    }}
-    
-    QScrollBar::add-line:vertical,
-    QScrollBar::sub-line:vertical,
-    QScrollBar::add-page:vertical,
-    QScrollBar::sub-page:vertical {{
-        background: none;
-        height: 0px;
-    }}
-"""
-
-HEADER_TITLE_STYLE = f"""
-    QLabel {{
-        color: {Colors.ACCENT_PRIMARY};
-        font-family: {Fonts.MONO};
-        font-size: {Fonts.SIZE_SM};
-        font-weight: 700;
-        letter-spacing: 1px;
-    }}
-"""
-
-def get_badge_style(variant: str = "default") -> str:
-    configs = {
-        "default": (Colors.TEXT_MUTED, Colors.BG_TERTIARY),
-        "success": (Colors.SUCCESS, Colors.SUCCESS_MUTED),
-        "warning": (Colors.WARNING, Colors.WARNING_MUTED),
-        "danger": (Colors.DANGER, Colors.DANGER_MUTED),
-        "info": (Colors.ACCENT_PRIMARY, Colors.ACCENT_MUTED),
-        "secure": (Colors.SECURE, Colors.SECURE_MUTED),
-    }
-    color, bg = configs.get(variant, configs["default"])
-    
-    return f"""
-        QLabel {{
-            color: {color};
-            background-color: {bg};
-            font-family: {Fonts.MONO};
-            font-size: 11px;
-            font-weight: 600;
-            padding: 3px 8px;
-            border-radius: 10px;
-        }}
-    """
-
-INPUT_CONTAINER_STYLE = f"""
-    QFrame {{
-        background-color: {Colors.BG_SECONDARY};
-        border: 1px solid {Colors.BORDER_MUTED};
-        border-radius: 8px;
-    }}
-"""
-
-INPUT_CONTAINER_ACTIVE_STYLE = f"""
-    QFrame {{
-        background-color: {Colors.BG_SECONDARY};
-        border: 1px solid {Colors.ACCENT_PRIMARY};
-        border-radius: 8px;
-    }}
-"""
-
-INPUT_CONTAINER_SECURE_STYLE = f"""
-    QFrame {{
-        background-color: {Colors.BG_SECONDARY};
-        border: 1px solid {Colors.SECURE};
-        border-radius: 8px;
-    }}
-"""
-
-INPUT_FIELD_STYLE = f"""
-    QLineEdit {{
-        background-color: transparent;
-        color: {Colors.TEXT_PRIMARY};
-        font-family: {Fonts.MONO};
-        font-size: {Fonts.SIZE_MD};
-        border: none;
-        padding: 8px;
-    }}
-    QLineEdit::placeholder {{
-        color: {Colors.TEXT_PLACEHOLDER};
-    }}
-"""
-
-BTN_ICON_STYLE = f"""
-    QPushButton {{
-        background-color: transparent;
-        color: {Colors.TEXT_MUTED};
-        font-size: 14px;
-        border: none;
-        border-radius: 6px;
-        padding: 6px;
-        min-width: 28px;
-        max-width: 28px;
-        min-height: 28px;
-        max-height: 28px;
-    }}
-    QPushButton:hover {{
-        background-color: {Colors.BG_TERTIARY};
-        color: {Colors.TEXT_PRIMARY};
-    }}
-"""
-
-BTN_STOP_STYLE = f"""
-    QPushButton {{
-        background-color: {Colors.DANGER_MUTED};
-        color: {Colors.DANGER};
-        font-size: 12px;
-        font-weight: bold;
-        border: none;
-        border-radius: 6px;
-        min-width: 32px;
-        max-width: 32px;
-        min-height: 32px;
-        max-height: 32px;
-    }}
-    QPushButton:hover {{
-        background-color: {Colors.DANGER};
-        color: {Colors.TEXT_PRIMARY};
-    }}
-"""
-
-ACTION_BTN_YES_STYLE = f"""
-    QPushButton {{
-        background-color: {Colors.SUCCESS_MUTED};
-        color: {Colors.SUCCESS_BRIGHT};
-        font-family: {Fonts.MONO};
-        font-size: {Fonts.SIZE_MD};
-        font-weight: 700;
-        border: 2px solid {Colors.SUCCESS};
-        border-radius: 6px;
-        padding: 0px 20px;
-        min-height: 34px;
-        max-height: 34px;
-    }}
-    QPushButton:hover {{
-        background-color: {Colors.SUCCESS};
-        color: {Colors.TEXT_PRIMARY};
-    }}
-    QPushButton:pressed {{
-        background-color: #1a7f37;
-    }}
-"""
-
-ACTION_BTN_NO_STYLE = f"""
-    QPushButton {{
-        background-color: {Colors.BG_TERTIARY};
-        color: {Colors.TEXT_SECONDARY};
-        font-family: {Fonts.MONO};
-        font-size: {Fonts.SIZE_MD};
-        font-weight: 600;
-        border: 2px solid {Colors.BORDER_DEFAULT};
-        border-radius: 6px;
-        padding: 0px 20px;
-        min-height: 34px;
-        max-height: 34px;
-    }}
-    QPushButton:hover {{
-        background-color: {Colors.DANGER_MUTED};
-        color: {Colors.DANGER};
-        border-color: {Colors.DANGER};
-    }}
-    QPushButton:pressed {{
-        background-color: {Colors.DANGER};
-        color: {Colors.TEXT_PRIMARY};
-    }}
-"""

@@ -1,156 +1,223 @@
+"""
+SENTINEL AI - Terminal View (Unified Design)
+No sub-header, section label only, clean layout
+"""
+
 from PyQt6.QtWidgets import (
-    QWidget, QVBoxLayout, QHBoxLayout, 
-    QTextEdit, QPushButton, QLineEdit,
-    QFrame, QLabel, QSpacerItem, QSizePolicy
+    QWidget, QVBoxLayout, QHBoxLayout,
+    QTextEdit, QPushButton, QFrame, QLabel, QStackedWidget, QLineEdit,
+    QListWidget, QListWidgetItem, QSplitter, QMenu
 )
 from PyQt6.QtCore import pyqtSlot, pyqtSignal, Qt, QEvent
-from PyQt6.QtGui import QTextCursor
-from typing import List
+from PyQt6.QtGui import QTextCursor, QFont, QAction
+from typing import List, Optional, Set
 
-from src.ui.styles import (
-    Colors,
-    Fonts,
-    InteractivePatterns,
-    MAIN_CONTAINER_STYLE,
-    TERMINAL_OUTPUT_STYLE,
-    HEADER_TITLE_STYLE,
-    INPUT_CONTAINER_STYLE,
-    INPUT_CONTAINER_ACTIVE_STYLE,
-    INPUT_CONTAINER_SECURE_STYLE,
-    INPUT_FIELD_STYLE,
-    BTN_ICON_STYLE,
-    BTN_STOP_STYLE,
-    ACTION_BTN_YES_STYLE,
-    ACTION_BTN_NO_STYLE,
-    get_badge_style
-)
+from src.ui.styles import Colors, Fonts, TERMINAL_THEME, SCROLLBAR_MODERN
+
+
+class TerminalSession:
+    """Single terminal session data"""
+    def __init__(self, session_id: int):
+        self.id = session_id
+        self.name = f"Terminal {session_id}"
+        self.output = QTextEdit()
+        self.output.setReadOnly(True)
+        self.output.setStyleSheet(TERMINAL_THEME + SCROLLBAR_MODERN)
+        font = QFont("JetBrains Mono, Fira Code, Consolas", 10)
+        font.setPixelSize(13)
+        self.output.setFont(font)
+        self.is_running = False
+        self.requires_root = False
 
 
 class TerminalView(QWidget):
     """
-    SENTINEL Terminal - Clean Professional UI
+    SENTINEL Terminal - Headerless Design
     
-    Features:
-    - Integrated action buttons for Yes/No prompts
-    - Command history with Up/Down arrows
-    - Secure password input mode
-    - Tool integration with real-time output streaming
+    Header controls moved to main_window unified header.
+    This widget only contains: section label + output + sidebar + input.
     """
     
-    sig_command_requested = pyqtSignal(str)
+    sig_status_changed = pyqtSignal(str, bool, bool)
+    sig_prompt_detected = pyqtSignal(str)
+    sig_process_finished = pyqtSignal(int)
+    sig_command_submitted = pyqtSignal(str)
     
-    MODE_IDLE = "idle"
-    MODE_RUNNING = "running"
-    MODE_PASSWORD = "password"
-    MODE_YESNO = "yesno"
-    MODE_TOOL_RUNNING = "tool_running"
-    
-    def __init__(self, process_manager=None, coordinator=None, parent=None):
+    def __init__(self, process_manager=None, parent=None):
         super().__init__(parent)
         self._manager = process_manager
-        self._coordinator = coordinator
-        self._current_mode = self.MODE_IDLE
-        self._current_tool_id = None
-        
-        self._command_history = []
+        self._sessions: List[TerminalSession] = []
+        self._active_session: Optional[TerminalSession] = None
+        self._max_buffer_lines = 10000
+        self._used_ids: Set[int] = set()
+        self._command_history: List[str] = []
         self._history_index = 0
-        self._max_buffer_lines = 10000  # Maksimum satır sayısı
         
-        self.setStyleSheet(MAIN_CONTAINER_STYLE)
+        self.setStyleSheet(f"background-color: {Colors.BG_PRIMARY};")
         self._setup_ui()
-        self._connect_signals()
-        self._set_mode(self.MODE_IDLE)
+        self._connect_manager_signals()
+        
+        # Create initial terminal
+        self._add_terminal()
+    
+    def _get_next_id(self) -> int:
+        i = 1
+        while i in self._used_ids:
+            i += 1
+        self._used_ids.add(i)
+        return i
     
     def _setup_ui(self):
-        main_layout = QVBoxLayout(self)
-        main_layout.setContentsMargins(16, 12, 16, 12)
-        main_layout.setSpacing(8)
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(0)
         
-        header_layout = QHBoxLayout()
-        header_layout.setContentsMargins(4, 0, 4, 8)
-        header_layout.setSpacing(12)
+        # ── Section label bar (subtle, matching chat) ──
+        section_bar = QFrame()
+        section_bar.setFixedHeight(28)
+        section_bar.setStyleSheet(f"""
+            QFrame {{
+                background-color: {Colors.BG_PRIMARY};
+                border-bottom: 1px solid {Colors.BG_ELEVATED};
+            }}
+        """)
+        section_layout = QHBoxLayout(section_bar)
+        section_layout.setContentsMargins(12, 0, 12, 0)
         
-        self._title = QLabel("SENTINEL // TERMINAL")
-        self._title.setStyleSheet(HEADER_TITLE_STYLE)
-        header_layout.addWidget(self._title)
+        section_label = QLabel("⬢ Terminal")
+        sl_font = QFont()
+        sl_font.setPixelSize(11)
+        section_label.setFont(sl_font)
+        section_label.setStyleSheet(f"color: {Colors.TEXT_DIM}; background: transparent; border: none;")
+        section_layout.addWidget(section_label)
         
-        header_layout.addSpacerItem(QSpacerItem(20, 20, QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Minimum))
+        section_layout.addStretch()
         
-        self._status_badge = QLabel("Ready")
-        self._status_badge.setStyleSheet(get_badge_style("default"))
-        header_layout.addWidget(self._status_badge)
+        # Status badge
+        self._status_badge = QLabel("READY")
+        badge_font = QFont()
+        badge_font.setPixelSize(10)
+        badge_font.setBold(True)
+        self._status_badge.setFont(badge_font)
+        self._status_badge.setStyleSheet(f"""
+            color: {Colors.TEXT_SECONDARY};
+            background-color: {Colors.BG_TERTIARY};
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-weight: bold;
+        """)
+        section_layout.addWidget(self._status_badge)
         
-        self._btn_clear = QPushButton("⌫")
-        self._btn_clear.setStyleSheet(BTN_ICON_STYLE)
-        self._btn_clear.setCursor(Qt.CursorShape.PointingHandCursor)
-        self._btn_clear.setToolTip("Clear")
-        self._btn_clear.clicked.connect(self._clear_output)
-        header_layout.addWidget(self._btn_clear)
+        layout.addWidget(section_bar)
         
-        main_layout.addLayout(header_layout)
+        # ── Content area with splitter ──
+        content_splitter = QSplitter(Qt.Orientation.Horizontal)
+        content_splitter.setHandleWidth(1)
+        content_splitter.setStyleSheet(f"""
+            QSplitter::handle {{
+                background-color: {Colors.BG_ELEVATED};
+            }}
+        """)
         
-        self._output = QTextEdit()
-        self._output.setReadOnly(True)
-        self._output.setStyleSheet(TERMINAL_OUTPUT_STYLE)
-        main_layout.addWidget(self._output, stretch=1)
+        # Output stack (left)
+        self._output_stack = QStackedWidget()
+        content_splitter.addWidget(self._output_stack)
         
-        self._input_container = QFrame()
-        self._input_container.setStyleSheet(INPUT_CONTAINER_STYLE)
-        self._input_container.setFixedHeight(54)
+        # Terminal list sidebar (right)
+        self._sidebar = QFrame()
+        self._sidebar.setStyleSheet(f"""
+            QFrame {{
+                background-color: {Colors.BG_PRIMARY};
+                border-left: 1px solid {Colors.BG_ELEVATED};
+            }}
+        """)
+        self._sidebar.setFixedWidth(130)
         
-        container_layout = QHBoxLayout(self._input_container)
-        container_layout.setContentsMargins(8, 8, 8, 10)
-        container_layout.setSpacing(10)
+        sidebar_layout = QVBoxLayout(self._sidebar)
+        sidebar_layout.setContentsMargins(0, 0, 0, 0)
+        sidebar_layout.setSpacing(0)
         
-        self._prompt_icon = QLabel("›")
-        self._prompt_icon.setStyleSheet(f"color: {Colors.TEXT_MUTED}; font-family: {Fonts.MONO}; font-size: 18px; font-weight: bold;")
-        self._prompt_icon.setFixedWidth(16)
-        container_layout.addWidget(self._prompt_icon)
+        self._terminal_list = QListWidget()
+        list_font = QFont()
+        list_font.setPixelSize(12)
+        self._terminal_list.setFont(list_font)
+        self._terminal_list.setStyleSheet(f"""
+            QListWidget {{
+                background-color: transparent;
+                border: none;
+                outline: none;
+            }}
+            QListWidget::item {{
+                padding: 8px 10px;
+                color: {Colors.TEXT_SECONDARY};
+                border-radius: 0;
+            }}
+            QListWidget::item:hover {{
+                background-color: {Colors.BG_TERTIARY};
+                color: {Colors.TEXT_PRIMARY};
+            }}
+            QListWidget::item:selected {{
+                background-color: {Colors.ACCENT_SUBTLE};
+                color: {Colors.ACCENT_PRIMARY};
+                border-left: 2px solid {Colors.ACCENT_PRIMARY};
+            }}
+        """)
+        self._terminal_list.itemClicked.connect(self._on_terminal_selected)
+        self._terminal_list.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
+        self._terminal_list.customContextMenuRequested.connect(self._show_terminal_context_menu)
+        sidebar_layout.addWidget(self._terminal_list)
         
-        self._input_field = QLineEdit()
-        self._input_field.setPlaceholderText("Enter command...")
-        self._input_field.setStyleSheet(INPUT_FIELD_STYLE)
-        self._input_field.returnPressed.connect(self._on_submit)
-        self._input_field.textChanged.connect(self._on_text_changed)
-        self._input_field.installEventFilter(self)
-        container_layout.addWidget(self._input_field, stretch=1)
+        content_splitter.addWidget(self._sidebar)
+        content_splitter.setSizes([600, 130])
+        content_splitter.setCollapsible(0, False)
+        content_splitter.setCollapsible(1, True)
         
-        self._action_container = QWidget()
-        self._action_container.setFixedHeight(36)
-        action_layout = QHBoxLayout(self._action_container)
-        action_layout.setContentsMargins(0, 0, 0, 0)
-        action_layout.setSpacing(10)
+        layout.addWidget(content_splitter, stretch=1)
         
-        self._btn_yes = QPushButton("YES")
-        self._btn_yes.setStyleSheet(ACTION_BTN_YES_STYLE)
-        self._btn_yes.setCursor(Qt.CursorShape.PointingHandCursor)
-        self._btn_yes.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
-        self._btn_yes.clicked.connect(lambda: self._send_response("y"))
-        action_layout.addWidget(self._btn_yes)
+        # ── Input area ──
+        input_frame = QFrame()
+        input_frame.setStyleSheet(f"""
+            QFrame {{
+                background-color: {Colors.BG_PRIMARY};
+                border-top: 1px solid {Colors.BG_ELEVATED};
+            }}
+        """)
+        input_frame.setFixedHeight(44)
         
-        self._btn_no = QPushButton("✕  NO")
-        self._btn_no.setStyleSheet(ACTION_BTN_NO_STYLE)
-        self._btn_no.setCursor(Qt.CursorShape.PointingHandCursor)
-        self._btn_no.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
-        self._btn_no.clicked.connect(lambda: self._send_response("n"))
-        action_layout.addWidget(self._btn_no)
+        input_layout = QHBoxLayout(input_frame)
+        input_layout.setContentsMargins(12, 0, 12, 0)
+        input_layout.setSpacing(8)
         
-        self._action_container.setVisible(False)
-        container_layout.addWidget(self._action_container, stretch=1)
+        # Prompt icon
+        self._prompt_icon = QLabel(">")
+        prompt_font = QFont("JetBrains Mono, Consolas", 10)
+        prompt_font.setPixelSize(14)
+        prompt_font.setBold(True)
+        self._prompt_icon.setFont(prompt_font)
+        self._prompt_icon.setStyleSheet(f"color: {Colors.SUCCESS}; background: transparent; border: none;")
+        input_layout.addWidget(self._prompt_icon)
         
-        self._btn_stop = QPushButton("■")
-        self._btn_stop.setStyleSheet(BTN_STOP_STYLE)
-        self._btn_stop.setCursor(Qt.CursorShape.PointingHandCursor)
-        self._btn_stop.setToolTip("Stop")
-        self._btn_stop.clicked.connect(self._stop_process)
-        self._btn_stop.setVisible(False)
-        container_layout.addWidget(self._btn_stop)
+        # Input field
+        self._input = QLineEdit()
+        self._input.setPlaceholderText("Enter command...")
+        input_font = QFont("JetBrains Mono, Consolas", 10)
+        input_font.setPixelSize(13)
+        self._input.setFont(input_font)
+        self._input.setStyleSheet(f"""
+            QLineEdit {{
+                background-color: transparent;
+                color: {Colors.TEXT_PRIMARY};
+                border: none;
+            }}
+        """)
+        self._input.returnPressed.connect(self._on_input_submit)
+        self._input.installEventFilter(self)
+        input_layout.addWidget(self._input, stretch=1)
         
-        main_layout.addWidget(self._input_container)
+        layout.addWidget(input_frame)
     
     def eventFilter(self, obj, event):
-        """Handle keyboard events for command history."""
-        if obj == self._input_field and event.type() == QEvent.Type.KeyPress:
+        if obj == self._input and event.type() == QEvent.Type.KeyPress:
             if event.key() == Qt.Key.Key_Up:
                 self._history_up()
                 return True
@@ -160,173 +227,238 @@ class TerminalView(QWidget):
         return super().eventFilter(obj, event)
     
     def _history_up(self):
-        """Navigate to older command."""
         if not self._command_history:
             return
         if self._history_index < len(self._command_history):
             self._history_index += 1
-            cmd = self._command_history[-self._history_index]
-            self._input_field.setText(cmd)
+            self._input.setText(self._command_history[-self._history_index])
     
     def _history_down(self):
-        """Navigate to newer command."""
         if self._history_index > 1:
             self._history_index -= 1
-            cmd = self._command_history[-self._history_index]
-            self._input_field.setText(cmd)
+            self._input.setText(self._command_history[-self._history_index])
         elif self._history_index == 1:
             self._history_index = 0
-            self._input_field.clear()
+            self._input.clear()
     
-    def _connect_signals(self):
+    def _on_input_submit(self):
+        text = self._input.text().strip()
+        if not text:
+            return
+        self._input.clear()
+        self._history_index = 0
+        if self._active_session and self._active_session.is_running:
+            self.send_input(text)
+        else:
+            self._command_history.append(text)
+            self.sig_command_submitted.emit(text)
+    
+    def _add_terminal(self) -> TerminalSession:
+        session_id = self._get_next_id()
+        session = TerminalSession(session_id)
+        self._sessions.append(session)
+        self._output_stack.addWidget(session.output)
+        
+        item = QListWidgetItem(f"  {session.name}")
+        item.setData(Qt.ItemDataRole.UserRole, session.id)
+        self._terminal_list.addItem(item)
+        
+        self._switch_terminal(session)
+        return session
+    
+    def _close_terminal(self, session: TerminalSession):
+        if len(self._sessions) <= 1:
+            return
+        if session.is_running and session == self._active_session and self._manager:
+            self._manager.stop_process()
+        
+        for i in range(self._terminal_list.count()):
+            item = self._terminal_list.item(i)
+            if item and item.data(Qt.ItemDataRole.UserRole) == session.id:
+                self._terminal_list.takeItem(i)
+                break
+        
+        self._output_stack.removeWidget(session.output)
+        session.output.deleteLater()
+        self._sessions.remove(session)
+        self._used_ids.discard(session.id)
+        
+        if self._active_session == session and self._sessions:
+            self._switch_terminal(self._sessions[-1])
+    
+    def _show_terminal_context_menu(self, pos):
+        item = self._terminal_list.itemAt(pos)
+        if not item:
+            return
+        session_id = item.data(Qt.ItemDataRole.UserRole)
+        session = next((s for s in self._sessions if s.id == session_id), None)
+        if not session:
+            return
+        
+        menu = QMenu(self)
+        menu.setStyleSheet(f"""
+            QMenu {{
+                background-color: {Colors.BG_SECONDARY};
+                border: 1px solid {Colors.BG_ELEVATED};
+                border-radius: 4px; padding: 4px;
+            }}
+            QMenu::item {{
+                padding: 6px 20px 6px 10px;
+                color: {Colors.TEXT_PRIMARY}; border-radius: 3px;
+            }}
+            QMenu::item:selected {{
+                background-color: {Colors.ACCENT_SUBTLE};
+                color: {Colors.ACCENT_PRIMARY};
+            }}
+        """)
+        
+        close_action = QAction("Terminali Kapat", self)
+        close_action.triggered.connect(lambda: self._close_terminal(session))
+        menu.addAction(close_action)
+        if len(self._sessions) <= 1:
+            close_action.setEnabled(False)
+        
+        menu.exec(self._terminal_list.mapToGlobal(pos))
+    
+    def _on_terminal_selected(self, item: QListWidgetItem):
+        session_id = item.data(Qt.ItemDataRole.UserRole)
+        session = next((s for s in self._sessions if s.id == session_id), None)
+        if session:
+            self._switch_terminal(session)
+    
+    def _switch_terminal(self, session: TerminalSession):
+        self._active_session = session
+        self._output_stack.setCurrentWidget(session.output)
+        
+        for i in range(self._terminal_list.count()):
+            item = self._terminal_list.item(i)
+            if item.data(Qt.ItemDataRole.UserRole) == session.id:
+                self._terminal_list.setCurrentItem(item)
+        
+        self._update_sidebar_indicators()
+        self._update_status_badge()
+    
+    def _update_status_badge(self):
+        if not self._active_session:
+            return
+        if self._active_session.is_running:
+            if self._active_session.requires_root:
+                self._status_badge.setText("ROOT")
+                self._status_badge.setStyleSheet(f"""
+                    color: white; background-color: {Colors.DANGER};
+                    padding: 2px 8px; border-radius: 4px; font-weight: bold;
+                """)
+                self._prompt_icon.setStyleSheet(f"color: {Colors.DANGER}; background: transparent; border: none;")
+            else:
+                self._status_badge.setText("RUNNING")
+                self._status_badge.setStyleSheet(f"""
+                    color: {Colors.ACCENT_PRIMARY}; background-color: {Colors.ACCENT_SUBTLE};
+                    padding: 2px 8px; border-radius: 4px; font-weight: bold;
+                """)
+                self._prompt_icon.setStyleSheet(f"color: {Colors.WARNING}; background: transparent; border: none;")
+        else:
+            self._status_badge.setText("READY")
+            self._status_badge.setStyleSheet(f"""
+                color: {Colors.TEXT_SECONDARY}; background-color: {Colors.BG_TERTIARY};
+                padding: 2px 8px; border-radius: 4px; font-weight: bold;
+            """)
+            self._prompt_icon.setStyleSheet(f"color: {Colors.SUCCESS}; background: transparent; border: none;")
+    
+    def _update_status(self):
+        self._update_sidebar_indicators()
+        self._update_status_badge()
+        if self._active_session:
+            self.sig_status_changed.emit(
+                self._active_session.name,
+                self._active_session.is_running,
+                self._active_session.requires_root
+            )
+    
+    def _update_sidebar_indicators(self):
+        for i in range(self._terminal_list.count()):
+            item = self._terminal_list.item(i)
+            session_id = item.data(Qt.ItemDataRole.UserRole)
+            session = next((s for s in self._sessions if s.id == session_id), None)
+            if session:
+                prefix = "● " if session.is_running else "  "
+                item.setText(f"{prefix}{session.name}")
+    
+    def _connect_manager_signals(self):
         if self._manager:
             self._manager.sig_output_stream.connect(self._on_output)
             self._manager.sig_process_finished.connect(self._on_finished)
             self._manager.sig_auth_failed.connect(self._on_auth_failed)
-        
-        if self._coordinator:
-            self._coordinator.tool_started.connect(self._on_tool_started)
-            self._coordinator.tool_completed.connect(self._on_tool_completed)
-            self._coordinator.tool_error.connect(self._on_tool_error)
-            # Subscribe to tool output from integrated tools
-            if hasattr(self._coordinator.manager, 'signals'):
-                self._coordinator.manager.signals.tool_finished.connect(self._on_tool_output)
     
-    def _set_mode(self, mode: str):
-        """Set UI mode."""
-        self._current_mode = mode
-        
-        self._input_field.setEchoMode(QLineEdit.EchoMode.Normal)
-        self._prompt_icon.setVisible(True)
-        self._input_field.setVisible(True)
-        self._action_container.setVisible(False)
-        
-        if mode == self.MODE_IDLE:
-            self._input_container.setStyleSheet(INPUT_CONTAINER_STYLE)
-            self._input_field.setPlaceholderText("Enter command...")
-            self._prompt_icon.setStyleSheet(f"color: {Colors.TEXT_MUTED}; font-family: {Fonts.MONO}; font-size: 18px; font-weight: bold;")
-            self._btn_stop.setVisible(False)
-            self._status_badge.setText("Ready")
-            self._status_badge.setStyleSheet(get_badge_style("default"))
-            
-        elif mode == self.MODE_RUNNING:
-            self._input_container.setStyleSheet(INPUT_CONTAINER_ACTIVE_STYLE)
-            self._input_field.setPlaceholderText("Send input...")
-            self._prompt_icon.setStyleSheet(f"color: {Colors.ACCENT_PRIMARY}; font-family: {Fonts.MONO}; font-size: 18px; font-weight: bold;")
-            self._btn_stop.setVisible(True)
-            self._status_badge.setText("Running")
-            self._status_badge.setStyleSheet(get_badge_style("info"))
-            
-        elif mode == self.MODE_TOOL_RUNNING:
-            self._input_container.setStyleSheet(INPUT_CONTAINER_ACTIVE_STYLE)
-            self._input_field.setPlaceholderText("Tool running...")
-            self._input_field.setEnabled(False)
-            self._prompt_icon.setStyleSheet(f"color: {Colors.ACCENT_PRIMARY}; font-family: {Fonts.MONO}; font-size: 18px; font-weight: bold;")
-            self._btn_stop.setVisible(True)
-            self._status_badge.setText("Tool Running")
-            self._status_badge.setStyleSheet(get_badge_style("info"))
-            
-        elif mode == self.MODE_PASSWORD:
-            self._input_container.setStyleSheet(INPUT_CONTAINER_SECURE_STYLE)
-            self._input_field.setPlaceholderText("Enter password...")
-            self._input_field.setEchoMode(QLineEdit.EchoMode.Password)
-            self._prompt_icon.setStyleSheet(f"color: {Colors.SECURE}; font-family: {Fonts.MONO}; font-size: 18px; font-weight: bold;")
-            self._btn_stop.setVisible(True)
-            self._status_badge.setText("[SECURE]")
-            self._status_badge.setStyleSheet(get_badge_style("secure"))
-            
-        elif mode == self.MODE_YESNO:
-            self._input_container.setStyleSheet(INPUT_CONTAINER_ACTIVE_STYLE)
-            self._prompt_icon.setVisible(False)
-            self._input_field.setVisible(False)
-            self._action_container.setVisible(True)
-            self._btn_stop.setVisible(True)
-            self._status_badge.setText("Confirm")
-            self._status_badge.setStyleSheet(get_badge_style("warning"))
+    # ── Public API ──
     
-    def _on_text_changed(self, text: str):
-        """Visual feedback on typing."""
-        if self._current_mode == self.MODE_IDLE:
-            if text:
-                self._input_container.setStyleSheet(INPUT_CONTAINER_ACTIVE_STYLE)
-                self._prompt_icon.setStyleSheet(f"color: {Colors.ACCENT_PRIMARY}; font-family: {Fonts.MONO}; font-size: 18px; font-weight: bold;")
-            else:
-                self._input_container.setStyleSheet(INPUT_CONTAINER_STYLE)
-                self._prompt_icon.setStyleSheet(f"color: {Colors.TEXT_MUTED}; font-family: {Fonts.MONO}; font-size: 18px; font-weight: bold;")
-    
-    def _detect_prompt(self, text: str):
-        """Detect interactive prompts."""
-        if InteractivePatterns.is_password_prompt(text):
-            self._set_mode(self.MODE_PASSWORD)
-        elif InteractivePatterns.is_yesno_prompt(text):
-            self._set_mode(self.MODE_YESNO)
-    
-    def _on_submit(self):
-        """Handle input submission."""
-        text = self._input_field.text()
-        if not text:
+    def start_command(self, command: str, args: list, requires_root: bool = False):
+        if not self._manager or not self._active_session:
             return
-        
-        if self._current_mode == self.MODE_IDLE:
-            self._command_history.append(text)
-            self._history_index = 0
-            self.sig_command_requested.emit(text)
-            self._log(f"$ {text}", Colors.TEXT_SECONDARY)
-            self._set_mode(self.MODE_RUNNING)
-        else:
+        self._active_session.is_running = True
+        self._active_session.requires_root = requires_root
+        self._update_status()
+        self._log(f"$ {command} {' '.join(args)}", Colors.TEXT_SECONDARY)
+        if requires_root:
+            self._log("[!] ROOT: Yuksek yetki ile calistiriliyor", Colors.WARNING)
+        self._manager.start_process(command, args, requires_root)
+    
+    def stop_command(self):
+        if self._manager:
+            self._manager.stop_process()
+            self._log("[X] Process terminated by user", Colors.DANGER)
+            if self._active_session:
+                self._active_session.is_running = False
+                self._active_session.requires_root = False
+                self._update_status()
+    
+    def send_input(self, text: str):
+        if self._manager:
             self._manager.write_input(text)
-            if self._current_mode == self.MODE_PASSWORD:
-                self._log("  ••••••••", Colors.TEXT_MUTED)
-            else:
-                self._log(f"  › {text}", Colors.ACCENT_SECONDARY)
-            self._set_mode(self.MODE_RUNNING)
-        
-        self._input_field.clear()
+            if "password" not in text.lower():
+                self._log(f"> {text}", Colors.ACCENT_PRIMARY)
     
-    def _send_response(self, response: str):
-        """Send Yes/No response."""
-        self._manager.write_input(response)
-        self._log(f"  › {response.upper()}", Colors.ACCENT_SECONDARY)
-        self._set_mode(self.MODE_RUNNING)
+    def get_active_session_name(self) -> str:
+        return self._active_session.name if self._active_session else "Terminal"
     
-    def _stop_process(self):
-        """Stop running process."""
-        self._manager.stop_process()
-        self._log("Process terminated", Colors.DANGER)
-        self._set_mode(self.MODE_IDLE)
-        self._status_badge.setText("Stopped")
-        self._status_badge.setStyleSheet(get_badge_style("danger"))
+    # ── Internal ──
     
-    def _log(self, text: str, color: str) -> None:
-        """Append styled text to output."""
-        cursor = self._output.textCursor()
+    def _log(self, text: str, color: str):
+        if not self._active_session:
+            return
+        output = self._active_session.output
+        cursor = output.textCursor()
         cursor.movePosition(QTextCursor.MoveOperation.End)
-        if self._output.toPlainText():
+        if output.toPlainText():
             cursor.insertHtml("<br>")
         escaped = self._escape(text)
         cursor.insertHtml(f"<span style='color: {color};'>{escaped}</span>")
-        self._output.setTextCursor(cursor)
-        self._output.ensureCursorVisible()
+        output.setTextCursor(cursor)
+        output.ensureCursorVisible()
     
     @pyqtSlot(str, str)
     def _on_output(self, text: str, channel: str):
-        """Handle process output."""
-        if self._current_mode == self.MODE_IDLE:
-            self._set_mode(self.MODE_RUNNING)
-        
-        self._detect_prompt(text)
-        
+        if not self._active_session:
+            return
         color = Colors.DANGER if channel == "stderr" else Colors.TEXT_PRIMARY
-        cursor = self._output.textCursor()
+        output = self._active_session.output
+        cursor = output.textCursor()
         cursor.movePosition(QTextCursor.MoveOperation.End)
         cursor.insertHtml(f"<span style='color: {color};'>{self._escape(text)}</span>")
-        self._output.setTextCursor(cursor)
-        self._output.ensureCursorVisible()
-        
-        # Buffer limiti kontrolü
-        doc = self._output.document()
+        output.setTextCursor(cursor)
+        output.ensureCursorVisible()
+        self._detect_prompt(text)
+        self._check_buffer_limit(output)
+    
+    def _detect_prompt(self, text: str):
+        from src.ui.styles import InteractivePatterns
+        if InteractivePatterns.is_password_prompt(text):
+            self.sig_prompt_detected.emit("password")
+        elif InteractivePatterns.is_yesno_prompt(text):
+            self.sig_prompt_detected.emit("yesno")
+    
+    def _check_buffer_limit(self, output: QTextEdit):
+        doc = output.document()
         if doc.lineCount() > self._max_buffer_lines:
-            # İlk 1000 satırı sil
             cursor = QTextCursor(doc)
             cursor.movePosition(QTextCursor.MoveOperation.Start)
             for _ in range(1000):
@@ -334,142 +466,30 @@ class TerminalView(QWidget):
                 cursor.removeSelectedText()
                 if cursor.atEnd():
                     break
-                cursor.deleteChar()  # Newline'ı da sil
-            
-            # Bilgi mesajı ekle
-            cursor.movePosition(QTextCursor.MoveOperation.Start)
-            cursor.insertHtml(f"<span style='color: {Colors.WARNING};'>[BUFFER] İlk 1000 satır temizlendi (limit: {self._max_buffer_lines})</span><br>")
+                cursor.deleteChar()
     
     @pyqtSlot(int, str)
     def _on_finished(self, exit_code: int, log_path: str):
-        """Handle process completion."""
-        self._set_mode(self.MODE_IDLE)
-        if exit_code == 0:
-            self._status_badge.setText("Done")
-            self._status_badge.setStyleSheet(get_badge_style("success"))
-            self._log("[OK] Completed", Colors.SUCCESS)
-        else:
-            self._status_badge.setText(f"Exit {exit_code}")
-            self._status_badge.setStyleSheet(get_badge_style("danger"))
-            self._log(f"[X] Exit code {exit_code}", Colors.DANGER)
+        if self._active_session:
+            self._active_session.is_running = False
+            self._active_session.requires_root = False
+            self._update_status()
+            if exit_code == 0:
+                self._log("[OK] Completed", Colors.SUCCESS)
+            else:
+                self._log(f"[X] Exit code {exit_code}", Colors.DANGER)
+        self.sig_process_finished.emit(exit_code)
     
     @pyqtSlot()
     def _on_auth_failed(self):
-        """Handle auth failure."""
-        self._set_mode(self.MODE_IDLE)
-        self._status_badge.setText("Auth Failed")
-        self._status_badge.setStyleSheet(get_badge_style("danger"))
-        self._log("[!] Authentication denied", Colors.WARNING)
-    
-    def _clear_output(self) -> None:
-        """Clear terminal."""
-        self._output.clear()
-    
-    def start_command(self, command: str, args: list, requires_root: bool = False) -> None:
-        """Start command externally."""
-        if self._manager:
-            self._manager.start_process(command, args, requires_root)
-            self._set_mode(self.MODE_RUNNING)
-    
-    # ========== Tool Integration Methods ==========
-    
-    def start_tool(self, tool_name: str, **kwargs):
-        """
-        Start integrated tool execution.
-        
-        Args:
-            tool_name: Tool name (ping, nmap_ping_sweep, nmap_port_scan)
-            **kwargs: Tool-specific parameters
-        """
-        if not self._coordinator:
-            self._log("[!] Coordinator not initialized", Colors.DANGER)
-            return
-        
-        tool_map = {
-            "ping": self._coordinator.execute_ping,
-            "nmap_ping_sweep": self._coordinator.execute_ping_sweep,
-            "nmap_port_scan": self._coordinator.execute_port_scan
-        }
-        
-        tool_func = tool_map.get(tool_name)
-        if not tool_func:
-            self._log(f"[!] Unknown tool: {tool_name}", Colors.DANGER)
-            return
-        
-        self._log(f"$ Starting {tool_name}...", Colors.ACCENT_PRIMARY)
-        success = tool_func(**kwargs)
-        
-        if not success:
-            self._log(f"[!] Failed to start {tool_name}", Colors.DANGER)
-            self._set_mode(self.MODE_IDLE)
-    
-    @pyqtSlot(str, str)
-    def _on_tool_started(self, tool_id: str, execution_id: str):
-        """Handle tool start event."""
-        self._current_tool_id = tool_id
-        self._set_mode(self.MODE_TOOL_RUNNING)
-        self._status_badge.setText(f"Running: {tool_id}")
-        self._status_badge.setStyleSheet(get_badge_style("info"))
-        self._log(f"[EXEC] {execution_id}", Colors.TEXT_MUTED)
-    
-    @pyqtSlot(str, object)
-    def _on_tool_output(self, tool_id: str, tool_result):
-        """Handle tool execution output (from ToolResult)."""
-        if hasattr(tool_result, 'stdout') and tool_result.stdout:
-            # Display stdout
-            lines = tool_result.stdout.strip().split('\n')
-            for line in lines:
-                if line.strip():
-                    self._log(line, Colors.TEXT_PRIMARY)
-        
-        if hasattr(tool_result, 'stderr') and tool_result.stderr:
-            # Display stderr
-            lines = tool_result.stderr.strip().split('\n')
-            for line in lines:
-                if line.strip():
-                    self._log(line, Colors.DANGER)
-    
-    @pyqtSlot(str, object)
-    def _on_tool_completed(self, tool_id: str, result):
-        """Handle tool completion."""
-        self._current_tool_id = None
-        self._set_mode(self.MODE_IDLE)
-        
-        # Display result summary
-        if result.success:
-            self._status_badge.setText("Tool Complete")
-            self._status_badge.setStyleSheet(get_badge_style("success"))
-            self._log(
-                f"[OK] {tool_id} completed: {result.entities_created} entities created",
-                Colors.SUCCESS
-            )
-        else:
-            self._status_badge.setText("Tool Failed")
-            self._status_badge.setStyleSheet(get_badge_style("warning"))
-            self._log(
-                f"[!] {tool_id} status: {result.execution_status}",
-                Colors.WARNING
-            )
-            
-            if result.error_message:
-                self._log(f"    Error: {result.error_message}", Colors.DANGER)
-        
-        # Display execution details
-        self._log(f"    Duration: {result.duration:.2f}s", Colors.TEXT_MUTED)
-        self._log(f"    Exit code: {result.exit_code}", Colors.TEXT_MUTED)
-    
-    @pyqtSlot(str, str)
-    def _on_tool_error(self, tool_id: str, error_message: str):
-        """Handle tool error."""
-        self._current_tool_id = None
-        self._set_mode(self.MODE_IDLE)
-        self._status_badge.setText("Error")
-        self._status_badge.setStyleSheet(get_badge_style("danger"))
-        self._log(f"[X] {tool_id} error: {error_message}", Colors.DANGER)
+        if self._active_session:
+            self._active_session.is_running = False
+            self._active_session.requires_root = False
+            self._update_status()
+            self._log("[!] Authentication failed or cancelled", Colors.WARNING)
     
     @staticmethod
     def _escape(text: str) -> str:
-        """Escape HTML."""
         return (text
             .replace("&", "&amp;")
             .replace("<", "&lt;")
