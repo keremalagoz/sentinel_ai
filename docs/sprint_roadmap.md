@@ -1,7 +1,7 @@
 # SENTINEL AI - Sprint Roadmap (Güncel)
 
-**Güncelleme Tarihi:** 23 Şubat 2026  
-**Mimari:** Action Planner v2.1 (Intent-Driven + Deterministic Command Builder)
+**Güncelleme Tarihi:** 25 Şubat 2026  
+**Mimari:** Action Planner v2.1 (Local-Only LLM + Deterministic Command Builder)
 
 ---
 
@@ -9,7 +9,7 @@
 
 SENTINEL AI; doğal dilde verilen siber güvenlik taleplerini,
 kontrollü ve denetlenebilir bir akışla çalıştırılabilir komutlara dönüştüren
-hibrit AI destekli güvenlik test platformudur.
+local AI destekli güvenlik test platformudur.
 
 Temel akış:
 
@@ -64,16 +64,23 @@ Temel akış:
 - `process_manager` ile yetki/red senaryoları
 - `cleaner.py` ile güvenli temizlik
 
+### Sprint 3.5 - Stabilizasyon ve Sertleştirme
+- Queue backpressure + global concurrency limiti
+- Per-tool concurrency limiti
+- Local LLM timeout/retry/backoff akışı
+- Registry drift guard (startup doğrulama + test)
+- Adaptif timeout kestirimi + runtime telemetry yüzeyi
+
 ---
 
 ## 4) Aktif Öncelikler (Kısa Vade)
 
-1. **Parser API uyumunun tamamlanması**
-   - Test faili: `test_parser_framework.py::TestParserHelpers::test_create_vulnerability_entity`
-2. **Dokümantasyon-kod senkronizasyonu**
-   - README, PROJECT_STRUCTURE, son_durum güncel kalmalı
-3. **Intent/Registry uyumu**
-  - Intent -> tool mapping kapsamı tutarlı genişletilmeli
+1. **Dokümantasyon-kod senkronizasyonu**
+  - README, PROJECT_STRUCTURE, son_durum, sprint_roadmap eşlenik tutulmalı
+2. **Runtime telemetry görünürlüğü**
+  - Queue ve tool süre metriklerinin UI/rapor tarafına taşınması
+3. **Sprint 4 hazırlığı (veri modeli/adapter)**
+  - Parse çıktılarını model katmanına standardize etme
 
 ---
 
@@ -85,7 +92,7 @@ Temel akış:
 - XML onarım ve robust parse akışı
 
 ### Sprint 5 - Öneri Motoru
-- `src/ai/masking.py` (cloud öncesi maskeleme)
+- `src/ai/masking.py` (ileride opsiyonel cloud mode için)
 - `src/ai/suggestion_engine.py`
 - UI öneri paneli entegrasyonu
 
@@ -102,7 +109,7 @@ Bir sprint maddesi tamamlandı sayılması için:
 1. İlgili testler geçmeli.
 2. Kod + dokümantasyon birlikte güncellenmeli.
 3. Deterministik akış bozulmamalı.
-4. Güvenlik politikaları bypass edilmemeli.
+4. Güvenlik kontrolleri bypass edilmemeli.
 5. UI donmadan işlem tamamlanmalı.
 
 ---
@@ -110,6 +117,7 @@ Bir sprint maddesi tamamlandı sayılması için:
 ## 7) Notlar
 
 - Bu doküman mevcut kod tabanı ile uyumlu tutulur.
+- Mevcut çalışma modu local-only LLM'dir; cloud mode sadece gelecekteki opsiyonel genişlemedir.
 - Arşiv/eskimiş planlar `temp` altında tutulmaz; temiz çalışma ağacı hedeflenir.
 
 

@@ -1,6 +1,6 @@
 # SENTINEL AI - Proje Durum Raporu
 
-**Tarih:** 23 Şubat 2026  
+**Tarih:** 25 Şubat 2026  
 **Ekip:** Kerem (AI/Data/Backend) & Yiğit (System/UI/Security)
 
 ---
@@ -97,7 +97,7 @@ sentinel_root/
 
 ---
 
-## Aktif Sprint: Sprint 3
+## Aktif Sprint: Sprint 3.5 (Stabilizasyon / Sertleştirme)
 
 ### Sprint 3: Güvenlik, Yetki ve Temizlik
 
@@ -109,6 +109,25 @@ sentinel_root/
 | ProcessManager Update | Yiğit | [OK] | Yeni core modüllerle entegrasyon |
 | UI Security Indicators | Yiğit | [TODO] | Terminalde root uyarisi |
 | Settings Menu (Security) | Yiğit | [TODO] | Temizlik sikligi vb. |
+
+---
+
+### Sprint 3.5: Performans ve Güvenilirlik Sertleştirme
+
+| Görev | Sorumlu | Durum | Açıklama |
+|-------|---------|-------|----------|
+| Queue backpressure | Kerem | [OK] | ToolManager kuyruk taşmasını kontrollü reddetme |
+| Global concurrency limiti | Kerem | [OK] | Eşzamanlı çalışma üst sınırı |
+| Per-tool concurrency limiti | Kerem | [OK] | Tool bazlı paralellik kontrolü |
+| Local LLM timeout/retry | Kerem | [OK] | intent_resolver timeout + retry + backoff |
+| Registry drift guard | Kerem | [OK] | Startup doğrulama + test guard |
+| Adaptif timeout tahmini | Kerem | [OK] | Tool bazlı tahmini timeout stratejisi |
+| Runtime telemetry yüzeyi | Kerem | [OK] | queue_wait_ms/tool_run_ms metrikleri |
+
+### Test Durumu (Güncel)
+
+- Full test suite: **111 passed**
+- P0 doğrulama: `scripts/p0_validation.py --with-pytest` başarılı
 
 ---
 
@@ -168,7 +187,7 @@ User Input
 
 | Görev | Sorumlu | Durum | Açıklama |
 |-------|---------|-------|----------|
-| Maskeleme Servisi (masking.py) | Kerem | [TODO] | IP/hostname maskeleme |
+| Maskeleme Servisi (masking.py) | Kerem | [TODO] | Opsiyonel cloud mode için IP/hostname maskeleme |
 | Öneri Şeması | Kerem | [OK] | schemas.py'da SuggestionSchema var |
 | Öneri Üretici (suggestion_engine.py) | Kerem | [TODO] | Bulgulara göre sonraki adım önerileri |
 | UI Öneri Paneli | Yiğit | [TODO] | Önerileri kartlar halinde göster |
@@ -184,18 +203,14 @@ User Input
 
 ## Siradaki Adimlar
 
-### Yigit Icin (Sprint 3 Kalanlar)
+1. Dokümantasyon senkronizasyonunu tamamla
+    - README, PROJECT_STRUCTURE, sprint_roadmap, son_durum tutarlılığı
 
-1. UI Security Indicators - Oncelik: ORTA
-   - TerminalView'da root uyarisi gosterimi
+2. Sprint 4 veri modeli/adapter başlangıcı
+    - `models.py` + `nmap_adapter.py` ilk iterasyon
 
-2. Settings Menu - Oncelik: DUSUK
-   - Temizlik sikligi ve auto-clean ayarlari
-
-### Kerem Icin (Sprint 4 Hazirlik)
-
-1. models.py tasarimi - Oncelik: YUKSEK
-   - Nmap XML ciktilarini karsilayacak Pydantic modelleri
+3. Runtime telemetry UI görünürlüğü
+    - Tool kuyruğu ve çalışma sürelerinin arayüzde gösterimi
 
 ---
 
@@ -205,9 +220,9 @@ User Input
 |--------|-----------|
 | main | Sprint 0 + 1 |
 | develop | Sprint 0 + 1 + 2 + 3 (core) |
-| dev_kerem | Sprint 0 + 1 + 2 + 3 + v2.1 stabilizasyon |
+| dev_kerem | Sprint 0 + 1 + 2 + 3 + v2.1 + 3.5 sertleştirme |
 | dev_yigit | Sprint 0 + 1 + 2 + 3 (core) |
 
 ---
 
-*Son Güncelleme: 23 Şubat 2026*
+*Son Güncelleme: 25 Şubat 2026*

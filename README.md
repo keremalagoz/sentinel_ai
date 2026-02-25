@@ -303,7 +303,9 @@ AI → {"intent_type": "web_dir_enum", "target": "http://target", "params": {"po
 
 ### Veri Maskeleme
 
-Cloud AI'ya gönderilen verilerde:
+Mevcut sürümde sistem local-only çalışır ve varsayılan akışta veri dış servise gönderilmez.
+
+İleride opsiyonel cloud mode açılırsa:
 - IP adresleri → `[HOST_X]`
 - Domain adları → `[DOMAIN_Y]`
 - Hassas bilgiler otomatik maskelenir

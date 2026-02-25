@@ -1,8 +1,8 @@
 # SENTINEL AI - Proje Yapısı ve Klavuzu
 
-**Versiyon**: Sprint 1 Complete + UI Integration (Öncelik 1)  
-**Tarih**: 23 Ocak 2026  
-**Mimari**: Action Planner v2.1 (SQLite Backend + Integrated Tools)
+**Versiyon**: Action Planner v2.1 - Stabilizasyon/P0 Sertleştirme  
+**Tarih**: 25 Şubat 2026  
+**Mimari**: Local-Only LLM + Deterministic Execution + Runtime Hardening
 
 ---
 
@@ -10,7 +10,7 @@
 
 ```
 sentinel_root/
-├── main.py                      # Production Entry Point (Docker + Hibrit AI)
+├── main.py                      # Production Entry Point (Docker + Local AI)
 ├── main_developer.py            # Developer Mode (Native Ollama)
 ├── api_server.py                # API modunda komut üretimi
 ├── requirements.txt             # Python bağımlılıkları
@@ -24,7 +24,7 @@ sentinel_root/
 │
 ├── src/                         # Ana kaynak kodu
 │   ├── ai/                      # AI Modülleri
-│   │   ├── orchestrator.py      # AI Orchestrator (Hibrit: Local + Cloud)
+│   │   ├── orchestrator.py      # AI Orchestrator (Local-Only)
 │   │   ├── intent_resolver.py   # Intent detection (LLM -> intent)
 │   │   ├── command_builder.py   # Komut parametreleri oluşturucu
 │   │   ├── schemas.py           # AI veri modelleri (Pydantic)
@@ -52,13 +52,16 @@ sentinel_root/
 │   │   └── .gitkeep
 │   │
 │   └── tests/                   # Test Suite
-│       ├── test_sprint1.py      # Sprint 1 main test suite (59 tests)
+│       ├── test_sprint1.py      # Sprint 1 main test suite
 │       ├── test_sprint1_week1.py # Week 1 tests (backend + entity ID)
 │       ├── test_sprint1_week2.py # Week 2 tests (parser + tool + integration)
 │       ├── test_parser_framework.py # Parser isolated tests
 │       ├── test_action_planner_v2.py # Action Planner v2 tests
 │       ├── test_integration.py  # Full integration tests
-│       └── test_ui_integration.py # UI integration test window
+│       ├── test_ui_integration.py # UI integration test window
+│       ├── test_new_tools.py    # ToolManager + parser + telemetry testleri
+│       ├── test_advanced_parsers.py # Geniş parser senaryoları
+│       └── test_registry_consistency.py # Registry drift guard testleri
 │
 ├── docs/                        # Teknik Dokümantasyon
 │   ├── AGENT_RULES.md          # AI agent kuralları ve kısıtlamaları
@@ -95,11 +98,11 @@ sentinel_root/
 ## Entry Points (Başlangıç Dosyaları)
 
 ### 1. **main.py** - Production Mode
-**Ne yapar**: Ana uygulama, hibrit AI + Docker containerlar ile çalışır
+**Ne yapar**: Ana uygulama, local AI + Docker containerlar ile çalışır
 
 **Özellikler**:
 - [OK] Docker Desktop gerektirir (VmmemWSL)
-- [OK] Hibrit AI: WhiteRabbitNeo + Cloud GPT-4o-mini
+- [OK] Local AI: WhiteRabbitNeo/Ollama
 - [OK] Gerçek komutlar çalıştırır (nmap, gobuster, etc.)
 - [OK] Docker'da security tools
 - [OK] RAM: ~6-8GB (Docker + AI)
@@ -403,13 +406,13 @@ DockerRunner - Container execution
 ## AI Modülleri
 
 ### **src/ai/orchestrator.py**
-AIOrchestrator - Hibrit AI System
+AIOrchestrator - Local AI System
 
 **Sorumluluklar**:
 - Intent detection
 - Tool selection
 - Command generation
-- Hibrit: WhiteRabbitNeo (local) + Cloud GPT-4o-mini (fallback)
+- Local-only: WhiteRabbitNeo/Ollama
 
 **API**:
 ```python
@@ -547,7 +550,6 @@ Python paketleri
 **Ana Paketler**:
 - `PyQt6`: UI framework
 - `pydantic`: Veri validasyonu
-- `openai`: Cloud API
 - `python-dotenv`: Ortam değişkenleri
 - `defusedxml`: Güvenli XML işleme
 - `fastapi`: API server
@@ -578,12 +580,12 @@ Test/default veritabanı (test_ui_integration.py)
 ## Çevre Değişkenleri
 
 ### **.env**
-Gizli değişkenler (API keys)
+Yerel/servis yapılandırma değişkenleri
 
 **İçerik**:
 ```bash
-OPENAI_API_KEY=sk-...
-OPENAI_MODEL=gpt-4o-mini
+OLLAMA_BASE_URL=http://localhost:11434
+OLLAMA_MODEL=whiterabbitneo
 ```
 
 **Not**: `.gitignore` ile korunur, commit edilmez
@@ -616,18 +618,18 @@ python src/tests/test_ui_integration.py
 ### 3. Unit Tests
 ```powershell
 python -m pytest src/tests/test_sprint1.py -v
-# 59 test çalıştır
+# güncel testleri çalıştır
 ```
 
 ### 4. Production Test
 ```powershell
 python main.py
-# Docker'ı başlat, hibrit AI test et
+# Docker'ı başlat, local AI test et
 ```
 
 ---
 
-## Proje Durumu (21 Ocak 2026)
+## Proje Durumu (25 Şubat 2026)
 
 ### Tamamlanan Sprintler
 
