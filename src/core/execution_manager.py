@@ -4,6 +4,7 @@ from typing import Tuple, List, Optional
 import os
 import platform
 import shutil
+import time
 
 class ExecutionMode(Enum):
     DOCKER = "docker"      # Container içinde çalıştır (Tercih edilen)
@@ -19,7 +20,6 @@ class ExecutionManager:
     - Yetki yönetimi (pkexec vs sudo vs none)
     - Geçici dosya yolu yönetimi (/tmp vs /app/output)
     """
-    import time
     
     def __init__(self):
         self._platform = platform.system()  # 'Linux', 'Windows', 'Darwin'
@@ -32,15 +32,10 @@ class ExecutionManager:
         
     @property
     def mode(self) -> ExecutionMode:
-        # Getter çağrıldığında TTL kontrolü yap
-        if (self._time.time() - self._last_check) > self._check_ttl:
+        """Execution modunu döndürür (cache ile)."""
+        if (time.time() - self._last_check) > self._check_ttl:
             self._update_mode()
         return self._mode
-    
-    @property
-    def _time(self):
-        import time
-        return time
     
     @property
     def is_linux(self) -> bool:
@@ -50,10 +45,10 @@ class ExecutionManager:
     def is_windows(self) -> bool:
         return self._platform == "Windows"
     
-    def _update_mode(self):
+    def _update_mode(self) -> None:
         """Modu günceller ve zaman damgasını yeniler"""
         self._mode = self._detect_mode()
-        self._last_check = self._time.time()
+        self._last_check = time.time()
 
     def _detect_mode(self) -> ExecutionMode:
         """

@@ -1,9 +1,31 @@
 from PyQt6.QtCore import QObject, QProcess, pyqtSignal
 from datetime import datetime
 import os
+import sys
 import shlex
+import subprocess
 
 from src.core.execution_manager import get_execution_manager, ExecutionMode
+
+
+def _get_console_encoding() -> str:
+    """Get the correct console encoding for the OS"""
+    if sys.platform == "win32":
+        try:
+            # Get OEM code page (what cmd.exe uses)
+            result = subprocess.run(
+                ["chcp"], capture_output=True, shell=True, text=True
+            )
+            # Output: "Active code page: 857" or similar
+            cp = result.stdout.strip().split(":")[-1].strip()
+            return f"cp{cp}"
+        except Exception:
+            return "cp1254"  # Turkish Windows fallback
+    return "utf-8"
+
+
+# Cache it once at module load
+_CONSOLE_ENCODING = _get_console_encoding()
 
 
 class AdvancedProcessManager(QObject):
@@ -30,8 +52,9 @@ class AdvancedProcessManager(QObject):
         self._process.readyReadStandardOutput.connect(self._handle_stdout)
         self._process.readyReadStandardError.connect(self._handle_stderr)
         self._process.finished.connect(self._handle_finished)
+        self._process.errorOccurred.connect(self._handle_error)
     
-    def start_process(self, command: str, args: list, requires_root: bool = False):
+    def start_process(self, command: str, args: list, requires_root: bool = False) -> None:
         """
         Komutu ExecutionManager ile hazırlayıp çalıştırır.
         Moda göre (Docker/Native) otomatik ayarlanır.
@@ -67,7 +90,7 @@ class AdvancedProcessManager(QObject):
         # 3. Çalıştır
         self._process.start(final_cmd, final_args)
     
-    def write_input(self, text: str):
+    def write_input(self, text: str) -> None:
         """
         Çalışan process'e interaktif girdi gönderir.
         Örn: Kullanıcı "y" veya "n" girdisi.
@@ -82,21 +105,19 @@ class AdvancedProcessManager(QObject):
                 self._log_file.write(f"[INPUT] {text}\n")
                 self._log_file.flush()
     
-    def stop_process(self):
+    def stop_process(self) -> None:
         """Process'i hızlıca durdurur."""
         if self._process.state() == QProcess.ProcessState.Running:
             self._process.kill()
             self._process.waitForFinished(500)
     
-    def _handle_stdout(self):
+    def _handle_stdout(self) -> None:
         """
         Standart çıktıyı okur ve sinyalle yayınlar.
-        
-        Encoding: UTF-8 ile decode, hatalı karakterler replace edilir.
-        Nmap gibi araçlar bazen garip karakterler üretir.
+        Windows'ta OEM code page, Linux'ta UTF-8 kullanılır.
         """
         data = self._process.readAllStandardOutput()
-        text = data.data().decode("utf-8", errors="replace")
+        text = data.data().decode(_CONSOLE_ENCODING, errors="replace")
         
         self.sig_output_stream.emit(text, "stdout")
         
@@ -104,10 +125,10 @@ class AdvancedProcessManager(QObject):
             self._log_file.write(text)
             self._log_file.flush()
     
-    def _handle_stderr(self):
+    def _handle_stderr(self) -> None:
         """Hata çıktısını okur ve sinyalle yayınlar."""
         data = self._process.readAllStandardError()
-        text = data.data().decode("utf-8", errors="replace")
+        text = data.data().decode(_CONSOLE_ENCODING, errors="replace")
         
         self.sig_output_stream.emit(text, "stderr")
         
@@ -115,7 +136,7 @@ class AdvancedProcessManager(QObject):
             self._log_file.write(f"[STDERR] {text}")
             self._log_file.flush()
     
-    def _handle_finished(self, exit_code: int, exit_status):
+    def _handle_finished(self, exit_code: int, exit_status: QProcess.ExitStatus) -> None:
         """
         Process bittiğinde çağrılır.
         
@@ -134,6 +155,35 @@ class AdvancedProcessManager(QObject):
         
         self.sig_process_finished.emit(exit_code, self._log_path)
     
+    def _handle_error(self, error: QProcess.ProcessError) -> None:
+        """
+        QProcess hata durumunda çağrılır.
+        
+        Hata tipleri:
+        - FailedToStart: Komut bulunamadı veya çalıştırılamadı
+        - Crashed: Process beklenmedik şekilde sonlandı
+        - Timedout: Zaman aşımı
+        - WriteError: Process'e yazılamadı
+        - ReadError: Process'ten okunamadı
+        """
+        error_messages = {
+            QProcess.ProcessError.FailedToStart: "Komut bulunamadi veya calistirilamadi",
+            QProcess.ProcessError.Crashed: "Process beklenmedik sekilde sonlandi",
+            QProcess.ProcessError.Timedout: "Process zaman asimina ugradi",
+            QProcess.ProcessError.WriteError: "Process'e yazilamadi",
+            QProcess.ProcessError.ReadError: "Process'ten okunamadi",
+        }
+        msg = error_messages.get(error, "Bilinmeyen hata")
+        error_text = f"[ERROR] QProcess Hatasi: {msg}\n"
+        
+        # Terminal'e hata mesajı gönder
+        self.sig_output_stream.emit(error_text, "stderr")
+        
+        # Log'a da yaz (eğer log file açıksa)
+        if self._log_file:
+            self._log_file.write(error_text)
+            self._log_file.flush()
+
     def is_running(self) -> bool:
         """Process çalışıyor mu kontrol eder."""
         return self._process.state() == QProcess.ProcessState.Running
