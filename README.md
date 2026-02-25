@@ -8,9 +8,9 @@
 ![WhiteRabbitNeo](https://img.shields.io/badge/WhiteRabbitNeo-Local_AI-FF6F00?style=for-the-badge&logo=meta&logoColor=white)
 ![License](https://img.shields.io/badge/License-MIT-green?style=for-the-badge)
 
-**Hibrit AI Destekli Güvenlik Test Aracı**
+**Local AI Destekli Güvenlik Test Aracı**
 
-*Local + Cloud AI | PyQt6 GUI | Docker Backend | Linux Target*
+*Local AI | PyQt6 GUI | Docker Backend | Linux Target*
 
 </div>
 
@@ -18,11 +18,11 @@
 
 ## Proje Hakkında
 
-SENTINEL AI, siber güvenlik testlerini yapay zeka destekli komutlarla otomatikleştiren bir masaüstü uygulamasıdır. Hibrit AI mimarisi sayesinde hem yerel (WhiteRabbitNeo) hem de bulut (OpenAI GPT-4) yapay zeka modellerini kullanarak güvenlik taramalarını yönetir.
+SENTINEL AI, siber güvenlik testlerini yapay zeka destekli komutlarla otomatikleştiren bir masaüstü uygulamasıdır. Mevcut sürümde local AI (WhiteRabbitNeo/Ollama) ile güvenlik taramalarını yönetir.
 
 ### Özellikler
 
-- **Hibrit AI Motoru** - Basit görevler için WhiteRabbitNeo, karmaşık senaryolar için Cloud AI
+- **Local AI Motoru** - WhiteRabbitNeo/Ollama tabanlı intent çözümleme
 - **Modern PyQt6 Arayüzü** - Donmayan, responsive terminal ve sonuç görüntüleme
 - **Docker Altyapısı** - İzole ve taşınabilir servis mimarisi
 - **Güvenli Yetki Yönetimi** - Pkexec ile şifresiz root işlemleri
@@ -45,11 +45,11 @@ SENTINEL AI, siber güvenlik testlerini yapay zeka destekli komutlarla otomatikl
 │                            │                   │                │
 │         ┌──────────────────┼───────────────────┤                │
 │         ▼                  ▼                   ▼                │
-│  ┌─────────────┐    ┌─────────────┐    ┌─────────────┐          │
-│  │ Local LLM   │    │ Cloud API   │    │ Linux       │          │
-│  │ (WhiteRabbitNeo)││ (OpenAI)    │    │ Tools       │          │
-│  │ Port: 8002  │    │             │    │ (nmap, etc) │          │
-│  └─────────────┘    └─────────────┘    └─────────────┘          │
+│  ┌─────────────┐                      ┌─────────────┐          │
+│  │ Local LLM   │                      │ Linux       │          │
+│  │ (WhiteRabbitNeo)                   │ Tools       │          │
+│  │ Port: 8002  │                      │ (nmap, etc) │          │
+│  └─────────────┘                      └─────────────┘          │
 └─────────────────────────────────────────────────────────────────┘
 ```
 
