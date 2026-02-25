@@ -26,9 +26,14 @@ SENTINEL AI, siber güvenlik testlerini yapay zeka destekli komutlarla otomatikl
 - **Modern PyQt6 Arayüzü** - Donmayan, responsive terminal ve sonuç görüntüleme
 - **Docker Altyapısı** - İzole ve taşınabilir servis mimarisi
 - **Güvenli Yetki Yönetimi** - Pkexec ile şifresiz root işlemleri
-- **Akıllı Parsing** - Nmap XML çıktılarını otomatik parse ve tablo görüntüleme
-- **Öneri Motoru** - Bulgulara göre sonraki adım önerileri
-- **Plugin Sistemi** - Genişletilebilir araç desteği
+- **Deterministik Çalıştırma** - Intent -> Tool -> Command zinciri
+- **Çalışma Zamanı Sertleştirme** - Queue/backpressure, per-tool limit, timeout/retry
+
+### Planlanan Özellikler
+
+- Sonuç modelleme + adapter katmanı (Sprint 4)
+- Öneri motoru (Sprint 5)
+- Plugin sistemi (Sprint 6)
 
 ---
 

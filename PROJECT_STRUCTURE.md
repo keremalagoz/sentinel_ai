@@ -1,12 +1,29 @@
-# SENTINEL AI - Proje Yapısı ve Klavuzu
+# SENTINEL AI - Proje Yapısı (Sadeleştirilmiş)
 
 **Versiyon**: Action Planner v2.1 - Stabilizasyon/P0 Sertleştirme  
 **Tarih**: 25 Şubat 2026  
 **Mimari**: Local-Only LLM + Deterministic Execution + Runtime Hardening
 
+> Not: Bu doküman sadeleştirme sürecindedir. Öncelik, mevcut çalışma mimarisi ve aktif modüllerin net gösterimidir.
+
 ---
 
-## Dizin Yapısı
+## Hızlı Mimari Özeti
+
+Ana akış:
+
+`User Input -> Intent Resolver -> Tool Registry -> Command Builder -> ToolManager -> Parser -> SQLite`
+
+Sistem garantileri:
+- Queue backpressure
+- Global/per-tool concurrency limit
+- Local LLM timeout/retry/backoff
+- Registry drift guard
+- Runtime telemetry (`queue_wait_ms`, `tool_run_ms`)
+
+---
+
+## Dizin Yapısı (Özet)
 
 ```
 sentinel_root/
@@ -15,7 +32,7 @@ sentinel_root/
 ├── api_server.py                # API modunda komut üretimi
 ├── requirements.txt             # Python bağımlılıkları
 ├── docker-compose.yml           # Docker orchestration
-├── .env                         # Çevre değişkenleri (API keys)
+├── .env                         # Yerel/servis değişkenleri
 ├── .env.example                 # .env şablonu
 ├── README.md                    # Proje ana dokümantasyonu
 ├── PROJECT_STRUCTURE.md         # Proje yapısı ve kılavuz
@@ -23,7 +40,7 @@ sentinel_root/
 ├── data/                        # Veri klasörü
 │
 ├── src/                         # Ana kaynak kodu
-│   ├── ai/                      # AI Modülleri
+│   ├── ai/                      # AI Modülleri (Local-only)
 │   │   ├── orchestrator.py      # AI Orchestrator (Local-Only)
 │   │   ├── intent_resolver.py   # Intent detection (LLM -> intent)
 │   │   ├── command_builder.py   # Komut parametreleri oluşturucu
@@ -95,46 +112,17 @@ sentinel_root/
 
 ---
 
-## Entry Points (Başlangıç Dosyaları)
+## Entry Points (Kısa)
 
 ### 1. **main.py** - Production Mode
-**Ne yapar**: Ana uygulama, local AI + Docker containerlar ile çalışır
-
-**Özellikler**:
-- [OK] Docker Desktop gerektirir (VmmemWSL)
-- [OK] Local AI: WhiteRabbitNeo/Ollama
-- [OK] Gerçek komutlar çalıştırır (nmap, gobuster, etc.)
-- [OK] Docker'da security tools
-- [OK] RAM: ~6-8GB (Docker + AI)
-- [OK] SentinelCoordinator entegrasyonu (integrated tools)
-
-**Çalıştırma**:
-```powershell
-python main.py
-```
-
-**Use Case**: Gerçek penetrasyon testleri, production deployment
+- Docker + local AI ile gerçek komut yürütümü
+- Ana kullanım: production güvenlik testleri
 
 ---
 
 ### 2. **main_developer.py** - Developer Mode
-**Ne yapar**: Geliştirme modu, mock execution + native Ollama
-
-**Özellikler**:
-- [OK] Docker gerektirmez (RAM tasarrufu)
-- [OK] Native Ollama (localhost:11434)
-- [OK] Mock execution (komutlar gerçekte çalışmaz)
-- [OK] Integrated tools: **Gerçek çalışır** (ping, nmap - eğer kuruluysa)
-- [OK] Test butonları (4 adet: Ping, Sweep, Portscan, Stats)
-- [OK] RAM: ~2-3GB (Docker yok)
-- [WARNING] Developer warnings/banners
-
-**Çalıştırma**:
-```powershell
-python main_developer.py
-```
-
-**Use Case**: Geliştirme, test, düşük RAM, Docker sorunları
+- Native Ollama ile geliştirme/deneme modu
+- Ana kullanım: UI + AI akış geliştirme ve hızlı doğrulama
 
 ---
 

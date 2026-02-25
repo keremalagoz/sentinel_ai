@@ -73,6 +73,14 @@ Temel akış:
 
 ---
 
+## 3.1) Hızlı Durum Özeti
+
+- Mimari: Local-only LLM + deterministic execution
+- Test sağlığı: full suite yeşil (111 passed)
+- Operasyonel odak: telemetry görünürlüğü + Sprint 4 veri modeli hazırlığı
+
+---
+
 ## 4) Aktif Öncelikler (Kısa Vade)
 
 1. **Dokümantasyon-kod senkronizasyonu**
@@ -81,6 +89,9 @@ Temel akış:
   - Queue ve tool süre metriklerinin UI/rapor tarafına taşınması
 3. **Sprint 4 hazırlığı (veri modeli/adapter)**
   - Parse çıktılarını model katmanına standardize etme
+
+4. **Doküman sadeleştirme**
+  - Uzun tarihsel bölümler yerine karar ve mevcut durum odaklı anlatım
 
 ---
 
@@ -119,5 +130,14 @@ Bir sprint maddesi tamamlandı sayılması için:
 - Bu doküman mevcut kod tabanı ile uyumlu tutulur.
 - Mevcut çalışma modu local-only LLM'dir; cloud mode sadece gelecekteki opsiyonel genişlemedir.
 - Arşiv/eskimiş planlar `temp` altında tutulmaz; temiz çalışma ağacı hedeflenir.
+
+---
+
+## 8) Kısa Backlog (Öncelik Sırası)
+
+1. Telemetry verisini UI'da görünür yap
+2. `models.py` + `nmap_adapter.py` ilk çalışan sürüm
+3. Sonuç modeline bağlı öneri üretim prototipi
+4. Plugin altyapısı için minimum arayüz
 
 

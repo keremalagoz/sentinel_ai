@@ -7,93 +7,31 @@
 
 ## Tamamlanan Sprintler
 
-### Sprint 0: Proje Altyapısı [OK]
+### Sprint 0-2 [OK]
 
-| Görev | Sorumlu | Durum |
-|-------|---------|-------|
-| Klasör yapısı | Kerem | [OK] |
-| Git branch yapısı (main, develop, dev_kerem, dev_yigit) | Kerem | [OK] |
-| Docker WhiteRabbitNeo servisi (GPU Enabled) | Kerem/Yiğit | [OK] |
-| Docker API servisi | Kerem | [OK] |
-| requirements.txt | Yiğit | [OK] |
-| README.md | Kerem | [OK] |
-
-### Sprint 1: Akıllı Süreç Motoru [OK]
-
-| Görev | Sorumlu | Durum |
-|-------|---------|-------|
-| AdvancedProcessManager | Yiğit | [OK] |
-| Terminal View | Yiğit | [OK] |
-| Styles (tema, renkler) | Yiğit | [OK] |
-| Interactive Patterns | Yiğit | [OK] |
-| Session Loglama | Yiğit | [OK] |
-
-### Sprint 2: Local AI Komut Motoru [OK]
-
-| Görev | Sorumlu | Durum |
-|-------|---------|-------|
-| JSON Şemaları (schemas.py) | Kerem | [OK] |
-| AI Orchestrator (orchestrator.py) | Kerem | [OK] |
-| Docker Tools Container | Kerem | [OK] |
-| Docker Runner Helper | Kerem | [OK] |
-| main.py (GUI entegrasyonu) | Yiğit | [OK] |
+- Proje altyapısı, Docker servisleri ve temel UI/Core iskeleti tamamlandı.
+- Action Planner v2.1 deterministic akışı devreye alındı.
+- Local AI (WhiteRabbitNeo/Ollama) ile intent çözümleme stabilize edildi.
 
 ---
 
-## Mevcut Dosya Yapısı (Kritik Dosyalar)
+## Mevcut Durum (Özet)
 
-```
-sentinel_root/
-├── main.py                      [OK] PRODUCTION - Docker Full Stack
-├── main_developer.py            [OK] Developer Mode (Native Ollama)
-├── requirements.txt             [OK] PyQt6 standardizasyonu
-├── README.md                    [OK] Emoji temizligi + dev mode dokumani
-├── PROJECT_STRUCTURE.md         [OK] Emoji temizligi
-├── docker-compose.yml           [OK] GPU Support & WhiteRabbitNeo
-├── son_durum.md                 [OK] Guncellendi (23 Şubat 2026)
-│
-├── src/
-│   ├── ai/                      (Kerem)
-│   │   ├── schemas.py           [OK] ConfigDict + legacy uyum
-│   │   ├── orchestrator.py      [OK] Registry tek kaynak
-│   │   ├── tool_registry.py     [OK] Execution mapping + SSL/Subdomain
-│   │   ├── intent_resolver.py   [OK] Strict payload dogrulama
-│   │   ├── command_builder.py   [OK] Deterministik builder
-│   │   └── api_server.py        [OK] Deterministik komut uretimi
-│   │
-│   ├── core/
-│   │   ├── execution_manager.py [OK] Sprint 3 Core
-│   │   ├── cleaner.py           [OK] Guvenli temizleme
-│   │   ├── validators.py        [OK] Input validation
-│   │   ├── process_manager.py   [OK] ExecutionManager entegrasyonu
-│   │   ├── tool_base.py         [OK] PyQt6 sinyaller
-│   │   ├── tool_integration.py  [OK] PyQt6 sinyaller
-│   │   └── sentinel_coordinator.py [OK] PyQt6 sinyaller
-│   │
-│   ├── ui/
-│   │   ├── terminal_view.py     [OK] Emoji temizligi
-│   │   └── styles.py            [OK]
-│   │
-│   └── tests/
-│       ├── test_action_planner_v2.py [OK] Pytest uyarilari temizlendi
-│       ├── test_advanced_parsers.py  [OK] Emoji temizligi
-│       ├── test_new_tools.py         [OK] Emoji temizligi
-│       └── test_ui_integration.py    [OK] PyQt6 standardizasyonu
-│
-├── docs/                        Teknik dokumantasyon
-│
-└── temp/                        Session loglari + sentinel_safe
-```
+- Mimari: Local-only LLM + deterministic tool execution
+- Kararlılık: Queue/backpressure, per-tool limit, retry/backoff aktif
+- Güvenilirlik: Registry drift guard (startup + test) aktif
+- Gözlemlenebilirlik: Runtime telemetry (`queue_wait_ms`, `tool_run_ms`) mevcut
+- Test: Full suite **111 passed**
 
 ---
 
-## Docker Servisleri
+## Docker Servisleri (Beklenen)
 
-| Container | Durum | Port | İçerik |
-|-----------|-------|------|--------|
-| sentinel-whiterabbitneo | Kontrol edilmedi | 8002 | WhiteRabbitNeo AI (Ollama) |
-| sentinel-api | Kontrol edilmedi | 8000 | API Backend |
-| sentinel-tools | Kontrol edilmedi | - | Nmap, Gobuster, Nikto, Hydra |
+| Container | Port | İçerik |
+|-----------|------|--------|
+| sentinel-whiterabbitneo | 8002 | WhiteRabbitNeo AI (Ollama) |
+| sentinel-api | 8000 | API Backend |
+| sentinel-tools | - | Nmap, Gobuster, Nikto, Hydra |
 
 ---
 
@@ -128,47 +66,6 @@ sentinel_root/
 
 - Full test suite: **111 passed**
 - P0 doğrulama: `scripts/p0_validation.py --with-pytest` başarılı
-
----
-
-## Mini Sprint: Action Planner v2.1 Stabilizasyon
-
-**Tarih:** 22 Ocak 2026  
-**Sorumlu:** Kerem  
-**Amaç:** Karar motorunu sprint planina girmeden stabil hale getirmek
-
-### Tamamlanan Duzeltmeler
-
-| # | Gorev | Dosya | Durum |
-|---|-------|-------|-------|
-| 1 | Registry tek kaynak (execution mapping) | tool_registry.py, orchestrator.py | [OK] |
-| 2 | Policy sadeleştirme | Policy katmanı kaldırıldı | [OK] |
-| 3 | Intent JSON strict dogrulama | intent_resolver.py | [OK] |
-| 4 | API uyumu (deterministik komut) | api_server.py | [OK] |
-| 5 | PyQt6 standardizasyonu | core + tests + requirements.txt | [OK] |
-| 6 | Emoji temizligi | kod + dokumantasyon | [OK] |
-
-### Test Durumu
-
-- pytest: src/tests/test_action_planner_v2.py -> 5/5 PASSED (23 Şubat 2026)
-
-### Yeni Akis (v2.1 Stabil)
-
-```
-User Input
-    |
-    v
-[Intent Resolver] --> LLM sadece intent belirler
-    |
-    v
-[Tool Registry] --> Intent -> Tool (deterministic)
-    |
-    v
-[Command Builder] --> ToolSpec + Params --> Final Command
-    |
-    v
-[Execution Layer]
-```
 
 ---
 
