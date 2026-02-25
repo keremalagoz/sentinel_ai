@@ -19,6 +19,21 @@ from src.core.parser_framework import (
     SslScanParser, GobusterDirParser, SubdomainEnumParser, WebAppScanParser
 )
 from src.core.sqlite_backend import SQLiteBackend
+from src.ai.tool_registry import validate_execution_registry
+
+
+DEFAULT_TOOL_CATALOG = [
+    (PingTool, PingParser, 10),
+    (NmapPingSweepTool, NmapPingSweepParser, 30),
+    (NmapPortScanTool, NmapPortScanParser, 120),
+    (NmapServiceDetectionTool, NmapServiceDetectionParser, 180),
+    (NmapVulnScanTool, NmapVulnScanParser, 300),
+    (DnsLookupTool, DnsLookupParser, 30),
+    (SslScanTool, SslScanParser, 60),
+    (GobusterDirTool, GobusterDirParser, 300),
+    (SubdomainEnumTool, SubdomainEnumParser, 120),
+    (WebAppScanTool, WebAppScanParser, 60),
+]
 
 
 class SentinelCoordinator(QObject):
@@ -72,65 +87,16 @@ class SentinelCoordinator(QObject):
     
     def _register_default_tools(self):
         """Register Action Planner v2.1 tools"""
-        # Ping
-        self.manager.register_tool(
-            tool=PingTool(timeout=10),
-            parser=PingParser()
-        )
-        
-        # Nmap Ping Sweep
-        self.manager.register_tool(
-            tool=NmapPingSweepTool(timeout=30),
-            parser=NmapPingSweepParser()
-        )
-        
-        # Nmap Port Scan
-        self.manager.register_tool(
-            tool=NmapPortScanTool(timeout=120),
-            parser=NmapPortScanParser()
-        )
-        
-        # Nmap Service Detection
-        self.manager.register_tool(
-            tool=NmapServiceDetectionTool(timeout=180),
-            parser=NmapServiceDetectionParser()
-        )
-        
-        # Nmap Vulnerability Scan
-        self.manager.register_tool(
-            tool=NmapVulnScanTool(timeout=300),
-            parser=NmapVulnScanParser()
-        )
-        
-        # DNS Lookup
-        self.manager.register_tool(
-            tool=DnsLookupTool(timeout=30),
-            parser=DnsLookupParser()
-        )
-        
-        # SSL/TLS Scan
-        self.manager.register_tool(
-            tool=SslScanTool(timeout=60),
-            parser=SslScanParser()
-        )
-        
-        # Web Directory Enumeration
-        self.manager.register_tool(
-            tool=GobusterDirTool(timeout=300),
-            parser=GobusterDirParser()
-        )
-        
-        # Subdomain Enumeration
-        self.manager.register_tool(
-            tool=SubdomainEnumTool(timeout=120),
-            parser=SubdomainEnumParser()
-        )
-        
-        # Web Application Scanner
-        self.manager.register_tool(
-            tool=WebAppScanTool(timeout=60),
-            parser=WebAppScanParser()
-        )
+        for tool_cls, parser_cls, timeout in DEFAULT_TOOL_CATALOG:
+            self.manager.register_tool(
+                tool=tool_cls(timeout=timeout),
+                parser=parser_cls()
+            )
+
+        # Drift guard: AI execution mapping <-> registered tools
+        is_valid, errors = validate_execution_registry(set(self.manager.registered_tools))
+        if not is_valid:
+            raise RuntimeError("Registry consistency check failed: " + "; ".join(errors))
     
     def execute_ping(self, target: str, count: int = 4) -> bool:
         """
