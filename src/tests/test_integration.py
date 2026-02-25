@@ -17,7 +17,7 @@ from src.ai.orchestrator import get_orchestrator
 from src.ai.schemas import ToolCommand
 
 
-class TestWindow(QMainWindow):
+class DemoWindow(QMainWindow):
     """
     Basit test penceresi.
     Yiğit, main.py'ı yazarken bu örneği kullanabilir.
@@ -124,7 +124,7 @@ def main():
         print("Devam ediliyor (araçlar çalışmayabilir)...")
     
     app = QApplication(sys.argv)
-    window = TestWindow()
+    window = DemoWindow()
     window.show()
     sys.exit(app.exec())
 

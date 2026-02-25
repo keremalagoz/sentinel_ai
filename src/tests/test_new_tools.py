@@ -1,265 +1,224 @@
-"""Test script for 7 new tools (Öncelik 3)
+"""Detailed tests for new tool layer.
 
-Tests:
-1. Service Detection (nmap -sV)
-2. Vulnerability Scan (nmap --script vuln)
-3. DNS Lookup (nslookup)
-4. SSL Scan (openssl s_client)
-5. Web Dir Enum (gobuster dir)
-6. Subdomain Enum (PowerShell DNS)
-7. Web App Scanner (PowerShell)
+Bu dosya smoke-style bool return testleri yerine,
+spesifik ve assert tabanlı pytest testleri içerir.
 """
 
-import sys
-import os
+import pytest
 
-# Add parent directory to path
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../..')))
-
-from PyQt6.QtWidgets import QApplication
+from src.ai.schemas import IntentType
+from src.ai.tool_registry import _EXECUTION_REGISTRY
 from src.core.sentinel_coordinator import SentinelCoordinator
+from src.core.tool_integration import ToolManager
+from src.core.sqlite_backend import SQLiteBackend
+from src.core.tool_base import (
+    DnsLookupTool,
+    GobusterDirTool,
+    NmapServiceDetectionTool,
+    NmapVulnScanTool,
+    SslScanTool,
+    SubdomainEnumTool,
+    WebAppScanTool,
+)
+from src.core.parser_framework import (
+    DnsLookupParser,
+    GobusterDirParser,
+    NmapServiceDetectionParser,
+    NmapVulnScanParser,
+    SslScanParser,
+    SubdomainEnumParser,
+    WebAppScanParser,
+)
 
 
-def test_tool_registration():
-    """Test 1: Verify all 10 tools are registered"""
-    print("\n" + "="*60)
-    print("TEST 1: Tool Registration")
-    print("="*60)
-    
-    coordinator = SentinelCoordinator(db_path=":memory:")
-    tools = coordinator.get_available_tools()
-    
-    expected_tools = [
-        "ping",
-        "nmap_ping_sweep",
-        "nmap_port_scan",
-        "nmap_service_detection",
-        "nmap_vuln_scan",
-        "dns_lookup",
-        "ssl_scan",
-        "gobuster_dir",
-        "subdomain_enum",
-        "web_app_scan"
-    ]
-    
-    print(f"[OK] Expected tools: {len(expected_tools)}")
-    print(f"[OK] Registered tools: {len(tools)}")
-    
-    for tool in expected_tools:
-        if tool in tools:
-            print(f"  [OK] {tool}")
-        else:
-            print(f"  [FAIL] {tool} - MISSING!")
-    
-    coordinator.cleanup()
-    
-    if len(tools) == len(expected_tools):
-        print("\n[OK] TEST 1 PASSED: All tools registered")
-        return True
-    else:
-        print(f"\n[FAIL] TEST 1 FAILED: Expected {len(expected_tools)}, got {len(tools)}")
-        return False
+EXPECTED_TOOLS = {
+    "ping",
+    "nmap_ping_sweep",
+    "nmap_port_scan",
+    "nmap_service_detection",
+    "nmap_vuln_scan",
+    "dns_lookup",
+    "ssl_scan",
+    "gobuster_dir",
+    "subdomain_enum",
+    "web_app_scan",
+}
 
 
-def test_tool_command_building():
-    """Test 2: Verify tools can build commands"""
-    print("\n" + "="*60)
-    print("TEST 2: Command Building")
-    print("="*60)
-    
-    from src.core.tool_base import (
-        NmapServiceDetectionTool,
-        NmapVulnScanTool,
-        DnsLookupTool,
-        SslScanTool,
-        GobusterDirTool,
-        SubdomainEnumTool,
-        WebAppScanTool
-    )
-    
-    tests = [
-        ("Service Detection", NmapServiceDetectionTool(), {"target": "192.168.1.1"}),
-        ("Vulnerability Scan", NmapVulnScanTool(), {"target": "192.168.1.1", "ports": "80,443"}),
-        ("DNS Lookup", DnsLookupTool(), {"domain": "example.com", "record_type": "A"}),
-        ("SSL Scan", SslScanTool(), {"target": "example.com", "port": 443}),
-        ("Web Dir Enum", GobusterDirTool(), {"url": "http://example.com", "wordlist": "common.txt"}),
-        ("Subdomain Enum", SubdomainEnumTool(), {"domain": "example.com", "wordlist": "subs.txt"}),
-        ("Web App Scanner", WebAppScanTool(), {"url": "http://example.com"})
-    ]
-    
-    all_passed = True
-    
-    for name, tool, params in tests:
-        try:
-            cmd = tool.build_command(**params)
-            print(f"  [OK] {name}: {' '.join(cmd[:5])}..." if len(cmd) > 5 else f"  [OK] {name}: {' '.join(cmd)}")
-        except Exception as e:
-            print(f"  [FAIL] {name}: {e}")
-            all_passed = False
-    
-    if all_passed:
-        print("\n[OK] TEST 2 PASSED: All commands build successfully")
-        return True
-    else:
-        print("\n[FAIL] TEST 2 FAILED: Some commands failed")
-        return False
+@pytest.fixture
+def coordinator():
+    c = SentinelCoordinator(db_path=":memory:")
+    yield c
+    c.cleanup()
 
 
-def test_parser_imports():
-    """Test 3: Verify parsers can be imported"""
-    print("\n" + "="*60)
-    print("TEST 3: Parser Imports")
-    print("="*60)
-    
-    try:
-        from src.core.parser_framework import (
-            NmapServiceDetectionParser,
-            NmapVulnScanParser,
-            DnsLookupParser,
-            SslScanParser,
-            GobusterDirParser,
-            SubdomainEnumParser,
-            WebAppScanParser
-        )
-        
-        parsers = [
-            ("Service Detection Parser", NmapServiceDetectionParser),
-            ("Vuln Scan Parser", NmapVulnScanParser),
-            ("DNS Lookup Parser", DnsLookupParser),
-            ("SSL Scan Parser", SslScanParser),
-            ("Gobuster Dir Parser", GobusterDirParser),
-            ("Subdomain Enum Parser", SubdomainEnumParser),
-            ("Web App Scanner Parser", WebAppScanParser)
-        ]
-        
-        for name, parser_class in parsers:
-            parser = parser_class()
-            print(f"  [OK] {name}")
-        
-        print("\n[OK] TEST 3 PASSED: All parsers imported successfully")
-        return True
-        
-    except Exception as e:
-        print(f"\n[FAIL] TEST 3 FAILED: {e}")
-        return False
+def test_registered_tools_exact_set(coordinator):
+    """Coordinator beklenen tool setini birebir register etmeli."""
+    registered = set(coordinator.get_available_tools())
+    assert registered == EXPECTED_TOOLS
 
 
-def test_coordinator_methods():
-    """Test 4: Verify coordinator has all execute methods"""
-    print("\n" + "="*60)
-    print("TEST 4: Coordinator Methods")
-    print("="*60)
-    
-    coordinator = SentinelCoordinator(db_path=":memory:")
-    
-    methods = [
+@pytest.mark.parametrize(
+    "method_name",
+    [
         "execute_service_detection",
         "execute_vuln_scan",
         "execute_dns_lookup",
         "execute_ssl_scan",
         "execute_web_dir_enum",
         "execute_subdomain_enum",
-        "execute_web_app_scan"
-    ]
-    
-    all_found = True
-    
-    for method in methods:
-        if hasattr(coordinator, method):
-            print(f"  [OK] {method}")
-        else:
-            print(f"  [FAIL] {method} - NOT FOUND!")
-            all_found = False
-    
-    coordinator.cleanup()
-    
-    if all_found:
-        print("\n[OK] TEST 4 PASSED: All coordinator methods exist")
-        return True
-    else:
-        print("\n[FAIL] TEST 4 FAILED: Some methods missing")
-        return False
+        "execute_web_app_scan",
+    ],
+)
+def test_coordinator_has_execute_methods(coordinator, method_name):
+    """Yeni tool'lar için public execute API'leri korunmalı."""
+    assert hasattr(coordinator, method_name), f"Missing method: {method_name}"
 
 
-def test_orchestrator_mappings():
-    """Test 5: Verify orchestrator has intent mappings"""
-    print("\n" + "="*60)
-    print("TEST 5: Orchestrator Intent Mappings")
-    print("="*60)
-    
-    try:
-        from src.ai.schemas import IntentType
-        
-        intents = [
-            IntentType.SERVICE_DETECTION,
-            IntentType.VULN_SCAN,
-            IntentType.DNS_LOOKUP,
-            IntentType.SSL_SCAN,
-            IntentType.WEB_DIR_ENUM,
-            IntentType.SUBDOMAIN_ENUM,
-            IntentType.WEB_VULN_SCAN
-        ]
-        
-        for intent in intents:
-            print(f"  [OK] {intent.value}")
-        
-        print("\n[OK] TEST 5 PASSED: All intent types exist")
-        return True
-        
-    except Exception as e:
-        print(f"\n[FAIL] TEST 5 FAILED: {e}")
-        return False
+@pytest.mark.parametrize(
+    "tool,kwargs,expected_prefix,required_tokens",
+    [
+        (
+            NmapServiceDetectionTool(),
+            {"target": "192.168.1.10", "ports": "80,443", "intensity": 7},
+            ["nmap", "-sV", "--version-intensity", "7"],
+            ["-p", "80,443", "192.168.1.10"],
+        ),
+        (
+            NmapVulnScanTool(),
+            {"target": "192.168.1.10", "ports": "443", "scripts": "vuln"},
+            ["nmap", "--script", "vuln"],
+            ["-p", "443", "192.168.1.10"],
+        ),
+        (
+            DnsLookupTool(),
+            {"domain": "example.com", "record_type": "mx"},
+            ["nslookup", "-type=MX", "example.com"],
+            [],
+        ),
+        (
+            SslScanTool(),
+            {"target": "example.com", "port": 8443},
+            ["cmd.exe", "/c"],
+            ["openssl s_client", "example.com:8443", "-showcerts"],
+        ),
+        (
+            GobusterDirTool(),
+            {"url": "http://example.com", "wordlist": "common.txt", "extensions": "php,txt"},
+            ["gobuster", "dir", "-u", "http://example.com", "-w", "common.txt"],
+            ["-x", "php,txt", "-q"],
+        ),
+        (
+            SubdomainEnumTool(),
+            {"domain": "example.com", "wordlist": "subs.txt"},
+            ["powershell.exe", "-NoProfile", "-ExecutionPolicy", "Bypass", "-Command"],
+            ["$domain = 'example.com'", "$wordlist = 'subs.txt'", "nslookup"],
+        ),
+        (
+            WebAppScanTool(),
+            {"url": "http://example.com"},
+            ["powershell.exe", "-NoProfile", "-ExecutionPolicy", "Bypass", "-Command"],
+            ["Invoke-WebRequest", "$url = 'http://example.com'", "TECH: WordPress"],
+        ),
+    ],
+)
+def test_new_tool_command_building_is_specific(tool, kwargs, expected_prefix, required_tokens):
+    """Her tool komutu beklenen yapıda üretilmeli."""
+    cmd = tool.build_command(**kwargs)
+
+    assert cmd[:len(expected_prefix)] == expected_prefix
+
+    joined = " ".join(cmd)
+    for token in required_tokens:
+        assert token in joined
 
 
-def run_all_tests():
-    """Run all tests"""
-    print("\n" + "="*60)
-    print("SENTINEL - NEW TOOLS TEST SUITE")
-    print("Testing 7 new security tools (Öncelik 3)")
-    print("="*60)
-    
-    results = []
-    
-    # Test 1: Tool Registration
-    results.append(("Tool Registration", test_tool_registration()))
-    
-    # Test 2: Command Building
-    results.append(("Command Building", test_tool_command_building()))
-    
-    # Test 3: Parser Imports
-    results.append(("Parser Imports", test_parser_imports()))
-    
-    # Test 4: Coordinator Methods
-    results.append(("Coordinator Methods", test_coordinator_methods()))
-    
-    # Test 5: Orchestrator Mappings
-    results.append(("Orchestrator Mappings", test_orchestrator_mappings()))
-    
-    # Summary
-    print("\n" + "="*60)
-    print("TEST SUMMARY")
-    print("="*60)
-    
-    passed = sum(1 for _, result in results if result)
-    total = len(results)
-    
-    for name, result in results:
-        status = "[OK] PASS" if result else "[FAIL] FAIL"
-        print(f"{status}: {name}")
-    
-    print("\n" + "="*60)
-    print(f"TOTAL: {passed}/{total} tests passed")
-    print("="*60)
-    
-    return passed == total
+@pytest.mark.parametrize(
+    "parser_cls",
+    [
+        NmapServiceDetectionParser,
+        NmapVulnScanParser,
+        DnsLookupParser,
+        SslScanParser,
+        GobusterDirParser,
+        SubdomainEnumParser,
+        WebAppScanParser,
+    ],
+)
+def test_parser_classes_are_instantiable(parser_cls):
+    """Yeni parser sınıfları hatasız instantiate edilebilmeli."""
+    parser = parser_cls()
+    assert parser is not None
 
 
-if __name__ == "__main__":
-    # Create QApplication (required for Qt signals)
-    app = QApplication(sys.argv)
-    
-    # Run tests
-    success = run_all_tests()
-    
-    # Exit with appropriate code
-    sys.exit(0 if success else 1)
+def test_execution_registry_points_to_registered_tools(coordinator):
+    """Execution registry'deki tool_id'ler gerçekten coordinator'da register olmalı."""
+    registered = set(coordinator.get_available_tools())
+
+    for intent_type, mapping in _EXECUTION_REGISTRY.items():
+        assert isinstance(intent_type, IntentType)
+        tool_id = mapping.get("tool_id")
+        assert tool_id in registered, f"{intent_type.value} -> {tool_id} not registered"
+
+
+def test_tool_manager_queue_backpressure():
+    """Concurrency doluysa iş kuyruklanmalı, kuyruk dolarsa reddedilmeli."""
+    backend = SQLiteBackend(":memory:")
+    manager = ToolManager(backend=backend, max_concurrent=1, max_queue_size=1)
+
+    class _DummyIntegratedTool:
+        def __init__(self):
+            self.executions = 0
+
+        def execute(self, callback=None, **kwargs):
+            self.executions += 1
+
+        def cancel(self):
+            pass
+
+    manager._tools["dummy"] = _DummyIntegratedTool()
+
+    # 1) İlk iş başlar
+    assert manager.execute_tool("dummy", target="127.0.0.1") is True
+    assert manager.active_executions == 1
+    assert manager.queued_executions == 0
+
+    # 2) İkinci iş kuyruğa düşer
+    assert manager.execute_tool("dummy", target="127.0.0.2") is True
+    assert manager.active_executions == 1
+    assert manager.queued_executions == 1
+
+    # 3) Kuyruk dolu olduğu için üçüncü iş reddedilir
+    assert manager.execute_tool("dummy", target="127.0.0.3") is False
+    assert manager.queued_executions == 1
+
+    backend.close()
+
+
+def test_tool_manager_cancel_clears_queued_items():
+    """cancel_tool() hem çalışanı iptal etmeli hem queued işleri temizlemeli."""
+    backend = SQLiteBackend(":memory:")
+    manager = ToolManager(backend=backend, max_concurrent=1, max_queue_size=10)
+
+    class _DummyIntegratedTool:
+        def __init__(self):
+            self.cancelled = False
+
+        def execute(self, callback=None, **kwargs):
+            pass
+
+        def cancel(self):
+            self.cancelled = True
+
+    dummy = _DummyIntegratedTool()
+    manager._tools["dummy"] = dummy
+
+    assert manager.execute_tool("dummy", target="127.0.0.1") is True
+    assert manager.execute_tool("dummy", target="127.0.0.2") is True
+    assert manager.queued_executions == 1
+
+    assert manager.cancel_tool("dummy") is True
+    assert dummy.cancelled is True
+    assert manager.queued_executions == 0
+
+    backend.close()

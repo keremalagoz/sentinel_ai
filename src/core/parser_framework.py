@@ -401,9 +401,9 @@ class BaseParser(ABC):
     
     def _create_vulnerability_entity(
         self,
-        target_id: str,
-        vuln_type: str,
-        severity: str,
+        target_id: Optional[str] = None,
+        vuln_type: Optional[str] = None,
+        severity: str = "medium",
         description: Optional[str] = None,
         exploitable: bool = False,
         confidence: float = 1.0,
@@ -424,11 +424,26 @@ class BaseParser(ABC):
         Returns:
             Vulnerability entity with canonical ID
         """
+        # Backward compatibility:
+        # legacy callers may pass service_id/vuln_id instead of target_id/vuln_type
+        if target_id is None:
+            target_id = kwargs.pop("service_id", None)
+        if vuln_type is None:
+            vuln_type = kwargs.pop("vuln_id", None)
+
+        if not target_id:
+            raise ValueError("target_id (or service_id) is required")
+        if not vuln_type:
+            raise ValueError("vuln_type (or vuln_id) is required")
+
         vuln_entity_id = self.id_generator.vuln_id(target_id, vuln_type)
         
         data = {
             "target_id": target_id,
             "vuln_type": vuln_type,
+            # Legacy alias fields (test/backward compatibility)
+            "vuln_id": vuln_type,
+            "service_id": target_id,
             "severity": severity.lower(),
             "exploitable": exploitable
         }
@@ -438,15 +453,6 @@ class BaseParser(ABC):
         
         # Advanced fields (Öncelik 4)
         data.update(kwargs)
-        
-        return BaseEntity(
-            id=vuln_entity_id,
-            entity_type=EntityType.VULNERABILITY,
-            created_at=time.time(),
-            updated_at=time.time(),
-            confidence=confidence,
-            data=data
-        )
         
         return BaseEntity(
             id=vuln_entity_id,
