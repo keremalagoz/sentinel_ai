@@ -1,6 +1,6 @@
 # SENTINEL AI - Proje Durum Raporu
 
-**Tarih:** 25 Şubat 2026  
+**Tarih:** 26 Şubat 2026  
 **Ekip:** Kerem (AI/Data/Backend) & Yiğit (System/UI/Security)
 
 ---
@@ -21,7 +21,7 @@
 - Kararlılık: Queue/backpressure, per-tool limit, retry/backoff aktif
 - Güvenilirlik: Registry drift guard (startup + test) aktif
 - Gözlemlenebilirlik: Runtime telemetry (`queue_wait_ms`, `tool_run_ms`) mevcut
-- Test: Full suite **111 passed**
+- Test: Full suite **112 passed**
 
 ---
 
@@ -35,7 +35,23 @@
 
 ---
 
-## Aktif Sprint: Sprint 3.5 (Stabilizasyon / Sertleştirme)
+## Aktif Sprint: Sprint 3.6 (Optimizasyon ve Platform Hazırlığı)
+
+> Sprint 3.5 tamamlandı. Kapsamlı audit raporu sonuçlarına göre Sprint 3.6 açıldı.  
+> Detaylı plan: `docs/sprint_3_6_plan.md`
+
+### Sprint 3.6 Özet Hedefler
+
+| Track | Odak | Görev Sayısı | Sorumlu |
+|-------|------|--------------|---------|
+| **A** | Kritik Bugfix (P0) | 4 | Kerem + Yiğit |
+| **B** | Linux Platform Uyumu | 7 | Yiğit + Kerem |
+| **C** | AI Ölçeklenme Altyapısı | 4 | Kerem |
+| **D** | Kod Kalitesi / Teknik Borç | 4 | Kerem + Yiğit |
+
+---
+
+## Tamamlanan Sprint: Sprint 3.5 (Stabilizasyon / Sertleştirme)
 
 ### Sprint 3: Güvenlik, Yetki ve Temizlik
 
@@ -64,7 +80,7 @@
 
 ### Test Durumu (Güncel)
 
-- Full test suite: **111 passed**
+- Full test suite: **112 passed**
 - P0 doğrulama: `scripts/p0_validation.py --with-pytest` başarılı
 
 ---

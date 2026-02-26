@@ -1,0 +1,207 @@
+# SENTINEL AI — Sprint 3.6: Optimizasyon ve Platform Hazırlığı
+
+**Başlangıç:** 26 Şubat 2026  
+**Hedef Bitiş:** ~7 Mart 2026 (1.5 hafta)  
+**Odak:** Audit sonuçları doğrultusunda kritik bugfix, Linux platform uyumluluğu, AI ölçeklenme altyapısı  
+**Kaynak:** [conversation_audit_report.md](conversation_audit_report.md)
+
+---
+
+## Sprint Amacı
+
+Sprint 3.5'teki stabilizasyon çalışmalarının ardından, kapsamlı audit raporunda tespit edilen **kritik hataları düzeltmek**, **Linux hedef platforma uyumluluk** sağlamak ve **Sprint 4+ için ölçeklenme altyapısını** kurmak. Sprint 4'e temiz ve güvenli bir kod tabanıyla girmek ana motivasyondur.
+
+---
+
+## Hafta Planı
+
+### Hafta 1 (26 Şub – 2 Mar): Kritik Bugfix + Linux Uyumluluk
+
+### Hafta 2 (3 Mar – 7 Mar): AI Ölçeklenme Altyapısı + Kod Kalitesi
+
+---
+
+## Görev Detayları
+
+### Track A — Kritik Bugfix (P0)
+
+| # | Görev | Sorumlu | Öncelik | Dosya(lar) | Açıklama |
+|---|-------|---------|---------|------------|----------|
+| A1 | Merkezi Logging Konfigürasyonu | Kerem | P0 | `main.py`, `main_developer.py` | `logging.basicConfig()` ile seviye, format ve handler (console + rotating file) tanımla. Tüm modüllerdeki `logger = logging.getLogger(__name__)` çağrılarının gerçekten çıktı üretmesini sağla. |
+| A2 | ToolManager Callback Exception Safety | Kerem | P0 | `src/core/tool_integration.py` | `_wrapped_callback()` içinde callback payload exception'ı `_active_count`'u bozuyor → deadlock. `try/finally` blokları ile `_active_count` düzeltmesini ve user callback çağrısını izole et. |
+| A3 | BackendGateway Güvenlik Düzeltmesi | Yiğit | P0 | `src/application/backend_gateway.py` | `parse_command()` naive `split()` kullanıyor, `requires_root` string matching ile tespit ediliyor. AI pipeline'ın güvenlik katmanını (validators, shell injection check) bu yola da uygula. |
+| A4 | Dokümantasyon Senkronizasyonu | Kerem+Yiğit | P0 | `PROJECT_STRUCTURE.md`, `README.md` | 35+ günlük fark var. Sprint 3.5 değişiklikleri (10 tool, telemetry, drift guard) yansıtılmalı. |
+
+**Kabul Kriterleri (Track A):**
+- [ ] `main.py` çalıştırıldığında `logs/sentinel.log` dosyasına structured çıktı yazılıyor
+- [ ] `ToolManager` callback exception senaryosunda `_active_count` doğru kalıyor (unit test ile doğrulanacak)
+- [ ] `BackendGateway.parse_command()` shell injection attempt'ı reddediyor (unit test ile doğrulanacak)
+- [ ] `PROJECT_STRUCTURE.md` son güncelleme tarihi ≥ 26 Şubat 2026
+
+---
+
+### Track B — Linux Platform Uyumluluğu
+
+| # | Görev | Sorumlu | Öncelik | Dosya(lar) | Açıklama |
+|---|-------|---------|---------|------------|----------|
+| B1 | PingTool Linux Uyumu | Yiğit | P0 | `src/core/tool_base.py` | `ping -n` → `ping -c` (platform check ile). `ExecutionManager.is_linux` pattern'ini kullan. |
+| B2 | SslScanTool Linux Uyumu | Yiğit | P0 | `src/core/tool_base.py` | `cmd.exe /c "echo \| openssl..."` → `bash -c "echo \| openssl..."` veya direkt pipe komutu. |
+| B3 | SubdomainEnumTool Yeniden Yazım | Yiğit | P0 | `src/core/tool_base.py` | PowerShell script (Test-Path, Get-Content, Write-Output) → Bash + standart Unix komutları. En çok iş çıkaracak madde. |
+| B4 | WebAppScanTool Yeniden Yazım | Yiğit | P0 | `src/core/tool_base.py` | `Invoke-WebRequest` + `powershell.exe` → `curl` + `bash`. |
+| B5 | ProcessManager Encoding Temizliği | Yiğit | P1 | `src/core/process_manager.py` | `_get_console_encoding()` `chcp` + `shell=True` linting uyarısı. Linux path'te `shell=True` gereksiz; platform guard ekle. |
+| B6 | ExecutionManager Temp Path | Yiğit | P1 | `src/core/execution_manager.py` | `os.environ.get("TEMP", ".")` → Linux'ta `tempfile.gettempdir()` kullan. |
+| B7 | Platform Utility Modülü | Kerem | P1 | `src/core/platform_utils.py` (YENİ) | `is_linux()`, `is_windows()`, `get_shell()`, `get_temp_dir()` merkezi platform helper'ları. Tüm tool'ların ortak kullanacağı tek kaynak. |
+
+**Kabul Kriterleri (Track B):**
+- [ ] Tüm 10 tool'un `build_command()` metodu Linux'ta çalışabilir komut üretiyor
+- [ ] `platform_utils.py` modülü oluşturulmuş ve ilgili dosyalar bunu kullanıyor
+- [ ] Mevcut 112 test hâlâ geçiyor (regression yok)
+- [ ] Linux ortamında (WSL veya Docker) en az PingTool, SslScanTool, DnsLookupTool testi başarılı
+
+---
+
+### Track C — AI Ölçeklenme Altyapısı
+
+| # | Görev | Sorumlu | Öncelik | Dosya(lar) | Açıklama |
+|---|-------|---------|---------|------------|----------|
+| C1 | Intent Confidence Skoru | Kerem | P0 | `src/ai/schemas.py`, `src/ai/intent_resolver.py` | `Intent` modeline `confidence: float` alanı ekle. Prompt'u `confidence` döndürecek şekilde güncelle. Orchestrator'da `< 0.7` → clarification tetikle. |
+| C2 | Keyword Pre-filter | Kerem | P0 | `src/ai/keyword_filter.py` (YENİ) | Regex/keyword tabanlı hızlı intent ön-eleme. LLM sonucunu cross-validate et. Uyumsuzlukta warning log + clarification. |
+| C3 | Response Time Budget | Kerem | P1 | `src/ai/orchestrator.py` | `MAX_RESPONSE_MS = 10_000` bütçe mekanizması. Intent resolution slow olursa keyword fallback devreye girsin. |
+| C4 | Intent Benchmark Script | Kerem | P1 | `scripts/intent_benchmark.py` (YENİ) | 25-30 test girdisiyle mevcut model accuracy + latency ölçümü. İleride dual-model karşılaştırması için temel. |
+| C5 | Dual-Model Strateji Altyapısı | Kerem | P1 | `src/ai/intent_resolver.py`, `src/ai/orchestrator.py` | IntentResolver'da `model` parametresini konfigurasyon dosyasından okunabilir yap. Intent için küçük model (Phi-3.5-mini / Qwen2.5-3B), suggestion engine için WhiteRabbitNeo kullanılacak şekilde model routing altyapısı hazırla. `ollama pull phi3.5` ile alternatif modeli indir ve `intent_benchmark.py` ile karşılaştırmalı test yap. |
+| C6 | Hierarchical Intent Hazırlığı (Forward-Ref) | Kerem | P2 | `src/ai/intent_resolver.py` | Tool sayısı 20'yi geçtiğinde devreye girecek 2 aşamalı intent çözümleme altyapısı. Bu sprintte **sadece tasarım dokümanı + interface** hazırlanacak; implementasyon tool sayısı arttığında yapılacak. Aşama 1: Kategori (scanning/web/recon/bruteforce/exploit/info), Aşama 2: Kategori-özel sub-intent. |
+| C7 | Tool Selection Policy (Forward-Ref) | Kerem | P2 | `src/ai/tool_registry.py` | Aynı intent'e birden fazla tool (ör: port_scan → nmap/masscan/rustscan) eşlendiğinde deterministik seçim politikası. Bu sprintte **sadece ToolDef'e `priority` ve `condition` alanları eklenir**, aktif routing Sprint 5'te yeni tool'lar eklendiğinde devreye girer. |
+
+**Kabul Kriterleri (Track C):**
+- [ ] `Intent` schema'sında `confidence` alanı var ve IntentResolver bunu döndürüyor
+- [ ] Confidence < 0.7 durumunda orchestrator clarification mesajı üretiyor (unit test)
+- [ ] Keyword pre-filter en az 10 keyword pattern içeriyor ve LLM sonucu ile cross-validation yapıyor
+- [ ] `intent_benchmark.py` çalıştırılabilir ve sonuçları JSON/CSV olarak kaydediyor
+- [ ] İkinci model (phi3.5 veya qwen2.5) ile en az 20 örnek üzerinde karşılaştırmalı benchmark yapılmış
+- [ ] `ToolDef` yapısına `priority` ve `condition` alanları eklenmiş (opsiyonel, default değerli)
+- [ ] Hierarchical intent tasarım notu `docs/` altına yazılmış
+
+---
+
+### Track D — Kod Kalitesi ve Teknik Borç
+
+| # | Görev | Sorumlu | Öncelik | Dosya(lar) | Açıklama |
+|---|-------|---------|---------|------------|----------|
+| D1 | tool_base.py Dosya Bölme | Yiğit | P1 | `src/core/tool_base.py` → `src/core/tools/` | 792 satırlık dosyayı `src/core/tools/` dizinine böl. Her tool kendi dosyasında: `ping.py`, `nmap_port_scan.py`, vb. `__init__.py` ile geriye uyumlu import sağla. |
+| D2 | SQLite WAL Mode | Kerem | P1 | `src/core/sqlite_backend.py` | `PRAGMA journal_mode=WAL` ekle. Concurrent read/write performansı artacak. |
+| D3 | Legacy Schema Temizliği | Kerem | P2 | `src/ai/schemas.py` | Kullanılmayan `ToolCommand`, `AIResponse`, `TOOL_COMMAND_SCHEMA`, `AI_RESPONSE_SCHEMA` temizle veya `_legacy` altına taşı. 577 → ~380 satır hedef. |
+| D4 | Singleton Thread Safety | Kerem | P2 | `src/ai/orchestrator.py`, `src/ai/intent_resolver.py` | Global `_orchestrator` ve `_resolver` singleton'larına `threading.Lock` ile guard ekle. |
+
+**Kabul Kriterleri (Track D):**
+- [ ] `src/core/tools/` dizini oluşturulmuş, her tool ayrı dosyada, `__init__.py` geriye uyumlu
+- [ ] SQLite WAL mode aktif, `PRAGMA journal_mode` sorgusu `wal` döndürüyor
+- [ ] Tüm testler geçiyor (112+)
+
+---
+
+## Sorumluluk Dağılımı
+
+| Kişi | Track | Görevler |
+|------|-------|----------|
+| **Kerem** (AI/Data/Backend) | A1, A2, A4, B7, C1-C7, D2, D3, D4 | Logging, callback safety, AI scaling, dual-model, SQLite, schema cleanup |
+| **Yiğit** (System/UI/Security) | A3, A4, B1-B6, D1 | BackendGateway fix, tüm Linux uyumluluk, tool dosya bölme |
+
+---
+
+## Haftalık Milestone'lar
+
+### Milestone 1 — Hafta 1 Sonu (2 Mart 2026)
+
+**"Kritik bug'sız, Linux'ta çalışır"**
+
+- [  ] Track A tamamlandı (4/4 görev)
+- [  ] Track B (B1-B4) kritik Linux fix'leri tamamlandı
+- [  ] 112+ test hâlâ yeşil
+- [  ] Güncellenmiş dokümantasyon merge edildi
+
+### Milestone 2 — Hafta 2 Sonu (7 Mart 2026)
+
+**"Ölçeklenmeye hazır, temiz kod tabanı"**
+
+- [  ] Track B tamamlandı (B5-B7 dahil)
+- [  ] Track C (C1-C4) tamamlandı (confidence, pre-filter, benchmark, dual-model baseline)
+- [  ] Track C (C5) dual-model routing altyapısı hazır, karşılaştırmalı benchmark tamamlanmış
+- [  ] Track C (C6, C7) forward-ref tasarım dokümanları yazılmış
+- [  ] Track D (D1, D2) tamamlandı
+- [  ] Track D (D3, D4) en az başlamış
+- [  ] Sprint 4'e geçiş kararı alındı
+
+---
+
+## Risk ve Bağımlılıklar
+
+| Risk | Etki | Azaltma |
+|------|------|---------|
+| SubdomainEnumTool PowerShell → Bash dönüşümü beklenenden uzun sürebilir | B3 gecikir | Docker container'da test ile paralel çalış, minimal viable bash versiyonuyla başla |
+| Confidence skoru LLM'den tutarsız gelebilir | C1 doğruluğu düşük | Prompt engineering + 30 örnek ile kalibrasyon, hard-coded 0.7 threshold yerine ayarlanabilir yap |
+| tool_base.py bölme sırasında import zinciri kırılabilir | D1 regression | `__init__.py` ile backward compatibility, her bölme adımında test çalıştır |
+| Keyword pre-filter false negative üretebilir | C2 güvenilirliği | Pre-filter sadece cross-validation için; tek başına karar verici değil, LLM sonucunu override etmez |
+
+---
+
+## Definition of Done (Sprint 3.6)
+
+1. Track A (P0 bugfix) — **%100 tamamlanmış** olmalı
+2. Track B (Linux uyumluluk) — **kritik 4 madde (B1-B4) %100**, geri kalanı en az başlamış
+3. Track C (AI scaling) — **C1 + C2 %100**, C3 + C4 + C5 en az prototype, C6 + C7 tasarım dokümanı
+4. Track D (teknik borç) — **D1 + D2 %100**, D3 + D4 opsiyonel
+5. Tüm testler yeşil (minimum 112, yeni testlerle birlikte 120+ hedef)
+6. `sprint_roadmap.md` ve `son_durum.md` senkronize
+7. Sprint 4 için hazırlık notu yazılmış
+
+---
+
+## Sprint 4'e Geçiş Koşulları
+
+Sprint 3.6 tamamlandığında Sprint 4'e geçiş için şu koşullar aranır:
+
+- [  ] P0 görevlerin tamamı kapatılmış
+- [  ] Linux'ta en az temel tool'lar (ping, nmap, dns) çalışır durumda
+- [  ] Intent confidence mekanizması aktif
+- [  ] Kod tabanı tool dosyalarına bölünmüş (`src/core/tools/`)
+- [  ] 120+ test geçiyor
+
+---
+
+---
+
+## Kapsam Doğrulama Matrisi
+
+Audit raporunda ve takip konuşmalarında belirlenen tüm konuların sprint karşılığı:
+
+| Audit / Konuşma Konusu | Sprint 3.6 Karşılığı | Durum |
+|-------------------------|----------------------|-------|
+| **P0 — Merkezi logging** | A1 | ✅ Dahil |
+| **P0 — Callback deadlock** | A2 | ✅ Dahil |
+| **P0 — BackendGateway güvenlik** | A3 | ✅ Dahil |
+| **P0 — Dokümantasyon sync** | A4 | ✅ Dahil |
+| **P1 — SQLite WAL mode** | D2 | ✅ Dahil |
+| **P1 — tool_base.py bölme** | D1 | ✅ Dahil |
+| **P2 — Legacy schema temizliği** | D3 | ✅ Dahil |
+| **P2 — Singleton thread safety** | D4 | ✅ Dahil |
+| **Linux — PingTool `-n` → `-c`** | B1 | ✅ Dahil |
+| **Linux — SslScanTool `cmd.exe`** | B2 | ✅ Dahil |
+| **Linux — SubdomainEnumTool PowerShell** | B3 | ✅ Dahil |
+| **Linux — WebAppScanTool PowerShell** | B4 | ✅ Dahil |
+| **Linux — ProcessManager encoding** | B5 | ✅ Dahil |
+| **Linux — ExecutionManager temp path** | B6 | ✅ Dahil |
+| **Linux — Platform utility modülü** | B7 | ✅ Dahil |
+| **Model — Dual-model stratejisi (küçük model → intent)** | C5 | ✅ Dahil |
+| **Model — Intent benchmark karşılaştırması** | C4 | ✅ Dahil |
+| **Ölçeklenme — Intent confidence skoru** | C1 | ✅ Dahil |
+| **Ölçeklenme — Keyword pre-filter & cross-validation** | C2 | ✅ Dahil |
+| **Ölçeklenme — Response time budget** | C3 | ✅ Dahil |
+| **Ölçeklenme — Hierarchical intent (2 aşamalı)** | C6 (forward-ref) | ✅ Tasarım dahil |
+| **Ölçeklenme — Tool selection policy (aynı intent → çoklu tool)** | C7 (forward-ref) | ✅ Tasarım dahil |
+| **Sprint 4 — Pydantic veri modeli + nmap adapter** | Sprint 4'e kalır | ⏭️ Sonraki sprint |
+| **Sprint 5 — Suggestion engine (WhiteRabbitNeo)** | Sprint 5'e kalır | ⏭️ Sonraki sprint |
+
+---
+
+*Sprint 3.6 Planı — 26 Şubat 2026*  
+*Hazırlayan: GitHub Copilot (Audit Report verileri doğrultusunda)*
