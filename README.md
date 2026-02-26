@@ -65,7 +65,6 @@ SENTINEL AI, siber güvenlik testlerini yapay zeka destekli komutlarla otomatikl
 ```
 sentinel_root/
 ├── main.py                   # Production giriş noktası
-├── main_developer.py         # Developer mode giriş noktası
 ├── api_server.py             # API modunda komut üretimi
 ├── requirements.txt          # Python bağımlılıkları
 ├── docker-compose.yml        # Docker servis tanımları
@@ -114,30 +113,17 @@ sentinel_root/
 
 ## Kurulum
 
-### İki Çalışma Modu
+### Çalışma Modu
 
-SENTINEL AI iki farklı modda çalışabilir:
+SENTINEL AI production modda çalışır:
 
-| Mod | Dosya | Kullanım Durumu | RAM | LLM |
-|-----|-------|-----------------|-----|-----|
-| **Production** | `main.py` | Gerçek güvenlik testleri | ~8GB | Docker Ollama |
-| **Developer** | `main_developer.py` | UI/AI geliştirme | ~2GB | Native Ollama |
-
-> **Developer Mode:** Sadece UI ve AI geliştirme için optimize edilmiştir. Komutlar gerçekte çalıştırılmaz, mock çıktı gösterilir. WSL/Docker kapalı olduğu için ~6GB RAM tasarrufu sağlar.
-
-### Gereksinimler (Production Mode)
+### Gereksinimler
 
 - **İşletim Sistemi:** Linux (Ubuntu 20.04+ önerilir)
 - **Python:** 3.11+
 - **Docker:** 20.10+ & Docker Compose
 - **RAM:** Minimum 8GB (WhiteRabbitNeo için 16GB önerilir)
 - **Disk:** 10GB+ (Model indirme için)
-
-### Gereksinimler (Developer Mode)
-
-- **İşletim Sistemi:** Windows/Linux/macOS
-- **Python:** 3.11+
-- **Ollama:** Native kurulum gerekli
 - **RAM:** Minimum 4GB (Native Ollama için 8GB önerilir)
 - **Disk:** ~5GB (Model için)
 
@@ -182,67 +168,10 @@ docker-compose logs -f whiterabbitneo-service
 
 ### 5. Uygulamayı Başlatın
 
-**Production Mode (Gerçek Testler):**
+**Çalıştırma:**
 ```bash
 python main.py
 ```
-
-**Developer Mode (UI/AI Geliştirme):**
-```bash
-python main_developer.py
-```
-
----
-
-## Developer Mode Kurulumu
-
-Developer mode, sadece UI ve AI geliştirmesi için optimize edilmiştir. Docker/WSL kapalı çalıştığı için ~6GB RAM tasarrufu sağlar.
-
-### 1. Native Ollama Kurulumu
-
-**Windows:**
-```bash
-# https://ollama.com/download adresinden indir ve kur
-```
-
-**Linux:**
-```bash
-curl -fsSL https://ollama.com/install.sh | sh
-```
-
-**macOS:**
-```bash
-brew install ollama
-```
-
-### 2. WhiteRabbitNeo Modelini İndir
-
-```bash
-ollama pull whiterabbitneo
-```
-
-### 3. Ollama'yı Başlat (Otomatik başlamazsa)
-
-```bash
-ollama serve
-```
-
-### 4. Developer Mode'u Çalıştır
-
-```bash
-python main_developer.py
-```
-
-### Developer Mode Özellikleri
-
-[OK] Native Ollama Bağlantısı - Docker'a gerek yok  
-[OK] RAM Tasarrufu - WSL kapalı (~6GB tasarruf)  
-[OK] Hızlı LLM Yanıt - Network overhead yok (2-3x hızlı)  
-[OK] Mock Execution - Komutlar çalıştırılmaz, güvenli  
-[OK] Action Planner Testi - Intent, Tool, Command çıktılarını görüntüle  
-[OK] Deterministik komut akışı - Production ile aynı mantık  
-
-UYARI: Developer mode gerçek güvenlik testleri için kullanılamaz!
 
 ---
 

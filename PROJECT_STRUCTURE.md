@@ -28,7 +28,6 @@ Sistem garantileri:
 ```
 sentinel_root/
 ├── main.py                      # Production Entry Point (Docker + Local AI)
-├── main_developer.py            # Developer Mode (Native Ollama)
 ├── api_server.py                # API modunda komut üretimi
 ├── requirements.txt             # Python bağımlılıkları
 ├── docker-compose.yml           # Docker orchestration
@@ -124,15 +123,9 @@ sentinel_root/
 
 ## Entry Points (Kısa)
 
-### 1. **main.py** - Production Mode
+### **main.py** - Production Mode
 - Docker + local AI ile gerçek komut yürütümü
 - Ana kullanım: production güvenlik testleri
-
----
-
-### 2. **main_developer.py** - Developer Mode
-- Native Ollama ile geliştirme/deneme modu
-- Ana kullanım: UI + AI akış geliştirme ve hızlı doğrulama
 
 ---
 
@@ -579,9 +572,6 @@ pip install -r requirements.txt
 ### **sentinel_production.db**
 Production mode veritabanı (main.py)
 
-### **sentinel_dev.db**
-Developer mode veritabanı (main_developer.py)
-
 ### **sentinel_state.db**
 Test/default veritabanı (test_ui_integration.py)
 
@@ -615,25 +605,19 @@ Copy-Item .env.example .env
 
 ## Geliştirme Workflow
 
-### 1. Developer Mode Test
-```powershell
-python main_developer.py
-# Test butonlarına bas, integrated tools test et
-```
-
-### 2. UI Integration Test
+### 1. UI Integration Test
 ```powershell
 python src/tests/test_ui_integration.py
 # Ping, Sweep, Portscan butonları test et
 ```
 
-### 3. Unit Tests
+### 2. Unit Tests
 ```powershell
 python -m pytest src/tests/test_sprint1.py -v
 # güncel testleri çalıştır
 ```
 
-### 4. Production Test
+### 3. Production Test
 ```powershell
 python main.py
 # Docker'ı başlat, local AI test et
@@ -657,7 +641,7 @@ python main.py
 - TerminalView tool entegrasyonu
 - Test butonları (developer mode only)
 - Backend stats display
-- main.py ve main_developer.py entegrasyonu
+- main.py entegrasyonu
 
 ---
 
@@ -690,9 +674,6 @@ python main.py
 ```powershell
 # Production
 python main.py
-
-# Developer Mode
-python main_developer.py
 
 # UI Test Window
 python src/tests/test_ui_integration.py
