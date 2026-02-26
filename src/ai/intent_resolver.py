@@ -8,6 +8,7 @@ import os
 import json
 import logging
 import time
+import threading
 from typing import Optional, List, Dict, Any
 from openai import OpenAI
 from dotenv import load_dotenv
@@ -340,13 +341,16 @@ class IntentResolver:
 # =============================================================================
 
 _resolver: Optional[IntentResolver] = None
+_resolver_lock = threading.Lock()
 
 
 def get_intent_resolver(model: str = "whiterabbitneo") -> IntentResolver:
-    """Singleton IntentResolver instance doner"""
+    """Singleton IntentResolver instance doner (thread-safe)"""
     global _resolver
     if _resolver is None:
-        _resolver = IntentResolver(model=model)
+        with _resolver_lock:
+            if _resolver is None:
+                _resolver = IntentResolver(model=model)
     return _resolver
 
 

@@ -118,9 +118,12 @@ Sprint 3.5'teki stabilizasyon çalışmalarının ardından, kapsamlı audit rap
 | D4 | Singleton Thread Safety | Kerem | P2 | `src/ai/orchestrator.py`, `src/ai/intent_resolver.py` | Global `_orchestrator` ve `_resolver` singleton'larına `threading.Lock` ile guard ekle. |
 
 **Kabul Kriterleri (Track D):**
-- [ ] `src/core/tools/` dizini oluşturulmuş, her tool ayrı dosyada, `__init__.py` geriye uyumlu
-- [ ] SQLite WAL mode aktif, `PRAGMA journal_mode` sorgusu `wal` döndürüyor
-- [ ] Tüm testler geçiyor (112+)
+- [x] `src/core/tools/` dizini olusturulmus, her tool ayri dosyada, `__init__.py` geriye uyumlu
+- [x] `tool_base.py` backward-compat shim'e donusturuldu (<50 satir)
+- [x] SQLite WAL mode aktif, `PRAGMA journal_mode` sorgusu `wal` donduruyor
+- [x] `schemas_legacy.py` olusturuldu, legacy sema kodu ayrildi (schemas.py 601 -> ~340 satir)
+- [x] Singleton getter'lar `threading.Lock` ile korunuyor (intent_resolver, orchestrator, command_builder)
+- [x] 18 yeni Track D testi, toplam 185 test gecti
 
 ---
 
@@ -128,8 +131,8 @@ Sprint 3.5'teki stabilizasyon çalışmalarının ardından, kapsamlı audit rap
 
 | Kişi | Track | Görevler |
 |------|-------|----------|
-| **Kerem** (AI/Data/Backend) | ~~A1~~, ~~A2~~, ~~A4~~, ~~B7~~, C1-C7, D2, D3, D4 | ~~Logging~~, ~~callback safety~~, ~~platform_utils~~, AI scaling, dual-model, SQLite, schema cleanup |
-| **Yiğit** (System/UI/Security) | ~~A3~~, ~~A4~~, ~~B1-B6~~, D1 | ~~BackendGateway fix~~, ~~Linux uyumluluk~~, tool dosya bölme |
+| **Kerem** (AI/Data/Backend) | ~~A1~~, ~~A2~~, ~~A4~~, ~~B7~~, ~~C1-C7~~, ~~D2~~, ~~D3~~, ~~D4~~ | ~~Logging~~, ~~callback safety~~, ~~platform_utils~~, ~~AI scaling~~, ~~dual-model~~, ~~SQLite~~, ~~schema cleanup~~ |
+| **Yigit** (System/UI/Security) | ~~A3~~, ~~A4~~, ~~B1-B6~~, ~~D1~~ | ~~BackendGateway fix~~, ~~Linux uyumluluk~~, ~~tool dosya bolme~~ |
 
 ---
 
@@ -152,9 +155,9 @@ Sprint 3.5'teki stabilizasyon çalışmalarının ardından, kapsamlı audit rap
 - [x] Track C (C1-C4) tamamlandı (confidence, pre-filter, benchmark, dual-model baseline)
 - [x] Track C (C5) dual-model routing altyapısı hazır, karşılaştırmalı benchmark tamamlanmış
 - [x] Track C (C6, C7) forward-ref tasarım dokümanları yazılmış
-- [  ] Track D (D1, D2) tamamlandı
-- [  ] Track D (D3, D4) en az başlamış
-- [  ] Sprint 4'e geçiş kararı alındı
+- [x] Track D (D1, D2) tamamlandi
+- [x] Track D (D3, D4) tamamlandi
+- [x] Sprint 4'e gecis karari alinabilir
 
 ---
 

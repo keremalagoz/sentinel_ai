@@ -9,6 +9,7 @@
 from typing import Optional, Dict, Any
 import logging
 import time
+import threading
 from dotenv import load_dotenv
 
 # V2 Imports
@@ -376,11 +377,12 @@ class AIOrchestrator:
 # =============================================================================
 
 _orchestrator: Optional[AIOrchestrator] = None
+_orchestrator_lock = threading.Lock()
 
 
 def get_orchestrator(model: str = "whiterabbitneo") -> AIOrchestrator:
     """
-    Singleton orchestrator instance doner.
+    Singleton orchestrator instance doner (thread-safe).
     
     Kullanim:
         from src.ai.orchestrator import get_orchestrator
@@ -390,7 +392,9 @@ def get_orchestrator(model: str = "whiterabbitneo") -> AIOrchestrator:
     """
     global _orchestrator
     if _orchestrator is None:
-        _orchestrator = AIOrchestrator(model=model)
+        with _orchestrator_lock:
+            if _orchestrator is None:
+                _orchestrator = AIOrchestrator(model=model)
     return _orchestrator
 
 
