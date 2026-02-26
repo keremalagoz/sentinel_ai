@@ -110,8 +110,8 @@ Sprint 3.5'teki stabilizasyon çalışmalarının ardından, kapsamlı audit rap
 
 | Kişi | Track | Görevler |
 |------|-------|----------|
-| **Kerem** (AI/Data/Backend) | ~~A1~~, ~~A2~~, ~~A4~~, B7, C1-C7, D2, D3, D4 | ~~Logging~~, ~~callback safety~~, AI scaling, dual-model, SQLite, schema cleanup |
-| **Yiğit** (System/UI/Security) | ~~A3~~, ~~A4~~, B1-B6, D1 | ~~BackendGateway fix~~, tüm Linux uyumluluk, tool dosya bölme |
+| **Kerem** (AI/Data/Backend) | ~~A1~~, ~~A2~~, ~~A4~~, ~~B7~~, C1-C7, D2, D3, D4 | ~~Logging~~, ~~callback safety~~, ~~platform_utils~~, AI scaling, dual-model, SQLite, schema cleanup |
+| **Yiğit** (System/UI/Security) | ~~A3~~, ~~A4~~, ~~B1-B6~~, D1 | ~~BackendGateway fix~~, ~~Linux uyumluluk~~, tool dosya bölme |
 
 ---
 
@@ -122,15 +122,15 @@ Sprint 3.5'teki stabilizasyon çalışmalarının ardından, kapsamlı audit rap
 **"Kritik bug'sız, Linux'ta çalışır"**
 
 - [x] Track A tamamlandı (4/4 görev) — 26 Şubat 2026
-- [  ] Track B (B1-B4) kritik Linux fix'leri tamamlandı
-- [  ] 112+ test hâlâ yeşil
+- [x] Track B (B1-B4) kritik Linux fix'leri tamamlandı — 26 Şubat 2026
+- [x] 126 test yeşil (hedef 112+ aşıldı)
 - [  ] Güncellenmiş dokümantasyon merge edildi
 
 ### Milestone 2 — Hafta 2 Sonu (7 Mart 2026)
 
 **"Ölçeklenmeye hazır, temiz kod tabanı"**
 
-- [  ] Track B tamamlandı (B5-B7 dahil)
+- [x] Track B tamamlandı (B5-B7 dahil) — 26 Şubat 2026
 - [  ] Track C (C1-C4) tamamlandı (confidence, pre-filter, benchmark, dual-model baseline)
 - [  ] Track C (C5) dual-model routing altyapısı hazır, karşılaştırmalı benchmark tamamlanmış
 - [  ] Track C (C6, C7) forward-ref tasarım dokümanları yazılmış
@@ -144,7 +144,7 @@ Sprint 3.5'teki stabilizasyon çalışmalarının ardından, kapsamlı audit rap
 
 | Risk | Etki | Azaltma |
 |------|------|---------|
-| SubdomainEnumTool PowerShell → Bash dönüşümü beklenenden uzun sürebilir | B3 gecikir | Docker container'da test ile paralel çalış, minimal viable bash versiyonuyla başla |
+| SubdomainEnumTool PowerShell → Bash dönüşümü beklenenden uzun sürebilir | ~~B3 gecikir~~ | ✅ Tamamlandı — bash/PowerShell dual-path uygulandı |
 | Confidence skoru LLM'den tutarsız gelebilir | C1 doğruluğu düşük | Prompt engineering + 30 örnek ile kalibrasyon, hard-coded 0.7 threshold yerine ayarlanabilir yap |
 | tool_base.py bölme sırasında import zinciri kırılabilir | D1 regression | `__init__.py` ile backward compatibility, her bölme adımında test çalıştır |
 | Keyword pre-filter false negative üretebilir | C2 güvenilirliği | Pre-filter sadece cross-validation için; tek başına karar verici değil, LLM sonucunu override etmez |
@@ -154,7 +154,7 @@ Sprint 3.5'teki stabilizasyon çalışmalarının ardından, kapsamlı audit rap
 ## Definition of Done (Sprint 3.6)
 
 1. Track A (P0 bugfix) — ✅ **%100 tamamlandı** (26 Şubat 2026)
-2. Track B (Linux uyumluluk) — **kritik 4 madde (B1-B4) %100**, geri kalanı en az başlamış
+2. Track B (Linux uyumluluk) — ✅ **%100 tamamlandı** (26 Şubat 2026)
 3. Track C (AI scaling) — **C1 + C2 %100**, C3 + C4 + C5 en az prototype, C6 + C7 tasarım dokümanı
 4. Track D (teknik borç) — **D1 + D2 %100**, D3 + D4 opsiyonel
 5. Tüm testler yeşil (minimum 112, yeni testlerle birlikte 120+ hedef)
@@ -168,7 +168,7 @@ Sprint 3.5'teki stabilizasyon çalışmalarının ardından, kapsamlı audit rap
 Sprint 3.6 tamamlandığında Sprint 4'e geçiş için şu koşullar aranır:
 
 - [  ] P0 görevlerin tamamı kapatılmış
-- [  ] Linux'ta en az temel tool'lar (ping, nmap, dns) çalışır durumda
+- [x] Linux'ta en az temel tool'lar (ping, nmap, dns) çalışır durumda (cross-platform build_command tamamlandı)
 - [  ] Intent confidence mekanizması aktif
 - [  ] Kod tabanı tool dosyalarına bölünmüş (`src/core/tools/`)
 - [  ] 120+ test geçiyor
@@ -191,13 +191,13 @@ Audit raporunda ve takip konuşmalarında belirlenen tüm konuların sprint kar�
 | **P1 — tool_base.py bölme** | D1 | ✅ Dahil |
 | **P2 — Legacy schema temizliği** | D3 | ✅ Dahil |
 | **P2 — Singleton thread safety** | D4 | ✅ Dahil |
-| **Linux — PingTool `-n` → `-c`** | B1 | ✅ Dahil |
-| **Linux — SslScanTool `cmd.exe`** | B2 | ✅ Dahil |
-| **Linux — SubdomainEnumTool PowerShell** | B3 | ✅ Dahil |
-| **Linux — WebAppScanTool PowerShell** | B4 | ✅ Dahil |
-| **Linux — ProcessManager encoding** | B5 | ✅ Dahil |
-| **Linux — ExecutionManager temp path** | B6 | ✅ Dahil |
-| **Linux — Platform utility modülü** | B7 | ✅ Dahil |
+| **Linux — PingTool `-n` → `-c`** | B1 | ✅ Tamamlandı (`e3e6a79`) |
+| **Linux — SslScanTool `cmd.exe`** | B2 | ✅ Tamamlandı (`e3e6a79`) |
+| **Linux — SubdomainEnumTool PowerShell** | B3 | ✅ Tamamlandı (`e3e6a79`) |
+| **Linux — WebAppScanTool PowerShell** | B4 | ✅ Tamamlandı (`e3e6a79`) |
+| **Linux — ProcessManager encoding** | B5 | ✅ Tamamlandı (`e3e6a79`) |
+| **Linux — ExecutionManager temp path** | B6 | ✅ Tamamlandı (`e3e6a79`) |
+| **Linux — Platform utility modülü** | B7 | ✅ Tamamlandı (`e3e6a79`) |
 | **Model — Dual-model stratejisi (küçük model → intent)** | C5 | ✅ Dahil |
 | **Model — Intent benchmark karşılaştırması** | C4 | ✅ Dahil |
 | **Ölçeklenme — Intent confidence skoru** | C1 | ✅ Dahil |
@@ -211,5 +211,5 @@ Audit raporunda ve takip konuşmalarında belirlenen tüm konuların sprint kar�
 ---
 
 *Sprint 3.6 Planı — 26 Şubat 2026*  
-*Son Güncelleme: 26 Şubat 2026 — Track A tamamlandı, main_developer.py kaldırıldı*  
+*Son Güncelleme: 26 Şubat 2026 — Track A+B tamamlandı, main_developer.py kaldırıldı*  
 *Hazırlayan: GitHub Copilot (Audit Report verileri doğrultusunda)*
