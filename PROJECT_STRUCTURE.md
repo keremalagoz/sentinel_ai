@@ -1,7 +1,7 @@
 # SENTINEL AI - Proje Yapısı (Sadeleştirilmiş)
 
-**Versiyon**: Action Planner v2.1 - Stabilizasyon/P0 Sertleştirme  
-**Tarih**: 25 Şubat 2026  
+**Versiyon**: Action Planner v2.1 - Sprint 3.6 (Optimizasyon ve Platform Hazirlıgi)  
+**Tarih**: 26 Subat 2026  
 **Mimari**: Local-Only LLM + Deterministic Execution + Runtime Hardening
 
 > Not: Bu doküman sadeleştirme sürecindedir. Öncelik, mevcut çalışma mimarisi ve aktif modüllerin net gösterimidir.
@@ -50,20 +50,27 @@ sentinel_root/
 │   ├── core/                    # Core Sistemler
 │   │   ├── sqlite_backend.py    # SQLite Backend (Hybrid JSON+FK schema)
 │   │   ├── entity_id_generator.py # Canonical Entity ID generator
-│   │   ├── parser_framework.py  # Parser framework + 3 parser
-│   │   ├── tool_base.py         # BaseTool + 3 tool implementation
-│   │   ├── tool_integration.py  # IntegratedTool + ToolManager
+│   │   ├── parser_framework.py  # Parser framework + 10 parser
+│   │   ├── tool_base.py         # BaseTool + 10 tool implementation
+│   │   ├── tool_integration.py  # IntegratedTool + ToolManager (queue/backpressure)
 │   │   ├── sentinel_coordinator.py # UI-ToolManager bridge
-│   │   ├── process_manager.py   # QProcess tabanlı process yönetimi
+│   │   ├── process_manager.py   # QProcess tabanlı process yonetimi
 │   │   ├── docker_runner.py     # Docker container runner
-│   │   ├── execution_manager.py # Execution state management
-│   │   ├── validators.py        # Input validation
+│   │   ├── execution_manager.py # Execution state management (Docker/Native)
+│   │   ├── validators.py        # Input validation (IP/domain/shell injection)
 │   │   ├── cleaner.py           # Secure file cleanup
-│   │   └── adapters/            # (Boş - gelecek için)
+│   │   └── adapters/            # (Bos - Sprint 4 icin)
 │   │
-│   ├── ui/                      # UI Bileşenleri
-│   │   ├── terminal_view.py     # Terminal emülatörü (PyQt6)
-│   │   └── styles.py            # UI renk ve font tanımları
+│   ├── application/             # Application facade katmani
+│   │   ├── __init__.py
+│   │   └── backend_gateway.py   # UI-Backend facade (guvenlik katmanli)
+│   │
+│   ├── ui/                      # UI Bilesenleri
+│   │   ├── main_window.py       # Ana pencere (unified header)
+│   │   ├── chat_interface.py    # Chat & CommandCard paneli
+│   │   ├── terminal_view.py     # Multi-session terminal emulator
+│   │   ├── settings_dialog.py   # Ayarlar diyalogu
+│   │   └── styles.py            # UI renk ve font tanimlari
 │   │
 │   ├── plugins/                 # Plugin sistemi (gelecek)
 │   │   └── .gitkeep
@@ -76,18 +83,21 @@ sentinel_root/
 │       ├── test_action_planner_v2.py # Action Planner v2 tests
 │       ├── test_integration.py  # Full integration tests
 │       ├── test_ui_integration.py # UI integration test window
-│       ├── test_new_tools.py    # ToolManager + parser + telemetry testleri
-│       ├── test_advanced_parsers.py # Geniş parser senaryoları
-│       └── test_registry_consistency.py # Registry drift guard testleri
+│       ├── test_new_tools.py    # ToolManager + parser + telemetry + callback safety
+│       ├── test_advanced_parsers.py # Genis parser senaryolari
+│       ├── test_registry_consistency.py # Registry drift guard testleri
+│       └── test_ui_backend_boundary.py # UI-Backend boundary + guvenlik testleri
 │
 ├── docs/                        # Teknik Dokümantasyon
-│   ├── AGENT_RULES.md          # AI agent kuralları ve kısıtlamaları
-│   ├── entity_id_strategy.md   # Entity ID tasarım kararları
+│   ├── AGENT_RULES.md          # AI agent kurallari ve kisitlamalari
+│   ├── entity_id_strategy.md   # Entity ID tasarim kararlari
 │   ├── execution_history_model.md # Execution history veri modeli
 │   ├── execution_state_model.md # Execution state management
-│   ├── sprint_roadmap.md       # Sprint planı ve kapsam
+│   ├── sprint_roadmap.md       # Sprint plani ve kapsam
+│   ├── sprint_3_6_plan.md      # Sprint 3.6 detayli plan
 │   ├── sprint1_ready.md        # Sprint 1 completion raporu
-│   └── sqlite_schema.md        # SQLite veritabanı şeması
+│   ├── conversation_audit_report.md # Kapsamli audit raporu
+│   └── sqlite_schema.md        # SQLite veritabani semasi
 │
 ├── temp/                        # Geçici Dosyalar
 │   └── sentinel_safe/          # Güvenli sandbox klasörü
@@ -131,7 +141,7 @@ sentinel_root/
 ### **src/tests/test_sprint1.py**
 Sprint 1 (Action Planner v2.1) main test suite
 
-**Test Sayısı**: 59  
+**Test Sayısı**: 59 + 15 (yeni testler)  
 **Kapsam**:
 - SQLite Backend (29 unit tests)
 - Entity ID Generator (unit tests)
@@ -268,18 +278,25 @@ entity_id = EntityIDGenerator.generate("host", "192.168.1.1")
 ---
 
 ### **src/core/parser_framework.py**
-Parser Framework + 3 Parser Implementation
+Parser Framework + 10 Parser Implementation
 
 **Sorumluluklar**:
 - Unified parser interface (BaseParser)
-- Tool output → structured entities
-- PARTIAL_SUCCESS policy (bazı hatalar tolere edilir)
+- Tool output -> structured entities
+- PARTIAL_SUCCESS policy (bazi hatalar tolere edilir)
 - 5 helper method (IP extraction, port parsing, etc.)
 
 **Parsers**:
-1. **PingParser**: Ping output → host entities
-2. **NmapPingSweepParser**: Nmap -sn → multiple hosts
-3. **NmapPortScanParser**: Nmap -sT → host + ports + services
+1. **PingParser**: Ping output -> host entities
+2. **NmapPingSweepParser**: Nmap -sn -> multiple hosts
+3. **NmapPortScanParser**: Nmap -sT -> host + ports + services
+4. **NmapServiceDetectionParser**: Nmap -sV -> service version detection
+5. **NmapVulnScanParser**: Nmap --script vuln -> vulnerability entities
+6. **SslScanParser**: SSL/TLS certificate + cipher analysis
+7. **GobusterDirParser**: Directory brute-force sonuclari
+8. **SubdomainEnumParser**: Subdomain enumeration
+9. **DnsLookupParser**: DNS record cozumlemesi
+10. **WebAppScanParser**: Web uygulama tarama sonuclari
 
 **API**:
 ```python
@@ -291,18 +308,25 @@ result = parser.parse(raw_output, target="192.168.1.1")
 ---
 
 ### **src/core/tool_base.py**
-BaseTool + 3 Tool Implementations (QProcess-based)
+BaseTool + 10 Tool Implementations (QProcess-based)
 
 **Sorumluluklar**:
 - Async tool execution (QProcess)
-- Timeout handling
+- Timeout handling + adaptive timeout estimation
 - Signal-based output streaming
-- 3 tool implementation
+- 10 tool implementation
 
 **Tools**:
-1. **PingTool**: System ping (cross-platform)
+1. **PingTool**: System ping
 2. **NmapPingSweepTool**: Nmap ping sweep (`-sn`)
 3. **NmapPortScanTool**: Nmap port scan (`-sT -p`)
+4. **NmapServiceDetectionTool**: Nmap service detection (`-sV`)
+5. **NmapVulnScanTool**: Nmap vulnerability scan (`--script vuln`)
+6. **SslScanTool**: SSL/TLS analiz
+7. **GobusterDirTool**: Directory brute-force
+8. **SubdomainEnumTool**: Subdomain enumeration
+9. **DnsLookupTool**: DNS record query
+10. **WebAppScanTool**: Web uygulama tarama
 
 **API**:
 ```python
