@@ -47,23 +47,32 @@ Sprint 3.5'teki stabilizasyon çalışmalarının ardından, kapsamlı audit rap
 
 ---
 
-### Track B — Linux Platform Uyumluluğu
+### Track B — Linux Platform Uyumluluğu ✅ TAMAMLANDI
 
-| # | Görev | Sorumlu | Öncelik | Dosya(lar) | Açıklama |
-|---|-------|---------|---------|------------|----------|
-| B1 | PingTool Linux Uyumu | Yiğit | P0 | `src/core/tool_base.py` | `ping -n` → `ping -c` (platform check ile). `ExecutionManager.is_linux` pattern'ini kullan. |
-| B2 | SslScanTool Linux Uyumu | Yiğit | P0 | `src/core/tool_base.py` | `cmd.exe /c "echo \| openssl..."` → `bash -c "echo \| openssl..."` veya direkt pipe komutu. |
-| B3 | SubdomainEnumTool Yeniden Yazım | Yiğit | P0 | `src/core/tool_base.py` | PowerShell script (Test-Path, Get-Content, Write-Output) → Bash + standart Unix komutları. En çok iş çıkaracak madde. |
-| B4 | WebAppScanTool Yeniden Yazım | Yiğit | P0 | `src/core/tool_base.py` | `Invoke-WebRequest` + `powershell.exe` → `curl` + `bash`. |
-| B5 | ProcessManager Encoding Temizliği | Yiğit | P1 | `src/core/process_manager.py` | `_get_console_encoding()` `chcp` + `shell=True` linting uyarısı. Linux path'te `shell=True` gereksiz; platform guard ekle. |
-| B6 | ExecutionManager Temp Path | Yiğit | P1 | `src/core/execution_manager.py` | `os.environ.get("TEMP", ".")` → Linux'ta `tempfile.gettempdir()` kullan. |
-| B7 | Platform Utility Modülü | Kerem | P1 | `src/core/platform_utils.py` (YENİ) | `is_linux()`, `is_windows()`, `get_shell()`, `get_temp_dir()` merkezi platform helper'ları. Tüm tool'ların ortak kullanacağı tek kaynak. |
+| # | Görev | Sorumlu | Öncelik | Dosya(lar) | Durum | Commit |
+|---|-------|---------|---------|------------|-------|--------|
+| B1 | PingTool Linux Uyumu | Kerem | P0 | `src/core/tool_base.py` | ✅ Tamamlandı | `e3e6a79` |
+| B2 | SslScanTool Linux Uyumu | Kerem | P0 | `src/core/tool_base.py` | ✅ Tamamlandı | `e3e6a79` |
+| B3 | SubdomainEnumTool Yeniden Yazım | Kerem | P0 | `src/core/tool_base.py` | ✅ Tamamlandı | `e3e6a79` |
+| B4 | WebAppScanTool Yeniden Yazım | Kerem | P0 | `src/core/tool_base.py` | ✅ Tamamlandı | `e3e6a79` |
+| B5 | ProcessManager Encoding Temizliği | Kerem | P1 | `src/core/process_manager.py` | ✅ Tamamlandı | `e3e6a79` |
+| B6 | ExecutionManager Temp Path | Kerem | P1 | `src/core/execution_manager.py` | ✅ Tamamlandı | `e3e6a79` |
+| B7 | Platform Utility Modülü | Kerem | P1 | `src/core/platform_utils.py` (YENİ) | ✅ Tamamlandı | `e3e6a79` |
+
+**Yapılan Değişiklikler:**
+- **B7:** `platform_utils.py` oluşturuldu — `is_linux()`, `is_windows()`, `get_shell()`, `get_ping_count_flag()`, `get_temp_dir()`, `get_console_encoding()`, `build_echo_pipe_command()`.
+- **B1:** `PingTool` — hardcoded `"-n"` yerine `get_ping_count_flag()`.
+- **B2:** `SslScanTool` — `cmd.exe /c` yerine `build_echo_pipe_command()`.
+- **B3:** `SubdomainEnumTool` — PowerShell-only → bash/PowerShell dual-path.
+- **B4:** `WebAppScanTool` — `Invoke-WebRequest` → `curl` + `get_shell()`.
+- **B5:** `ProcessManager` — inline `_get_console_encoding()` kaldırıldı, `CONSOLE_ENCODING` import.
+- **B6:** `ExecutionManager` — `os.environ.get("TEMP", ".")` → `tempfile.gettempdir()`.
 
 **Kabul Kriterleri (Track B):**
-- [ ] Tüm 10 tool'un `build_command()` metodu Linux'ta çalışabilir komut üretiyor
-- [ ] `platform_utils.py` modülü oluşturulmuş ve ilgili dosyalar bunu kullanıyor
-- [ ] Mevcut 112 test hâlâ geçiyor (regression yok)
-- [ ] Linux ortamında (WSL veya Docker) en az PingTool, SslScanTool, DnsLookupTool testi başarılı
+- [x] Tüm 10 tool'un `build_command()` metodu Linux'ta çalışabilir komut üretiyor
+- [x] `platform_utils.py` modülü oluşturulmuş ve ilgili dosyalar bunu kullanıyor
+- [x] 126 test geçiyor (regression yok)
+- [ ] Linux ortamında (WSL veya Docker) en az PingTool, SslScanTool, DnsLookupTool testi başarılı (üretim ortamında doğrulanacak)
 
 ---
 
