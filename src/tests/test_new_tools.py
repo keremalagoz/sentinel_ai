@@ -100,7 +100,7 @@ def test_coordinator_has_execute_methods(coordinator, method_name):
         (
             SslScanTool(),
             {"target": "example.com", "port": 8443},
-            ["cmd.exe", "/c"],
+            [],  # platform-dependent prefix
             ["openssl s_client", "example.com:8443", "-showcerts"],
         ),
         (
@@ -112,14 +112,14 @@ def test_coordinator_has_execute_methods(coordinator, method_name):
         (
             SubdomainEnumTool(),
             {"domain": "example.com", "wordlist": "subs.txt"},
-            ["powershell.exe", "-NoProfile", "-ExecutionPolicy", "Bypass", "-Command"],
-            ["$domain = 'example.com'", "$wordlist = 'subs.txt'", "nslookup"],
+            [],  # platform-dependent prefix
+            ["example.com", "nslookup", "FOUND:"],
         ),
         (
             WebAppScanTool(),
             {"url": "http://example.com"},
-            ["powershell.exe", "-NoProfile", "-ExecutionPolicy", "Bypass", "-Command"],
-            ["Invoke-WebRequest", "$url = 'http://example.com'", "TECH: WordPress"],
+            [],  # platform-dependent prefix
+            ["http://example.com", "curl", "TECH:"],
         ),
     ],
 )

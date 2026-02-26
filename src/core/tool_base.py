@@ -12,6 +12,14 @@ import time
 
 from PyQt6.QtCore import QProcess, QTimer, pyqtSignal, QObject
 
+from src.core.platform_utils import (
+    get_ping_count_flag,
+    build_echo_pipe_command,
+    get_shell,
+    get_shell_exec_flag,
+    is_windows,
+)
+
 
 class ToolStatus(str, Enum):
     """Tool execution status"""
@@ -329,9 +337,10 @@ class PingTool(BaseTool):
             count: Number of pings
             
         Returns:
-            Command: ["ping", "-n", "4", "192.168.1.10"]
+            Windows: ["ping", "-n", "4", "192.168.1.10"]
+            Linux:   ["ping", "-c", "4", "192.168.1.10"]
         """
-        return ["ping", "-n", str(count), target]
+        return ["ping", get_ping_count_flag(), str(count), target]
 
 
 class NmapPingSweepTool(BaseTool):
@@ -551,11 +560,8 @@ class SslScanTool(BaseTool):
         """
         # OpenSSL s_client with certificate details
         # Using echo to automatically close connection
-        cmd = [
-            "cmd.exe", "/c",
-            f"echo | openssl s_client -connect {target}:{port} -showcerts 2>&1"
-        ]
-        return cmd
+        payload = f"openssl s_client -connect {target}:{port} -showcerts 2>&1"
+        return build_echo_pipe_command(payload)
 
 
 class GobusterDirTool(BaseTool):
@@ -621,50 +627,48 @@ class SubdomainEnumTool(BaseTool):
         **kwargs
     ) -> List[str]:
         """
-        Build PowerShell subdomain enumeration command.
+        Build subdomain enumeration command (cross-platform).
         
         Args:
             domain: Target domain (e.g., example.com)
             wordlist: Path to subdomain wordlist (default: subdomains.txt)
             
         Returns:
-            PowerShell command to test subdomains
+            Platform-uyumlu shell komutu
         """
-        # PowerShell script to test subdomains
-        # If wordlist doesn't exist, use common subdomains
-        ps_script = f"""
-$domain = '{domain}'
-$wordlist = '{wordlist}'
+        common_subs = "www mail ftp admin api blog shop dev test staging"
 
-# Common subdomains if file doesn't exist
-$commonSubs = @('www', 'mail', 'ftp', 'admin', 'api', 'blog', 'shop', 'dev', 'test', 'staging')
+        if is_windows():
+            ps_script = (
+                f"$domain='{domain}'; $wl='{wordlist}'; "
+                f"$common=@({','.join(repr(s) for s in common_subs.split())}); "
+                "$subs = if (Test-Path $wl) { Get-Content $wl } else { $common }; "
+                "foreach ($s in $subs) { "
+                "  $fqdn=\"$s.$domain\"; "
+                "  try { $r = nslookup $fqdn 2>&1; "
+                "    if ($r -match '\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}') "
+                "    { Write-Output \"FOUND: $fqdn\" } "
+                "  } catch {} "
+                "}"
+            )
+            return ["powershell.exe", "-NoProfile", "-ExecutionPolicy", "Bypass",
+                    "-Command", ps_script]
 
-if (Test-Path $wordlist) {{
-    $subdomains = Get-Content $wordlist
-}} else {{
-    $subdomains = $commonSubs
-}}
-
-foreach ($sub in $subdomains) {{
-    $fqdn = "$sub.$domain"
-    try {{
-        $result = nslookup $fqdn 2>&1
-        if ($result -match '\\d{{1,3}}\\.\\d{{1,3}}\\.\\d{{1,3}}\\.\\d{{1,3}}') {{
-            Write-Output "FOUND: $fqdn"
-        }}
-    }} catch {{
-        # Ignore errors
-    }}
-}}
-"""
-        
-        # Encode PowerShell script to base64 for command line
-        cmd = [
-            "powershell.exe", "-NoProfile", "-ExecutionPolicy", "Bypass",
-            "-Command", ps_script
-        ]
-        
-        return cmd
+        # Linux / macOS — bash + nslookup
+        bash_script = (
+            f'DOMAIN="{domain}"; WORDLIST="{wordlist}"; '
+            f'COMMON="{common_subs}"; '
+            'if [ -f "$WORDLIST" ]; then SUBS=$(cat "$WORDLIST"); '
+            'else SUBS="$COMMON"; fi; '
+            'for SUB in $SUBS; do '
+            '  FQDN="$SUB.$DOMAIN"; '
+            '  RESULT=$(nslookup "$FQDN" 2>&1); '
+            '  if echo "$RESULT" | grep -qE "[0-9]+\\.[0-9]+\\.[0-9]+\\.[0-9]+"; then '
+            '    echo "FOUND: $FQDN"; '
+            '  fi; '
+            'done'
+        )
+        return ["bash", "-c", bash_script]
 
 
 class DnsLookupTool(BaseTool):
@@ -715,77 +719,41 @@ class WebAppScanTool(BaseTool):
         **kwargs
     ) -> List[str]:
         """
-        Build curl-based web app scan command.
+        Build curl-based web app scan command (cross-platform).
         
         Args:
             url: Target URL (e.g., http://example.com)
             
         Returns:
-            PowerShell command to fingerprint web technologies
+            Platform-uyumlu shell komutu (curl tabanli)
         """
-        # PowerShell script to analyze HTTP response
-        ps_script = f"""
-$url = '{url}'
-
-try {{
-    $response = Invoke-WebRequest -Uri $url -UseBasicParsing -TimeoutSec 30 -ErrorAction Stop
-    
-    # Extract server header
-    $server = $response.Headers['Server']
-    if ($server) {{
-        Write-Output "SERVER: $server"
-    }}
-    
-    # Extract X-Powered-By header
-    $poweredBy = $response.Headers['X-Powered-By']
-    if ($poweredBy) {{
-        Write-Output "POWERED-BY: $poweredBy"
-    }}
-    
-    # Extract content type
-    $contentType = $response.Headers['Content-Type']
-    if ($contentType) {{
-        Write-Output "CONTENT-TYPE: $contentType"
-    }}
-    
-    # Check for common technologies in HTML
-    $html = $response.Content
-    
-    if ($html -match 'WordPress|wp-content|wp-includes') {{
-        Write-Output "TECH: WordPress"
-    }}
-    if ($html -match 'Joomla') {{
-        Write-Output "TECH: Joomla"
-    }}
-    if ($html -match 'Drupal') {{
-        Write-Output "TECH: Drupal"
-    }}
-    if ($html -match 'Laravel') {{
-        Write-Output "TECH: Laravel"
-    }}
-    if ($html -match 'React') {{
-        Write-Output "TECH: React"
-    }}
-    if ($html -match 'Angular|ng-app') {{
-        Write-Output "TECH: Angular"
-    }}
-    if ($html -match 'Vue\\.js|v-app') {{
-        Write-Output "TECH: Vue.js"
-    }}
-    if ($html -match 'jQuery') {{
-        Write-Output "TECH: jQuery"
-    }}
-    
-    Write-Output "STATUS: $($response.StatusCode)"
-    
-}} catch {{
-    Write-Output "ERROR: $($_.Exception.Message)"
-}}
-"""
-        
-        cmd = [
-            "powershell.exe", "-NoProfile", "-ExecutionPolicy", "Bypass",
-            "-Command", ps_script
+        # Technology detection patterns
+        tech_patterns = [
+            ("WordPress|wp-content|wp-includes", "WordPress"),
+            ("Joomla", "Joomla"),
+            ("Drupal", "Drupal"),
+            ("Laravel", "Laravel"),
+            ("React", "React"),
+            ("Angular|ng-app", "Angular"),
+            ("Vue\\.js|v-app", "Vue.js"),
+            ("jQuery", "jQuery"),
         ]
-        
-        return cmd
+
+        grep_checks = "; ".join(
+            f'echo "$BODY" | grep -qiE "{pat}" && echo "TECH: {name}"'
+            for pat, name in tech_patterns
+        )
+
+        bash_script = (
+            f'URL="{url}"; '
+            'HEADERS=$(curl -sI -m 30 "$URL" 2>&1); '
+            'echo "$HEADERS" | grep -i "^Server:" | sed "s/^/SERVER: /"; '
+            'echo "$HEADERS" | grep -i "^X-Powered-By:" | sed "s/^/POWERED-BY: /"; '
+            'echo "$HEADERS" | grep -i "^Content-Type:" | sed "s/^/CONTENT-TYPE: /"; '
+            'STATUS=$(echo "$HEADERS" | head -1 | awk \'{print $2}\'); '
+            'echo "STATUS: $STATUS"; '
+            'BODY=$(curl -sL -m 30 "$URL" 2>&1); '
+            f'{grep_checks}'
+        )
+
+        return [get_shell(), get_shell_exec_flag(), bash_script]
