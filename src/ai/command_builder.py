@@ -5,6 +5,7 @@
 # ToolSpec ve parametreleri alir, calistirilabilir komut uretir.
 
 import re
+import threading
 from typing import Optional, List, Dict, Tuple
 from src.ai.schemas import ToolSpec, FinalCommand, RiskLevel
 
@@ -213,13 +214,16 @@ class CommandBuilder:
 # =============================================================================
 
 _builder: Optional[CommandBuilder] = None
+_builder_lock = threading.Lock()
 
 
 def get_command_builder() -> CommandBuilder:
-    """Singleton CommandBuilder instance doner"""
+    """Singleton CommandBuilder instance doner (thread-safe)"""
     global _builder
     if _builder is None:
-        _builder = CommandBuilder()
+        with _builder_lock:
+            if _builder is None:
+                _builder = CommandBuilder()
     return _builder
 
 

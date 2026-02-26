@@ -8,6 +8,8 @@
 
 from typing import Optional, Dict, Any
 import logging
+import time
+import threading
 from dotenv import load_dotenv
 
 # V2 Imports
@@ -22,6 +24,7 @@ from src.ai.schemas import (
     AIResponse,
 )
 from src.ai.intent_resolver import IntentResolver, get_intent_resolver
+from src.ai.keyword_filter import KeywordPreFilter
 from src.ai.tool_registry import (
     build_tool_spec,
     get_tool_for_intent,
@@ -48,6 +51,12 @@ class AIOrchestrator:
     - Tool metadata (requires_root, risk) statik, LLM'den bagimsiz
     - Her katman ayri test edilebilir
     """
+
+    # Confidence esik degeri: Bu degerin altinda clarification istenir
+    CONFIDENCE_THRESHOLD: float = 0.7
+
+    # Maksimum LLM yanit suresi (ms). Asildiyinda keyword fallback denenebilir.
+    MAX_RESPONSE_MS: int = 10_000
     
     def __init__(self, model: str = "whiterabbitneo", coordinator=None):
         """
@@ -63,6 +72,7 @@ class AIOrchestrator:
         # V2 Components
         self._intent_resolver = IntentResolver(model=model)
         self._command_builder = CommandBuilder()
+        self._keyword_filter = KeywordPreFilter()
         
         # Cache
         self._last_intent: Optional[Intent] = None
@@ -106,10 +116,43 @@ class AIOrchestrator:
         # =====================================================================
         logger.debug("Resolving intent for input='%s...'", user_input[:50])
         
+        t0 = time.monotonic()
         intent = self._intent_resolver.resolve(user_input, target)
+        elapsed_ms = (time.monotonic() - t0) * 1000
+
+        if elapsed_ms > self.MAX_RESPONSE_MS:
+            logger.warning(
+                "Intent resolution slow: %.0f ms (budget: %d ms)",
+                elapsed_ms,
+                self.MAX_RESPONSE_MS,
+            )
+
         self._last_intent = intent
         result["intent"] = intent
+
+        # Keyword pre-filter cross-validation (C2)
+        kf_ok, kf_msg = self._keyword_filter.cross_validate(
+            intent.intent_type, user_input,
+        )
+        if not kf_ok:
+            logger.info("Keyword cross-validation mismatch: %s", kf_msg)
         
+        # Confidence dusukse clarification iste
+        if intent.confidence < self.CONFIDENCE_THRESHOLD and not intent.needs_clarification:
+            logger.info(
+                "Low confidence %.2f (threshold %.2f) for intent %s, requesting clarification",
+                intent.confidence,
+                self.CONFIDENCE_THRESHOLD,
+                intent.intent_type.value,
+            )
+            result["message"] = (
+                f"Talebinizi tam olarak anlayamadim "
+                f"(guven: {intent.confidence:.0%}). "
+                f"Lutfen daha acik belirtin."
+            )
+            result["needs_clarification"] = True
+            return result
+
         # Netlestime gerekli mi?
         if intent.needs_clarification:
             result["message"] = intent.clarification_reason or "Lutfen talebi netlestirin."
@@ -131,7 +174,7 @@ class AIOrchestrator:
         # =====================================================================
         # 2. TOOL REGISTRY - Intent -> ToolSpec
         # =====================================================================
-        # Target: UI'dan gelen, intent'ten cikan, veya params'tan
+        # Target: Mesajdan/intent'ten cikan veya params'tan
         final_target = target or intent.target or intent.params.get("target")
         
         # Debug logging
@@ -145,7 +188,10 @@ class AIOrchestrator:
         
         # Target validation
         if not final_target:
-            result["message"] = "Hedef IP adresi belirtilmedi. Lütfen 'Hedef' alanına IP/domain girin."
+            result["message"] = (
+                "Hedef belirtilmedi. Lütfen mesajına IP veya domain ekleyerek tekrar dene. "
+                "Örnek: '192.168.1.20 port taraması yap'"
+            )
             result["needs_clarification"] = True
             return result
         
@@ -331,11 +377,12 @@ class AIOrchestrator:
 # =============================================================================
 
 _orchestrator: Optional[AIOrchestrator] = None
+_orchestrator_lock = threading.Lock()
 
 
 def get_orchestrator(model: str = "whiterabbitneo") -> AIOrchestrator:
     """
-    Singleton orchestrator instance doner.
+    Singleton orchestrator instance doner (thread-safe).
     
     Kullanim:
         from src.ai.orchestrator import get_orchestrator
@@ -345,7 +392,9 @@ def get_orchestrator(model: str = "whiterabbitneo") -> AIOrchestrator:
     """
     global _orchestrator
     if _orchestrator is None:
-        _orchestrator = AIOrchestrator(model=model)
+        with _orchestrator_lock:
+            if _orchestrator is None:
+                _orchestrator = AIOrchestrator(model=model)
     return _orchestrator
 
 

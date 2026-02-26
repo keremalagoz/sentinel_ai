@@ -351,7 +351,7 @@ def build_tool_spec(
     """
     # Target validation for most tools
     if not target and intent_type not in [IntentType.INFO_QUERY, IntentType.UNKNOWN]:
-        raise ValueError("Hedef IP adresi belirtilmedi")
+        raise ValueError("Hedef belirtilmedi; lütfen IP veya domain ekleyin")
     
     tool_def = get_tool_for_intent(intent_type)
     

@@ -1,6 +1,6 @@
 # SENTINEL AI - Sprint Roadmap (Güncel)
 
-**Güncelleme Tarihi:** 25 Şubat 2026  
+**Güncelleme Tarihi:** 26 Şubat 2026  
 **Mimari:** Action Planner v2.1 (Local-Only LLM + Deterministic Command Builder)
 
 ---
@@ -73,25 +73,31 @@ Temel akış:
 
 ---
 
-## 3.1) Hızlı Durum Özeti
-
-- Mimari: Local-only LLM + deterministic execution
-- Test sağlığı: full suite yeşil (111 passed)
-- Operasyonel odak: telemetry görünürlüğü + Sprint 4 veri modeli hazırlığı
+### Sprint 3.6 - Optimizasyon ve Platform Hazırlığı
+- **Track A:** Kritik bugfix (merkezi logging, callback safety, BackendGateway fix, dok senkronizasyonu)
+- **Track B:** Linux platform uyumluluğu (5 Windows-bağımlı tool komutu düzeltme, platform_utils modülü)
+- **Track C:** AI ölçeklenme altyapısı (intent confidence skoru, keyword pre-filter, response time budget)
+- **Track D:** Kod kalitesi (tool_base.py bölme, SQLite WAL, legacy schema temizliği)
+- Detaylı plan: [sprint_3_6_plan.md](sprint_3_6_plan.md)
 
 ---
 
-## 4) Aktif Öncelikler (Kısa Vade)
+## 3.1) Hızlı Durum Özeti
 
-1. **Dokümantasyon-kod senkronizasyonu**
-  - README, PROJECT_STRUCTURE, son_durum, sprint_roadmap eşlenik tutulmalı
-2. **Runtime telemetry görünürlüğü**
-  - Queue ve tool süre metriklerinin UI/rapor tarafına taşınması
-3. **Sprint 4 hazırlığı (veri modeli/adapter)**
-  - Parse çıktılarını model katmanına standardize etme
+- Mimari: Local-only LLM + deterministic execution
+- Test sağlığı: full suite yeşil (112 passed)
+- Aktif sprint: **Sprint 3.6** (Optimizasyon ve Platform Hazırlığı)
+- Operasyonel odak: P0 bugfix, Linux uyumluluk, AI scaling altyapısı
 
-4. **Doküman sadeleştirme**
-  - Uzun tarihsel bölümler yerine karar ve mevcut durum odaklı anlatım
+---
+
+## 4) Aktif Öncelikler (Sprint 3.6)
+
+1. **P0 Bugfix** — Merkezi logging, callback deadlock fix, BackendGateway güvenlik düzeltmesi
+2. **Linux Platform Uyumu** — 5 Windows-only tool komutu düzeltme, platform_utils modülü
+3. **AI Ölçeklenme** — Intent confidence skoru, keyword pre-filter, response time budget
+4. **Kod Kalitesi** — tool_base.py dosya bölme, SQLite WAL mode
+5. **Dokümantasyon senkronizasyonu** — PROJECT_STRUCTURE, README güncellemesi
 
 ---
 
@@ -135,9 +141,10 @@ Bir sprint maddesi tamamlandı sayılması için:
 
 ## 8) Kısa Backlog (Öncelik Sırası)
 
-1. Telemetry verisini UI'da görünür yap
-2. `models.py` + `nmap_adapter.py` ilk çalışan sürüm
-3. Sonuç modeline bağlı öneri üretim prototipi
-4. Plugin altyapısı için minimum arayüz
+1. ~~Telemetry verisini UI'da görünür yap~~ → Sprint 3.6 Track C'ye taşındı
+2. `models.py` + `nmap_adapter.py` ilk çalışan sürüm (Sprint 4)
+3. Sonuç modeline bağlı öneri üretim prototipi (Sprint 5)
+4. Plugin altyapısı için minimum arayüz (Sprint 6)
+5. Dual-model stratejisi benchmark (Sprint 4-5 arası)
 
 

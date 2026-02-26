@@ -5,6 +5,7 @@ import os
 import platform
 import shutil
 import time
+import tempfile
 
 class ExecutionMode(Enum):
     DOCKER = "docker"      # Container içinde çalıştır (Tercih edilen)
@@ -98,7 +99,9 @@ class ExecutionManager:
         # Varsayılan (Native) ayarlar
         final_cmd = tool
         final_args = list(args)
-        temp_root = "/tmp/" if self.is_linux else os.path.join(os.environ.get("TEMP", "."), "sentinel")
+        temp_root = tempfile.gettempdir() if self.is_linux else os.path.join(
+            os.environ.get("TEMP", tempfile.gettempdir()), "sentinel"
+        )
         
         if self.mode == ExecutionMode.DOCKER:
             from src.core.docker_runner import get_docker_command
@@ -126,7 +129,7 @@ class ExecutionManager:
     def get_temp_path(self, filename: str) -> str:
         """
         Moda göre güvenli geçici dosya yolu üretir.
-        Örn: /app/output/sentinel_xyz.xml veya C:\Temp\sentinel\sentinel_xyz.xml
+        Orn: /app/output/sentinel_xyz.xml veya C:\\Temp\\sentinel\\sentinel_xyz.xml
         """
         import uuid
         safe_filename = f"sentinel_{uuid.uuid4().hex[:8]}_{filename}"
@@ -136,10 +139,12 @@ class ExecutionManager:
         if self.mode == ExecutionMode.DOCKER:
             return f"/app/output/{safe_filename}"
         elif self.is_linux:
-            return f"/tmp/{safe_filename}"
+            return os.path.join(tempfile.gettempdir(), safe_filename)
         else:
             # Windows
-            base = os.path.join(os.environ.get("TEMP", "."), "sentinel")
+            base = os.path.join(
+                os.environ.get("TEMP", tempfile.gettempdir()), "sentinel"
+            )
             os.makedirs(base, exist_ok=True)
             return os.path.join(base, safe_filename)
 

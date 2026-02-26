@@ -100,7 +100,7 @@ def test_coordinator_has_execute_methods(coordinator, method_name):
         (
             SslScanTool(),
             {"target": "example.com", "port": 8443},
-            ["cmd.exe", "/c"],
+            [],  # platform-dependent prefix
             ["openssl s_client", "example.com:8443", "-showcerts"],
         ),
         (
@@ -112,14 +112,14 @@ def test_coordinator_has_execute_methods(coordinator, method_name):
         (
             SubdomainEnumTool(),
             {"domain": "example.com", "wordlist": "subs.txt"},
-            ["powershell.exe", "-NoProfile", "-ExecutionPolicy", "Bypass", "-Command"],
-            ["$domain = 'example.com'", "$wordlist = 'subs.txt'", "nslookup"],
+            [],  # platform-dependent prefix
+            ["example.com", "nslookup", "FOUND:"],
         ),
         (
             WebAppScanTool(),
             {"url": "http://example.com"},
-            ["powershell.exe", "-NoProfile", "-ExecutionPolicy", "Bypass", "-Command"],
-            ["Invoke-WebRequest", "$url = 'http://example.com'", "TECH: WordPress"],
+            [],  # platform-dependent prefix
+            ["http://example.com", "curl", "TECH:"],
         ),
     ],
 )
@@ -277,7 +277,7 @@ def test_adaptive_timeout_estimation_for_scan_tools():
 
 
 def test_tool_manager_runtime_metrics_shape():
-    """Runtime metric çıktısı temel alanları içermeli."""
+    """Runtime metric ciktisi temel alanlari icermeli."""
     backend = SQLiteBackend(":memory:")
     manager = ToolManager(backend=backend, max_concurrent=1, max_queue_size=3)
 
@@ -293,5 +293,62 @@ def test_tool_manager_runtime_metrics_shape():
     assert isinstance(metrics["active_executions"], int)
     assert isinstance(metrics["queued_executions"], int)
     assert isinstance(metrics["per_tool_active"], dict)
+
+    backend.close()
+
+
+def test_tool_manager_callback_exception_does_not_deadlock():
+    """User callback patlasa bile _active_count duzelmeli ve kuyruk ilerlemeli."""
+    backend = SQLiteBackend(":memory:")
+    manager = ToolManager(backend=backend, max_concurrent=1, max_queue_size=5)
+
+    captured_callback = {}
+
+    class _DummyIntegratedTool:
+        def execute(self, callback=None, **kwargs):
+            # Callback'i yakala, manuel cagirmak icin
+            captured_callback["cb"] = callback
+
+        def cancel(self):
+            pass
+
+    manager._tools["dummy"] = _DummyIntegratedTool()
+    manager._tool_active_counts["dummy"] = 0
+    manager._tool_limits["dummy"] = 1
+
+    # Tool'u "patlayan" bir callback ile calistir
+    errors_caught = []
+
+    def exploding_callback(result):
+        raise RuntimeError("Boom! User callback exploded")
+
+    assert manager.execute_tool("dummy", callback=exploding_callback, target="127.0.0.1") is True
+    assert manager.active_executions == 1
+
+    # Simdi tool bitmis gibi callback'i cagiralim (sahte result)
+    from src.core.tool_integration import IntegratedToolResult
+    from src.core.tool_base import ToolStatus
+    from src.core.sqlite_backend import ExecutionStatus, ParseStatus
+
+    fake_result = IntegratedToolResult(
+        tool_id="dummy",
+        execution_id="exec_test",
+        tool_status=ToolStatus.SUCCESS,
+        execution_status=ExecutionStatus.SUCCESS,
+        parse_status=ParseStatus.PARSED,
+        entities_created=0,
+        stdout="",
+        stderr="",
+        exit_code=0,
+        duration=1.0,
+    )
+
+    # Bu PATLAMAYACAK cunku callback exception izole edilmis
+    captured_callback["cb"](fake_result)
+
+    # Kritik assertion: _active_count sifira donmeli
+    assert manager.active_executions == 0, (
+        f"active_count should be 0 after callback exception, got {manager.active_executions}"
+    )
 
     backend.close()

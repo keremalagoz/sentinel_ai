@@ -3,19 +3,37 @@ SENTINEL AI - Main Window (Unified Design)
 Single header, cohesive layout
 """
 
-import sys
 from PyQt6.QtWidgets import (
     QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
-    QFrame, QLabel, QPushButton, QSplitter, QApplication
+    QFrame, QLabel, QPushButton, QSplitter
 )
-from PyQt6.QtCore import Qt, QTimer
+from PyQt6.QtCore import Qt, QThread, pyqtSignal
 from PyQt6.QtGui import QFont
 
 from src.ui.styles import Colors, Fonts, GLOBAL_STYLE
 from src.ui.terminal_view import TerminalView
 from src.ui.chat_interface import ChatInterface
 from src.ui.settings_dialog import SecuritySettingsDialog
-from src.core.process_manager import AdvancedProcessManager
+from src.application.backend_gateway import BackendGateway
+
+
+class AIWorker(QThread):
+    """AI sorgularını UI'yi bloklamadan arka planda çalıştırır."""
+
+    result_ready = pyqtSignal(object)
+    error_occurred = pyqtSignal(str)
+
+    def __init__(self, gateway: BackendGateway, user_text: str):
+        super().__init__()
+        self._gateway = gateway
+        self._user_text = user_text
+
+    def run(self):
+        try:
+            response = self._gateway.ask_ai(self._user_text)
+            self.result_ready.emit(response)
+        except Exception as error:
+            self.error_occurred.emit(str(error))
 
 
 class MainWindow(QMainWindow):
@@ -33,7 +51,9 @@ class MainWindow(QMainWindow):
         self.setWindowTitle("SENTINEL AI")
         self.setMinimumSize(1200, 700)
         
-        self.process_manager = AdvancedProcessManager()
+        self.backend = BackendGateway(model="whiterabbitneo")
+        self.process_manager = self.backend.process_manager
+        self._ai_worker = None
         self._is_swapped = False
         
         self.setStyleSheet(GLOBAL_STYLE)
@@ -233,56 +253,42 @@ class MainWindow(QMainWindow):
     # ── Command Execution ──
     
     def _execute_command(self, command: str):
-        parts = command.split()
-        if not parts:
+        cmd, args, requires_root = self.backend.parse_command(command)
+        if not cmd:
             return
-        cmd = parts[0]
-        args = parts[1:] if len(parts) > 1 else []
-        requires_root = any(x in command for x in ['sudo', '-sS', '-sU', '--privileged'])
         self.terminal_view.start_command(cmd, args, requires_root)
         self.chat_interface.show_stop_button()
     
     def _execute_command_from_terminal(self, command: str):
-        parts = command.split()
-        if not parts:
+        cmd, args, requires_root = self.backend.parse_command(command)
+        if not cmd:
             return
-        cmd = parts[0]
-        args = parts[1:] if len(parts) > 1 else []
-        requires_root = any(x in command for x in ['sudo', '-sS', '-sU', '--privileged'])
         self.terminal_view.start_command(cmd, args, requires_root)
     
     def _handle_user_message(self, text: str):
-        """Process user message - MOCK AI for now"""
+        """Process user message with real AI orchestrator."""
         self.chat_interface.add_user_message(text)
-        QTimer.singleShot(500, lambda: self._generate_mock_response(text))
-    
-    def _generate_mock_response(self, user_text: str):
-        """Generate mock AI response"""
-        text_lower = user_text.lower()
-        response = "I can help you with security testing. Try asking me to scan a network or check a target."
-        command = None
-        
-        if "scan" in text_lower and "network" in text_lower:
-            response = "Here is a ping sweep command to discover hosts on your local network:"
-            command = "nmap -sn 192.168.1.0/24"
-        elif "port" in text_lower and "scan" in text_lower:
-            response = "Running a port scan on the target. This may take a moment."
-            command = "nmap -sT -T4 192.168.1.1"
-        elif "nmap" in text_lower:
-            response = "Running a port scan on the target. This may take a moment."
-            command = "nmap -sT -T4 192.168.1.1"
-        elif "ping" in text_lower:
-            response = "Here's a ping command to test connectivity:"
-            command = "ping -n 4 google.com" if sys.platform == "win32" else "ping -c 4 google.com"
-        elif "ip" in text_lower or "network" in text_lower:
-            response = "Checking network configuration:"
-            command = "ipconfig" if sys.platform == "win32" else "ip addr"
-        elif any(x in text_lower for x in ['merhaba', 'hello', 'hi', 'selam']):
-            response = "Hello! I'm Sentinel AI, your security testing assistant. What would you like to analyze today?"
-        else:
-            response = "I can help you with: network scanning, port analysis, vulnerability detection, and more. Just describe what you want to do!"
-        
-        self.chat_interface.add_ai_message(response, command)
+
+        if self._ai_worker and self._ai_worker.isRunning():
+            self.chat_interface.add_ai_message("Önceki AI isteği hâlâ işleniyor, lütfen birkaç saniye bekleyin.")
+            return
+
+        self._ai_worker = AIWorker(self.backend, text)
+        self._ai_worker.result_ready.connect(self._on_ai_result)
+        self._ai_worker.error_occurred.connect(self._on_ai_error)
+        self._ai_worker.start()
+
+    def _on_ai_result(self, response):
+        command_text = None
+        if getattr(response, "command", None):
+            command = response.command
+            command_text = f"{command.tool} {' '.join(command.arguments)}".strip()
+
+        message = getattr(response, "message", None) or "AI yanıtı alınamadı."
+        self.chat_interface.add_ai_message(message, command_text)
+
+    def _on_ai_error(self, error: str):
+        self.chat_interface.add_ai_message(f"AI hatası: {error}")
     
     # ── Event Handlers ──
     
@@ -302,10 +308,13 @@ class MainWindow(QMainWindow):
         self.chat_interface.hide_action_buttons()
     
     def _on_settings(self):
-        dialog = SecuritySettingsDialog(self)
+        dialog = SecuritySettingsDialog(
+            self,
+            cleanup_handler=self.backend.cleanup_old_sessions,
+        )
         dialog.exec()
     
     def closeEvent(self, event):
         self.chat_interface.save_on_close()
-        self.process_manager.stop_process()
+        self.backend.shutdown()
         event.accept()
