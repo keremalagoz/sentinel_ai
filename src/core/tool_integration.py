@@ -375,10 +375,11 @@ class ToolManager:
             len(self._queue),
         )
 
-        def _wrapped_callback(result: IntegratedToolResult):
+        def _wrapped_callback(result: IntegratedToolResult) -> None:
+            tool_run_ms = result.duration * 1000.0
             try:
                 result.queue_wait_ms = queue_wait_ms
-                result.tool_run_ms = result.duration * 1000.0
+                result.tool_run_ms = tool_run_ms
                 self._recent_metrics.append(
                     {
                         "tool_id": tool_id,
@@ -395,13 +396,27 @@ class ToolManager:
                     result.tool_run_ms,
                     result.success,
                 )
+            except Exception:
+                logger.exception(
+                    "Error recording metrics for tool_id=%s", tool_id
+                )
 
-                if callback:
+            # User callback ayri try blogu — patlarsa _active_count etkilenmez
+            if callback:
+                try:
                     callback(result)
-            finally:
-                self._active_count = max(0, self._active_count - 1)
-                self._tool_active_counts[tool_id] = max(0, self._tool_active_counts.get(tool_id, 1) - 1)
-                self._drain_queue()
+                except Exception:
+                    logger.exception(
+                        "User callback raised exception for tool_id=%s",
+                        tool_id,
+                    )
+
+            # Sayaclari DAIMA dusur, kuyrugu DAIMA ilerlet
+            self._active_count = max(0, self._active_count - 1)
+            self._tool_active_counts[tool_id] = max(
+                0, self._tool_active_counts.get(tool_id, 1) - 1
+            )
+            self._drain_queue()
 
         try:
             tool.execute(callback=_wrapped_callback, **tool_kwargs)
