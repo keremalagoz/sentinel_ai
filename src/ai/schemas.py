@@ -105,6 +105,13 @@ class Intent(BaseModel):
         description="Neden netlestime gerekiyor"
     )
 
+    confidence: float = Field(
+        default=1.0,
+        ge=0.0,
+        le=1.0,
+        description="Intent guvenliligi (0.0-1.0). LLM'in kendi tahminine olan guveni."
+    )
+
 
 class ToolDef(BaseModel):
     """
@@ -142,6 +149,17 @@ class ToolDef(BaseModel):
     arg_templates: Dict[str, str] = Field(
         default_factory=dict,
         description="Parametre sablonlari: {'ports': '-p {value}', 'wordlist': '-w {value}'}"
+    )
+
+    priority: int = Field(
+        default=0,
+        ge=0,
+        description="Ayni intent'e birden fazla tool eslenirse oncelik sirasi (yuksek = tercih edilir)"
+    )
+
+    condition: Optional[str] = Field(
+        default=None,
+        description="Tool secim kosulu (orn: 'target_is_url', 'has_wordlist'). Sprint 5'te aktif routing icin."
     )
 
 
@@ -213,9 +231,15 @@ INTENT_SCHEMA = {
             "clarification_reason": {
                 "type": ["string", "null"],
                 "description": "Netlestime nedeni"
+            },
+            "confidence": {
+                "type": "number",
+                "minimum": 0.0,
+                "maximum": 1.0,
+                "description": "Intent guvenliligi (0.0-1.0)"
             }
         },
-        "required": ["intent_type", "target", "params", "needs_clarification", "clarification_reason"],
+        "required": ["intent_type", "target", "params", "needs_clarification", "clarification_reason", "confidence"],
         "additionalProperties": False
     }
 }

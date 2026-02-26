@@ -61,34 +61,41 @@ CIKTI FORMATI (STRICT JSON):
         "wordlist": "wordlist tercihi (varsa)"
     },
     "needs_clarification": false,
-    "clarification_reason": null
+    "clarification_reason": null,
+    "confidence": 0.95
 }
+
+CONFIDENCE KURALLARI:
+- 0.9-1.0: Niyet cok net, kesin esleme
+- 0.7-0.9: Niyet buyuk olasilikla dogru
+- 0.5-0.7: Belirsiz, clarification gerekebilir
+- 0.0-0.5: Anlasılamadı, needs_clarification=true yap
 
 ORNEKLER:
 
 Girdi: "192.168.1.0/24 agini tara"
-Cikti: {"intent_type": "host_discovery", "target": "192.168.1.0/24", "params": {}, "needs_clarification": false, "clarification_reason": null}
+Cikti: {"intent_type": "host_discovery", "target": "192.168.1.0/24", "params": {}, "needs_clarification": false, "clarification_reason": null, "confidence": 0.95}
 
 Girdi: "example.com portlarini tara"
-Cikti: {"intent_type": "port_scan", "target": "example.com", "params": {}, "needs_clarification": false, "clarification_reason": null}
+Cikti: {"intent_type": "port_scan", "target": "example.com", "params": {}, "needs_clarification": false, "clarification_reason": null, "confidence": 0.95}
 
 Girdi: "hedef ağda tam tarama yap"
-Cikti: {"intent_type": "port_scan", "target": null, "params": {}, "needs_clarification": false, "clarification_reason": null}
+Cikti: {"intent_type": "port_scan", "target": null, "params": {}, "needs_clarification": false, "clarification_reason": null, "confidence": 0.8}
 
 Girdi: "tarama yap"
-Cikti: {"intent_type": "port_scan", "target": null, "params": {}, "needs_clarification": false, "clarification_reason": null}
+Cikti: {"intent_type": "port_scan", "target": null, "params": {}, "needs_clarification": false, "clarification_reason": null, "confidence": 0.6}
 
 Girdi: "80 ve 443 portlarini kontrol et 10.0.0.1 de"
-Cikti: {"intent_type": "port_scan", "target": "10.0.0.1", "params": {"ports": "80,443"}, "needs_clarification": false, "clarification_reason": null}
+Cikti: {"intent_type": "port_scan", "target": "10.0.0.1", "params": {"ports": "80,443"}, "needs_clarification": false, "clarification_reason": null, "confidence": 0.95}
 
 Girdi: "web sitesinde dizin ara"
-Cikti: {"intent_type": "web_dir_enum", "target": null, "params": {}, "needs_clarification": false, "clarification_reason": null}
+Cikti: {"intent_type": "web_dir_enum", "target": null, "params": {}, "needs_clarification": false, "clarification_reason": null, "confidence": 0.85}
 
 Girdi: "nmap nedir?"
-Cikti: {"intent_type": "info_query", "target": null, "params": {}, "needs_clarification": false, "clarification_reason": null}
+Cikti: {"intent_type": "info_query", "target": null, "params": {}, "needs_clarification": false, "clarification_reason": null, "confidence": 0.95}
 
 Girdi: "birseyler yap"
-Cikti: {"intent_type": "unknown", "target": null, "params": {}, "needs_clarification": true, "clarification_reason": "Ne yapmak istediginizi anlayamadim"}
+Cikti: {"intent_type": "unknown", "target": null, "params": {}, "needs_clarification": true, "clarification_reason": "Ne yapmak istediginizi anlayamadim", "confidence": 0.2}
 """
 
 
@@ -236,7 +243,8 @@ class IntentResolver:
                 target=data.get("target"),
                 params=data.get("params", {}),
                 needs_clarification=data.get("needs_clarification", False),
-                clarification_reason=data.get("clarification_reason")
+                clarification_reason=data.get("clarification_reason"),
+                confidence=float(data.get("confidence", 1.0)),
             )
             
         except json.JSONDecodeError:
@@ -290,11 +298,16 @@ class IntentResolver:
             "target",
             "params",
             "needs_clarification",
-            "clarification_reason"
+            "clarification_reason",
         }
+        # confidence opsiyonel kabul edilir (eski LLM uyumlulugu icin)
+        allowed_keys = required_keys | {"confidence"}
 
-        if set(data.keys()) != required_keys:
-            return (False, "beklenen alanlar eksik veya fazla")
+        if not required_keys.issubset(set(data.keys())):
+            return (False, "beklenen alanlar eksik")
+
+        if not set(data.keys()).issubset(allowed_keys):
+            return (False, "beklenmeyen alan mevcut")
 
         if not isinstance(data["intent_type"], str):
             return (False, "intent_type string degil")
