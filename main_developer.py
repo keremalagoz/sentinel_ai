@@ -18,9 +18,11 @@
 
 import sys
 import os
+import logging
 
 # Proje root'unu path'e ekle
-sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+PROJECT_ROOT = os.path.dirname(os.path.abspath(__file__))
+sys.path.insert(0, PROJECT_ROOT)
 
 from PyQt6.QtWidgets import (
     QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
@@ -910,7 +912,13 @@ class SentinelDeveloperWindow(QMainWindow):
 # Entry Point
 # =============================================================================
 
-def main():
+def main() -> None:
+    # Merkezi logging - main.py ile ayni yapiyi kullan
+    from main import setup_logging
+    setup_logging()
+    logger = logging.getLogger(__name__)
+    logger.info("SENTINEL AI starting (developer mode)")
+
     # Print banner to console
     print(DEVELOPER_BANNER)
     
