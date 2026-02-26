@@ -15,7 +15,6 @@ from PyQt6.QtWidgets import (
 from PyQt6.QtCore import pyqtSignal, Qt
 
 from src.ui.styles import Colors, Fonts
-from src.core.cleaner import get_cleaner
 
 
 class SecuritySettingsDialog(QDialog):
@@ -25,10 +24,11 @@ class SecuritySettingsDialog(QDialog):
     
     settings_changed = pyqtSignal(dict)
     
-    def __init__(self, parent=None):
+    def __init__(self, parent=None, cleanup_handler=None):
         super().__init__(parent)
         self.setWindowTitle("Security Settings")
         self.setFixedSize(400, 350)
+        self._cleanup_handler = cleanup_handler
         self.setStyleSheet(f"""
             QDialog {{
                 background-color: {Colors.BG_PRIMARY};
@@ -52,7 +52,6 @@ class SecuritySettingsDialog(QDialog):
             }}
         """)
         
-        self._cleaner = get_cleaner()
         self._setup_ui()
         
     def _setup_ui(self) -> None:
@@ -191,7 +190,9 @@ class SecuritySettingsDialog(QDialog):
     def _on_clean_now(self) -> None:
         """Execute cleanup with current settings"""
         days = self._days_spin.value()
-        deleted = self._cleaner.cleanup_old_sessions(days=days)
+        deleted = 0
+        if self._cleanup_handler:
+            deleted = self._cleanup_handler(days)
         
         if deleted > 0:
             self._status_label.setText(f"[OK] Deleted {deleted} old session(s)")

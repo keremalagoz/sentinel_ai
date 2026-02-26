@@ -131,7 +131,7 @@ class AIOrchestrator:
         # =====================================================================
         # 2. TOOL REGISTRY - Intent -> ToolSpec
         # =====================================================================
-        # Target: UI'dan gelen, intent'ten cikan, veya params'tan
+        # Target: Mesajdan/intent'ten cikan veya params'tan
         final_target = target or intent.target or intent.params.get("target")
         
         # Debug logging
@@ -145,7 +145,10 @@ class AIOrchestrator:
         
         # Target validation
         if not final_target:
-            result["message"] = "Hedef IP adresi belirtilmedi. Lütfen 'Hedef' alanına IP/domain girin."
+            result["message"] = (
+                "Hedef belirtilmedi. Lütfen mesajına IP veya domain ekleyerek tekrar dene. "
+                "Örnek: '192.168.1.20 port taraması yap'"
+            )
             result["needs_clarification"] = True
             return result
         
