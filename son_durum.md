@@ -11,13 +11,16 @@
 
 - Proje altyapısı, Docker servisleri ve temel UI/Core iskeleti tamamlandı.
 - Action Planner v2.1 deterministic akışı devreye alındı.
-- Local AI (WhiteRabbitNeo/Ollama) ile intent çözümleme stabilize edildi.
+- Local AI (WhiteRabbitNeo → Qwen 2.5 3B) ile intent çözümleme stabilize edildi.
 
 ---
 
 ## Mevcut Durum (Özet)
 
-- Mimari: Local-only LLM + deterministic tool execution
+- Mimari: Local-only LLM (Qwen 2.5 3B / Ollama) + deterministic tool execution
+- Model: Qwen 2.5 3B Instruct Q4_K_M (1.84 GB, 29+ dil, 151K vocab)
+- Intent Pipeline: Keyword Pre-Filter → Stage 1 (5 kategori) → Stage 2 (16 intent)
+- Benchmark: %100 doğruluk (30/30, hierarchical mod)
 - Kararlılık: Queue/backpressure, per-tool limit, retry/backoff aktif
 - Güvenilirlik: Registry drift guard (startup + test) aktif
 - Gözlemlenebilirlik: Runtime telemetry (`queue_wait_ms`, `tool_run_ms`) mevcut
@@ -29,7 +32,7 @@
 
 | Container | Port | İçerik |
 |-----------|------|--------|
-| sentinel-whiterabbitneo | 8002 | WhiteRabbitNeo AI (Ollama) |
+| sentinel-ollama | 11434 | Qwen 2.5 3B AI (Ollama) |
 | sentinel-api | 8000 | API Backend |
 | sentinel-tools | - | Nmap, Gobuster, Nikto, Hydra |
 
@@ -130,6 +133,8 @@
 | 3.7.6 | Orchestrator feature flag | Kerem | [OK] |
 | 3.7.7 | Flat vs Hierarchical benchmark | Kerem | [OK] |
 | 3.7.8 | Unit testler (57 test) | Kerem | [OK] |
+| 3.7.9 | Model değişimi: WhiteRabbitNeo 7B → Qwen 2.5 3B | Kerem | [OK] |
+| 3.7.10 | Docker/doküman güncellemesi | Kerem | [OK] |
 
 ---
 

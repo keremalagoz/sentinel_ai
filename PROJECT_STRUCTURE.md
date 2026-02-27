@@ -1,8 +1,8 @@
 # SENTINEL AI - Proje Yapısı (Sadeleştirilmiş)
 
-**Versiyon**: Action Planner v2.1 - Sprint 3.6 (Optimizasyon ve Platform Hazirlıgi)  
-**Tarih**: 26 Subat 2026  
-**Mimari**: Local-Only LLM + Deterministic Execution + Runtime Hardening
+**Versiyon**: Action Planner v2.1 - Sprint 3.7 (Hybrid LLM Motoru + Qwen 2.5 3B)  
+**Tarih**: 28 Subat 2026  
+**Mimari**: Local-Only LLM (Qwen 2.5 3B) + 2-Asamali Intent Resolution + Deterministic Execution
 
 > Not: Bu doküman sadeleştirme sürecindedir. Öncelik, mevcut çalışma mimarisi ve aktif modüllerin net gösterimidir.
 
@@ -12,7 +12,7 @@
 
 Ana akış:
 
-`User Input -> Intent Resolver -> Tool Registry -> Command Builder -> ToolManager -> Parser -> SQLite`
+`User Input -> Keyword Pre-Filter -> [Stage 1: Category] -> [Stage 2: Sub-Intent] -> Tool Registry -> Command Builder -> ToolManager -> Parser -> SQLite`
 
 Sistem garantileri:
 - Queue backpressure
@@ -40,10 +40,12 @@ sentinel_root/
 │
 ├── src/                         # Ana kaynak kodu
 │   ├── ai/                      # AI Modülleri (Local-only)
-│   │   ├── orchestrator.py      # AI Orchestrator (Local-Only)
-│   │   ├── intent_resolver.py   # Intent detection (LLM -> intent)
+│   │   ├── orchestrator.py      # AI Orchestrator (Local-Only, feature flag)
+│   │   ├── intent_resolver.py   # Flat intent detection (LLM -> intent)
+│   │   ├── hierarchical_resolver.py # 2-Asamali intent (Category -> Sub-Intent)
+│   │   ├── keyword_filter.py    # Keyword pre-filter + cross-validation
 │   │   ├── command_builder.py   # Komut parametreleri oluşturucu
-│   │   ├── schemas.py           # AI veri modelleri (Pydantic)
+│   │   ├── schemas.py           # AI veri modelleri (Pydantic) + CategoryType
 │   │   └── tool_registry.py     # Tool kayıt sistemi
 │   │
 │   ├── core/                    # Core Sistemler
@@ -74,7 +76,7 @@ sentinel_root/
 │   ├── plugins/                 # Plugin sistemi (gelecek)
 │   │   └── .gitkeep
 │   │
-│   └── tests/                   # Test Suite
+│   └── tests/                   # Test Suite (242 test)
 │       ├── test_sprint1.py      # Sprint 1 main test suite
 │       ├── test_sprint1_week1.py # Week 1 tests (backend + entity ID)
 │       ├── test_sprint1_week2.py # Week 2 tests (parser + tool + integration)
@@ -85,7 +87,8 @@ sentinel_root/
 │       ├── test_new_tools.py    # ToolManager + parser + telemetry + callback safety
 │       ├── test_advanced_parsers.py # Genis parser senaryolari
 │       ├── test_registry_consistency.py # Registry drift guard testleri
-│       └── test_ui_backend_boundary.py # UI-Backend boundary + guvenlik testleri
+│       ├── test_ui_backend_boundary.py # UI-Backend boundary + guvenlik testleri
+│       └── test_hierarchical_resolver.py # 2-asamali resolver testleri (57 test)
 │
 ├── docs/                        # Teknik Dokümantasyon
 │   ├── AGENT_RULES.md          # AI agent kurallari ve kisitlamalari
@@ -104,15 +107,14 @@ sentinel_root/
 ├── docker/                      # Docker Konfigürasyonları
 │   ├── api/                    # API container
 │   ├── tools/                  # Security tools container
-│   └── whiterabbitneo/         # WhiteRabbitNeo container
+│   ├── ollama/                 # Ollama LLM container (Qwen 2.5 + legacy WRN)
+│   └── whiterabbitneo/         # (Legacy) WhiteRabbitNeo container
 │
-├── models/                      # AI Model Dosyaları
-│   ├── model1.gguf
-│   ├── model2.gguf
-│   ├── Modelfile.model1
-│   ├── Modelfile.model2
-│   ├── Modelfile.whiterabbitneo
-│   └── whiterabbitneo-7b-q4.gguf
+├── models/                      # AI Model Dosyaları (.gitignore ile korunur)
+│   ├── qwen2.5-3b-instruct-q4.gguf  # Qwen 2.5 3B (~1.84 GB) - Ana model
+│   ├── Modelfile.qwen2.5             # Qwen Modelfile (SENTINEL system prompt)
+│   ├── whiterabbitneo-7b-q4.gguf     # WhiteRabbitNeo 7B (~4.47 GB) - Yedek
+│   └── Modelfile.whiterabbitneo      # WhiteRabbitNeo Modelfile
 ├── sentinel_production.db       # Production veritabanı
 ├── sentinel_dev.db             # Developer mode veritabanı
 └── sentinel_state.db           # Test/default veritabanı
@@ -414,10 +416,11 @@ DockerRunner - Container execution
 AIOrchestrator - Local AI System
 
 **Sorumluluklar**:
-- Intent detection
+- Intent detection (flat + hierarchical dual-path)
 - Tool selection
 - Command generation
-- Local-only: WhiteRabbitNeo/Ollama
+- Local-only: Qwen 2.5 3B / Ollama
+- Feature flag: `SENTINEL_USE_HIERARCHICAL` (flat/hierarchical secimi)
 
 **API**:
 ```python
@@ -428,13 +431,42 @@ response = orchestrator.process("192.168.1.1'i tara", target="192.168.1.1")
 
 ---
 
-### **src/ai/intent_resolver.py**
-IntentResolver - LLM tabanli intent tespiti
+### **src/ai/hierarchical_resolver.py**
+HierarchicalResolver - 2 Asamali Intent Cozumleme (Sprint 3.7)
 
 **Sorumluluklar**:
-- Kullanıcı intent'i tespit etme
+- Stage 1: Kullanici girdisini 5 kategoriye siniflandir (scanning, web, recon, attack, info)
+- Stage 2: Kategori icindeki spesifik intent'i belirle (16 intent)
+- Keyword pre-filter bypass (Stage 1 atlar, dogrudan Stage 2'ye gecer)
+- Keyword override: LLM yerine keyword intent_type kullanilir, LLM sadece NER
+- Retry/backoff, singleton pattern
+
+**Pipeline**:
+```
+User Input -> KeywordPreFilter -> [Stage 1: Category] -> [Stage 2: Sub-Intent] -> Intent
+```
+
+---
+
+### **src/ai/keyword_filter.py**
+KeywordPreFilter - Regex tabanli hizli intent on-eleme (Sprint 3.6)
+
+**Sorumluluklar**:
+- 16 regex pattern ile keyword tabanli intent tahmini
+- LLM cross-validation
+- INFO_QUERY onceligi (soru kaliplari aksiyon keyword'lerinden once)
+- Chitchat/selamlama yakalama (UNKNOWN)
+
+---
+
+### **src/ai/intent_resolver.py**
+IntentResolver - Flat LLM tabanli intent tespiti
+
+**Sorumluluklar**:
+- Kullanıcı intent'i tespit etme (tek asamali, 16 intent)
 - Strict JSON doğrulama
 - Context tracking
+- Timeout/retry/backoff
 
 ---
 
@@ -527,9 +559,17 @@ SQLite veritabanı şeması
 Docker orchestration
 
 **Servisler**:
-- `whiterabbitneo-service`: WhiteRabbitNeo model server
+- `ollama-service`: Qwen 2.5 3B model server (primary, 1.9 GB)
 - `tools-service`: Security tools container (nmap, gobuster, etc.)
 - `api-service`: Sentinel API
+
+---
+
+### **docker/ollama/Dockerfile**
+Ollama LLM container (Sprint 3.7)
+
+**İçerik**: Ollama + Qwen 2.5 3B (primary) + WhiteRabbitNeo (legacy, optional)
+**Env**: `SENTINEL_MODEL=qwen2.5` (qwen2.5 | whiterabbitneo | both)
 
 ---
 
@@ -540,10 +580,8 @@ Security tools container
 
 ---
 
-### **docker/whiterabbitneo/Dockerfile**
-WhiteRabbitNeo container
-
-**İçerik**: Ollama + WhiteRabbitNeo model
+### **docker/whiterabbitneo/** (Legacy)
+Eski WhiteRabbitNeo container — geriye uyumluluk için korunuyor
 
 ---
 
@@ -587,7 +625,8 @@ Yerel/servis yapılandırma değişkenleri
 **İçerik**:
 ```bash
 OLLAMA_BASE_URL=http://localhost:11434
-OLLAMA_MODEL=whiterabbitneo
+SENTINEL_CATEGORY_MODEL=qwen2.5:3b
+SENTINEL_USE_HIERARCHICAL=true
 ```
 
 **Not**: `.gitignore` ile korunur, commit edilmez
@@ -625,7 +664,7 @@ python main.py
 
 ---
 
-## Proje Durumu (25 Şubat 2026)
+## Proje Durumu (28 Şubat 2026)
 
 ### Tamamlanan Sprintler
 
@@ -636,36 +675,31 @@ python main.py
 - Tool Base (3 tool)
 - Integration Layer (ToolManager + IntegratedTool)
 
-**Öncelik 1 - UI Integration** (95% complete):
-- SentinelCoordinator (bridge)
-- TerminalView tool entegrasyonu
-- Test butonları (developer mode only)
-- Backend stats display
-- main.py entegrasyonu
+**Sprint 3.5 - Stabilizasyon / Sertlestirme**:
+- Queue backpressure, global/per-tool concurrency limit
+- Local LLM timeout/retry/backoff
+- Registry drift guard, runtime telemetry
+
+**Sprint 3.6 - Optimizasyon ve Platform Hazirligi** (22/22 gorev):
+- Track A: Kritik Bugfix (P0)
+- Track B: Linux Platform Uyumu
+- Track C: AI Olceklenme Altyapisi (keyword filter, benchmark, etc.)
+- Track D: Kod Kalitesi / Teknik Borc
+
+**Sprint 3.7 - Hybrid LLM Motoru** (8/8 gorev, +57 test):
+- 2-Asamali Intent Resolution (Category -> Sub-Intent)
+- Model degisimi: WhiteRabbitNeo 7B -> Qwen 2.5 3B
+- Keyword override: LLM sadece NER, intent keyword'den gelir
+- Benchmark: %100 dogruluk (30/30), hierarchical mod
+- 242 test toplam
 
 ---
 
-### 🔄 Devam Eden İşler
+### Devam Eden Isler
 
-**Öncelik 2 - AI Orchestrator Integration** (next):
-- AI Intent → Tool selection
-- Otomatik tool çağrısı
-- Stage-based planning
-- Policy enforcement
-
----
-
-### Gelecek Öncelikler
-
-**Öncelik 3 - Additional Tools**:
-- 7 yeni tool (toplam 10)
-- Service detection
-- Vulnerability scanning
-- DNS enumeration
-- SSL analysis
-- Credential testing
-- Web enumeration
-- Exploit execution
+**Sprint 4** — Veri Adaptasyonu (`models.py` + `nmap_adapter.py`)  
+**Sprint 5** — Oneri Motoru  
+**Sprint 6** — Plugin Sistemi ve Final Build
 
 ---
 
@@ -702,6 +736,6 @@ nmap --version
 
 ---
 
-**Son Güncelleme**: 21 Ocak 2026  
-**Versiyon**: Sprint 1 Complete + UI Integration  
-**Sonraki Hedef**: Öncelik 2 - AI Orchestrator Integration
+**Son Güncelleme**: 28 Şubat 2026  
+**Versiyon**: Sprint 3.7 Complete + Qwen 2.5 3B  
+**Sonraki Hedef**: Sprint 4 - Veri Adaptasyonu ve Parsing
