@@ -361,7 +361,7 @@ class TestKeywordBypass:
         """Stage 2 LLM mock'lu resolver."""
         with patch.object(HierarchicalResolver, "__init__", lambda self, **kw: None):
             r = HierarchicalResolver.__new__(HierarchicalResolver)
-            r._category_model = "model1"
+            r._category_model = "test_cat_model"
             r._sub_intent_model = "whiterabbitneo"
             r._request_timeout = 10.0
             r._max_attempts = 1
@@ -422,7 +422,7 @@ class TestKeywordBypass:
 
         with patch.object(HierarchicalResolver, "__init__", lambda self, **kw: None):
             r = HierarchicalResolver.__new__(HierarchicalResolver)
-            r._category_model = "model1"
+            r._category_model = "test_cat_model"
             r._sub_intent_model = "whiterabbitneo"
             r._request_timeout = 10.0
             r._max_attempts = 1
@@ -465,7 +465,7 @@ class TestOrchestratorFeatureFlag:
         orch._model = "whiterabbitneo"
         orch._hierarchical_resolver = None
 
-        orch.set_hierarchical(True, category_model="model1")
+        orch.set_hierarchical(True, category_model="test_cat_model")
         assert orch._hierarchical_resolver is not None
         assert isinstance(orch._hierarchical_resolver, HierarchicalResolver)
 
@@ -475,7 +475,7 @@ class TestOrchestratorFeatureFlag:
         orch = AIOrchestrator.__new__(AIOrchestrator)
         orch._model = "whiterabbitneo"
         orch._hierarchical_resolver = HierarchicalResolver(
-            category_model="model1", sub_intent_model="whiterabbitneo"
+            category_model="test_cat_model", sub_intent_model="whiterabbitneo"
         )
 
         orch.set_hierarchical(False)
@@ -488,7 +488,7 @@ class TestOrchestratorFeatureFlag:
         orch._model = "whiterabbitneo"
         orch._intent_resolver = MagicMock()
         orch._hierarchical_resolver = HierarchicalResolver(
-            category_model="model1", sub_intent_model="whiterabbitneo"
+            category_model="test_cat_model", sub_intent_model="whiterabbitneo"
         )
 
         orch.set_model("llama3:8b")
@@ -530,7 +530,7 @@ class TestFallbackScenarios:
     def _make_resolver(self):
         with patch.object(HierarchicalResolver, "__init__", lambda self, **kw: None):
             r = HierarchicalResolver.__new__(HierarchicalResolver)
-            r._category_model = "model1"
+            r._category_model = "test_cat_model"
             r._sub_intent_model = "whiterabbitneo"
             r._request_timeout = 10.0
             r._max_attempts = 1
@@ -613,7 +613,7 @@ class TestResolverUtilities:
 
     def test_set_models(self):
         r = HierarchicalResolver(
-            category_model="model1", sub_intent_model="whiterabbitneo"
+            category_model="test_cat_model", sub_intent_model="whiterabbitneo"
         )
         r.set_models("new_cat", "new_sub")
         assert r.category_model == "new_cat"
@@ -641,7 +641,7 @@ class TestFullPipelineMock:
 
         with patch.object(HierarchicalResolver, "__init__", lambda self, **kw: None):
             r = HierarchicalResolver.__new__(HierarchicalResolver)
-            r._category_model = "model1"
+            r._category_model = "test_cat_model"
             r._sub_intent_model = "whiterabbitneo"
             r._request_timeout = 10.0
             r._max_attempts = 1
@@ -677,7 +677,7 @@ class TestFullPipelineMock:
 
         with patch.object(HierarchicalResolver, "__init__", lambda self, **kw: None):
             r = HierarchicalResolver.__new__(HierarchicalResolver)
-            r._category_model = "model1"
+            r._category_model = "test_cat_model"
             r._sub_intent_model = "whiterabbitneo"
             r._request_timeout = 10.0
             r._max_attempts = 1

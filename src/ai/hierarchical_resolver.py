@@ -205,13 +205,15 @@ class HierarchicalResolver(HierarchicalResolverBase):
 
     def __init__(
         self,
-        category_model: str = "model1",
+        category_model: Optional[str] = None,
         sub_intent_model: str = "whiterabbitneo",
         base_url: Optional[str] = None,
         request_timeout: Optional[float] = None,
         max_attempts: Optional[int] = None,
     ):
-        self._category_model = category_model
+        self._category_model = category_model or os.getenv(
+            "SENTINEL_CATEGORY_MODEL", "whiterabbitneo"
+        )
         self._sub_intent_model = sub_intent_model
         self._request_timeout = float(
             request_timeout or os.getenv("INTENT_LLM_TIMEOUT", "20")
@@ -548,7 +550,7 @@ _hierarchical_lock = threading.Lock()
 
 
 def get_hierarchical_resolver(
-    category_model: str = "model1",
+    category_model: Optional[str] = None,
     sub_intent_model: str = "whiterabbitneo",
 ) -> HierarchicalResolver:
     """Singleton HierarchicalResolver instance doner (thread-safe)."""

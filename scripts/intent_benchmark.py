@@ -6,7 +6,7 @@ olcumu yapar. Sonuclari JSON ve ozet tablo olarak yazar.
 
 Kullanim:
     python scripts/intent_benchmark.py                          # Flat (varsayilan)
-    python scripts/intent_benchmark.py --model model1           # Farkli model
+    python scripts/intent_benchmark.py --model whiterabbitneo   # Farkli model
     python scripts/intent_benchmark.py --hierarchical           # 2-asamali
     python scripts/intent_benchmark.py --hierarchical --compare # Flat vs Hierarchical
     python scripts/intent_benchmark.py --output results.json
@@ -152,7 +152,7 @@ class BenchmarkSummary:
 # =============================================================================
 
 def run_benchmark(model: str = "model2", hierarchical: bool = False,
-                   category_model: str = "model1") -> BenchmarkSummary:
+                   category_model: str = "whiterabbitneo") -> BenchmarkSummary:
     """Benchmark'i calistir ve sonuclari dondur.
     
     Args:
@@ -343,8 +343,8 @@ def print_comparison(flat: BenchmarkSummary, hier: BenchmarkSummary) -> None:
 def main() -> None:
     parser = argparse.ArgumentParser(description="Intent Benchmark Runner")
     parser.add_argument("--model", default="model2", help="Ollama model adi (flat & Stage 2)")
-    parser.add_argument("--category-model", default="model1",
-                        help="Hierarchical Stage 1 icin hafif model (default: model1)")
+    parser.add_argument("--category-model", default=None,
+                        help="Hierarchical Stage 1 icin model (default: SENTINEL_CATEGORY_MODEL env veya whiterabbitneo)")
     parser.add_argument("--hierarchical", action="store_true",
                         help="2-asamali HierarchicalResolver kullan")
     parser.add_argument("--compare", action="store_true",

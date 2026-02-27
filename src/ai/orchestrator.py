@@ -83,7 +83,7 @@ class AIOrchestrator:
         self._hierarchical_resolver: Optional[HierarchicalResolver] = None
         if self.USE_HIERARCHICAL:
             self._hierarchical_resolver = HierarchicalResolver(
-                category_model=os.getenv("SENTINEL_CATEGORY_MODEL", "model1"),
+                category_model=os.getenv("SENTINEL_CATEGORY_MODEL"),
                 sub_intent_model=model,
             )
         
@@ -315,7 +315,7 @@ class AIOrchestrator:
                 sub_intent_model=model,
             )
 
-    def set_hierarchical(self, enabled: bool, category_model: str = "model1") -> None:
+    def set_hierarchical(self, enabled: bool, category_model: Optional[str] = None) -> None:
         """Hierarchical (2-asamali) resolver'i ac/kapa (runtime)."""
         if enabled:
             self._hierarchical_resolver = HierarchicalResolver(
