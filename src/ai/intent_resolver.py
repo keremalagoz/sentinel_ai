@@ -110,7 +110,7 @@ class IntentResolver:
     
     def __init__(
         self,
-        model: str = "whiterabbitneo",
+        model: str = "qwen2.5:3b",
         base_url: str = None,
         request_timeout: Optional[float] = None,
         max_attempts: Optional[int] = None,
@@ -119,7 +119,7 @@ class IntentResolver:
         IntentResolver'i baslat.
         
         Args:
-            model: Kullanilacak local model (whiterabbitneo, llama3:8b, vb.)
+            model: Kullanilacak local model (qwen2.5:3b, whiterabbitneo, llama3:8b, vb.)
             base_url: Ollama endpoint (default: localhost:11434)
             request_timeout: Her LLM istegi icin timeout (saniye)
             max_attempts: LLM istegi icin max deneme sayisi
@@ -344,7 +344,7 @@ _resolver: Optional[IntentResolver] = None
 _resolver_lock = threading.Lock()
 
 
-def get_intent_resolver(model: str = "whiterabbitneo") -> IntentResolver:
+def get_intent_resolver(model: str = "qwen2.5:3b") -> IntentResolver:
     """Singleton IntentResolver instance doner (thread-safe)"""
     global _resolver
     if _resolver is None:
@@ -369,7 +369,7 @@ if __name__ == "__main__":
     print("SENTINEL AI - Intent Resolver Test")
     print("=" * 60)
     
-    resolver = IntentResolver(model="whiterabbitneo")
+    resolver = IntentResolver(model="qwen2.5:3b")
     
     # Servis kontrolu
     print(f"\nLLM Available: {resolver.check_available()}")

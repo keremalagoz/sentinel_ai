@@ -24,7 +24,7 @@ _ROOT_FLAGS = frozenset({"-sS", "-sU", "-O", "-A", "--privileged"})
 class BackendGateway:
     """UI ile backend arasindaki tek gecit (facade)."""
 
-    def __init__(self, model: str = "whiterabbitneo") -> None:
+    def __init__(self, model: str = "qwen2.5:3b") -> None:
         self._process_manager = AdvancedProcessManager()
         self._orchestrator = AIOrchestrator(model=model)
 

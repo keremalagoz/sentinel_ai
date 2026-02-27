@@ -63,12 +63,12 @@ class AIOrchestrator:
     # Feature flag: True ise 2-asamali HierarchicalResolver kullanilir
     USE_HIERARCHICAL: bool = os.getenv("SENTINEL_USE_HIERARCHICAL", "false").lower() in ("true", "1", "yes")
     
-    def __init__(self, model: str = "whiterabbitneo", coordinator=None):
+    def __init__(self, model: str = "qwen2.5:3b", coordinator=None):
         """
         Orchestrator'i baslat.
         
         Args:
-            model: Kullanilacak LLM modeli (whiterabbitneo veya llama3:8b)
+            model: Kullanilacak LLM modeli (qwen2.5:3b, whiterabbitneo, llama3:8b)
             coordinator: SentinelCoordinator instance (tool execution için)
         """
         self._model = model
@@ -418,7 +418,7 @@ _orchestrator: Optional[AIOrchestrator] = None
 _orchestrator_lock = threading.Lock()
 
 
-def get_orchestrator(model: str = "whiterabbitneo") -> AIOrchestrator:
+def get_orchestrator(model: str = "qwen2.5:3b") -> AIOrchestrator:
     """
     Singleton orchestrator instance doner (thread-safe).
     
@@ -468,7 +468,7 @@ if __name__ == "__main__":
     print("SENTINEL AI - Orchestrator v2 Test")
     print("=" * 70)
     
-    orch = AIOrchestrator(model="whiterabbitneo")
+    orch = AIOrchestrator(model="qwen2.5:3b")
     
     print(f"\nStatus: {orch.get_status()}")
     

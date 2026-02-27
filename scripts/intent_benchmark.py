@@ -151,8 +151,8 @@ class BenchmarkSummary:
 # BENCHMARK RUNNER
 # =============================================================================
 
-def run_benchmark(model: str = "model2", hierarchical: bool = False,
-                   category_model: str = "whiterabbitneo") -> BenchmarkSummary:
+def run_benchmark(model: str = "qwen2.5:3b", hierarchical: bool = False,
+                   category_model: str = "qwen2.5:3b") -> BenchmarkSummary:
     """Benchmark'i calistir ve sonuclari dondur.
     
     Args:
@@ -342,9 +342,9 @@ def print_comparison(flat: BenchmarkSummary, hier: BenchmarkSummary) -> None:
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Intent Benchmark Runner")
-    parser.add_argument("--model", default="model2", help="Ollama model adi (flat & Stage 2)")
+    parser.add_argument("--model", default="qwen2.5:3b", help="Ollama model adi (flat & Stage 2)")
     parser.add_argument("--category-model", default=None,
-                        help="Hierarchical Stage 1 icin model (default: SENTINEL_CATEGORY_MODEL env veya whiterabbitneo)")
+                        help="Hierarchical Stage 1 icin model (default: SENTINEL_CATEGORY_MODEL env veya qwen2.5:3b)")
     parser.add_argument("--hierarchical", action="store_true",
                         help="2-asamali HierarchicalResolver kullan")
     parser.add_argument("--compare", action="store_true",

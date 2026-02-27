@@ -152,7 +152,7 @@ def _valid_intent_json(intent_type: str = "port_scan") -> str:
 
 
 def test_intent_resolver_retry_success() -> None:
-    resolver = IntentResolver(model="whiterabbitneo", max_attempts=3, request_timeout=1)
+    resolver = IntentResolver(model="qwen2.5:3b", max_attempts=3, request_timeout=1)
 
     state = {"count": 0}
 
@@ -172,7 +172,7 @@ def test_intent_resolver_retry_success() -> None:
 
 
 def test_intent_resolver_retry_exhausted() -> None:
-    resolver = IntentResolver(model="whiterabbitneo", max_attempts=2, request_timeout=1)
+    resolver = IntentResolver(model="qwen2.5:3b", max_attempts=2, request_timeout=1)
 
     def always_fail(_messages):
         raise RuntimeError("permanent error")
@@ -187,7 +187,7 @@ def test_intent_resolver_retry_exhausted() -> None:
 
 
 def test_orchestrator_local_only_service_state() -> None:
-    orch = AIOrchestrator(model="whiterabbitneo")
+    orch = AIOrchestrator(model="qwen2.5:3b")
     local_ok, cloud_ok = orch.check_services()
     assert isinstance(local_ok, bool)
     assert cloud_ok is False

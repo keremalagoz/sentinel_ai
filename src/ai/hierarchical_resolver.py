@@ -206,13 +206,13 @@ class HierarchicalResolver(HierarchicalResolverBase):
     def __init__(
         self,
         category_model: Optional[str] = None,
-        sub_intent_model: str = "whiterabbitneo",
+        sub_intent_model: str = "qwen2.5:3b",
         base_url: Optional[str] = None,
         request_timeout: Optional[float] = None,
         max_attempts: Optional[int] = None,
     ):
         self._category_model = category_model or os.getenv(
-            "SENTINEL_CATEGORY_MODEL", "whiterabbitneo"
+            "SENTINEL_CATEGORY_MODEL", "qwen2.5:3b"
         )
         self._sub_intent_model = sub_intent_model
         self._request_timeout = float(
@@ -406,6 +406,24 @@ class HierarchicalResolver(HierarchicalResolverBase):
                 category.value,
             )
             intent = self.resolve_sub_intent(user_input, category, target_hint)
+
+            # Keyword pre-filter spesifik intent biliyorsa, LLM intent_type'ini override et
+            # LLM'den sadece target/params (NER) bilgisini kullaniyoruz
+            if intent.intent_type != kw_suggestion:
+                logger.debug(
+                    "Keyword override: LLM='%s' -> keyword='%s'",
+                    intent.intent_type.value,
+                    kw_suggestion.value,
+                )
+                intent = Intent(
+                    intent_type=kw_suggestion,
+                    target=intent.target,
+                    params=intent.params,
+                    needs_clarification=intent.needs_clarification,
+                    clarification_reason=intent.clarification_reason,
+                    confidence=intent.confidence,
+                )
+
             elapsed_ms = (time.monotonic() - t0) * 1000
             logger.info(
                 "Hierarchical resolve (keyword bypass): %s -> %s [%.0f ms]",
@@ -551,7 +569,7 @@ _hierarchical_lock = threading.Lock()
 
 def get_hierarchical_resolver(
     category_model: Optional[str] = None,
-    sub_intent_model: str = "whiterabbitneo",
+    sub_intent_model: str = "qwen2.5:3b",
 ) -> HierarchicalResolver:
     """Singleton HierarchicalResolver instance doner (thread-safe)."""
     global _hierarchical_resolver

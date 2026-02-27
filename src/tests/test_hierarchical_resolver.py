@@ -362,7 +362,7 @@ class TestKeywordBypass:
         with patch.object(HierarchicalResolver, "__init__", lambda self, **kw: None):
             r = HierarchicalResolver.__new__(HierarchicalResolver)
             r._category_model = "test_cat_model"
-            r._sub_intent_model = "whiterabbitneo"
+            r._sub_intent_model = "qwen2.5:3b"
             r._request_timeout = 10.0
             r._max_attempts = 1
             r._base_url = "http://localhost:11434"
@@ -423,7 +423,7 @@ class TestKeywordBypass:
         with patch.object(HierarchicalResolver, "__init__", lambda self, **kw: None):
             r = HierarchicalResolver.__new__(HierarchicalResolver)
             r._category_model = "test_cat_model"
-            r._sub_intent_model = "whiterabbitneo"
+            r._sub_intent_model = "qwen2.5:3b"
             r._request_timeout = 10.0
             r._max_attempts = 1
             r._base_url = "http://localhost:11434"
@@ -462,7 +462,7 @@ class TestOrchestratorFeatureFlag:
         """set_hierarchical(True) sonrasi hierarchical resolver aktif olmali."""
         from src.ai.orchestrator import AIOrchestrator
         orch = AIOrchestrator.__new__(AIOrchestrator)
-        orch._model = "whiterabbitneo"
+        orch._model = "qwen2.5:3b"
         orch._hierarchical_resolver = None
 
         orch.set_hierarchical(True, category_model="test_cat_model")
@@ -473,9 +473,9 @@ class TestOrchestratorFeatureFlag:
         """set_hierarchical(False) sonrasi hierarchical resolver None olmali."""
         from src.ai.orchestrator import AIOrchestrator
         orch = AIOrchestrator.__new__(AIOrchestrator)
-        orch._model = "whiterabbitneo"
+        orch._model = "qwen2.5:3b"
         orch._hierarchical_resolver = HierarchicalResolver(
-            category_model="test_cat_model", sub_intent_model="whiterabbitneo"
+            category_model="test_cat_model", sub_intent_model="qwen2.5:3b"
         )
 
         orch.set_hierarchical(False)
@@ -485,10 +485,10 @@ class TestOrchestratorFeatureFlag:
         """set_model() hierarchical resolver'in sub_intent_model'ini guncellemeli."""
         from src.ai.orchestrator import AIOrchestrator
         orch = AIOrchestrator.__new__(AIOrchestrator)
-        orch._model = "whiterabbitneo"
+        orch._model = "qwen2.5:3b"
         orch._intent_resolver = MagicMock()
         orch._hierarchical_resolver = HierarchicalResolver(
-            category_model="test_cat_model", sub_intent_model="whiterabbitneo"
+            category_model="test_cat_model", sub_intent_model="qwen2.5:3b"
         )
 
         orch.set_model("llama3:8b")
@@ -531,7 +531,7 @@ class TestFallbackScenarios:
         with patch.object(HierarchicalResolver, "__init__", lambda self, **kw: None):
             r = HierarchicalResolver.__new__(HierarchicalResolver)
             r._category_model = "test_cat_model"
-            r._sub_intent_model = "whiterabbitneo"
+            r._sub_intent_model = "qwen2.5:3b"
             r._request_timeout = 10.0
             r._max_attempts = 1
             r._base_url = "http://localhost:11434"
@@ -613,7 +613,7 @@ class TestResolverUtilities:
 
     def test_set_models(self):
         r = HierarchicalResolver(
-            category_model="test_cat_model", sub_intent_model="whiterabbitneo"
+            category_model="test_cat_model", sub_intent_model="qwen2.5:3b"
         )
         r.set_models("new_cat", "new_sub")
         assert r.category_model == "new_cat"
@@ -642,7 +642,7 @@ class TestFullPipelineMock:
         with patch.object(HierarchicalResolver, "__init__", lambda self, **kw: None):
             r = HierarchicalResolver.__new__(HierarchicalResolver)
             r._category_model = "test_cat_model"
-            r._sub_intent_model = "whiterabbitneo"
+            r._sub_intent_model = "qwen2.5:3b"
             r._request_timeout = 10.0
             r._max_attempts = 1
             r._base_url = "http://localhost:11434"
@@ -678,7 +678,7 @@ class TestFullPipelineMock:
         with patch.object(HierarchicalResolver, "__init__", lambda self, **kw: None):
             r = HierarchicalResolver.__new__(HierarchicalResolver)
             r._category_model = "test_cat_model"
-            r._sub_intent_model = "whiterabbitneo"
+            r._sub_intent_model = "qwen2.5:3b"
             r._request_timeout = 10.0
             r._max_attempts = 1
             r._base_url = "http://localhost:11434"
