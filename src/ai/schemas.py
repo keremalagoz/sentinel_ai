@@ -64,6 +64,88 @@ class IntentType(str, Enum):
     UNKNOWN = "unknown"                    # Anlasılamadi, netlestime gerekli
 
 
+# =============================================================================
+# HIERARCHICAL INTENT — Sprint 3.7: Kategori Taksonomisi
+# =============================================================================
+
+class CategoryType(str, Enum):
+    """
+    2 asamali intent resolution icin ust-duzey kategoriler.
+    
+    Stage 1 (hafif model) bu 5 kategoriden birini secer.
+    Stage 2 (ana model) kategori icindeki spesifik intent'i belirler.
+    """
+    SCANNING = "scanning"    # Ag tarama: port, host, servis, OS, zafiyet, SSL
+    WEB = "web"              # Web uygulamasi: dizin enum, web zafiyet
+    RECON = "recon"          # Bilgi toplama: DNS, WHOIS, subdomain
+    ATTACK = "attack"        # Saldiri: brute force, SQL injection
+    INFO = "info"            # Bilgi sorusu veya belirsiz
+
+
+# Kategori -> Intent mapping (sabit, kod tabaninin kaynak gercekligi)
+SENTINEL_CATEGORIES: Dict[CategoryType, List[IntentType]] = {
+    CategoryType.SCANNING: [
+        IntentType.HOST_DISCOVERY,
+        IntentType.PORT_SCAN,
+        IntentType.SERVICE_DETECTION,
+        IntentType.OS_DETECTION,
+        IntentType.VULN_SCAN,
+        IntentType.SSL_SCAN,
+    ],
+    CategoryType.WEB: [
+        IntentType.WEB_DIR_ENUM,
+        IntentType.WEB_VULN_SCAN,
+    ],
+    CategoryType.RECON: [
+        IntentType.DNS_LOOKUP,
+        IntentType.WHOIS_LOOKUP,
+        IntentType.SUBDOMAIN_ENUM,
+    ],
+    CategoryType.ATTACK: [
+        IntentType.BRUTE_FORCE_SSH,
+        IntentType.BRUTE_FORCE_HTTP,
+        IntentType.SQL_INJECTION,
+    ],
+    CategoryType.INFO: [
+        IntentType.INFO_QUERY,
+        IntentType.UNKNOWN,
+    ],
+}
+
+# Ters lookup: IntentType -> CategoryType (runtime'da hesaplanir)
+_INTENT_TO_CATEGORY: Dict[IntentType, CategoryType] = {}
+for _cat, _intents in SENTINEL_CATEGORIES.items():
+    for _intent in _intents:
+        _INTENT_TO_CATEGORY[_intent] = _cat
+
+
+def get_category_for_intent(intent_type: IntentType) -> CategoryType:
+    """IntentType'dan CategoryType'a ters lookup."""
+    return _INTENT_TO_CATEGORY.get(intent_type, CategoryType.INFO)
+
+
+class CategoryResult(BaseModel):
+    """
+    Stage 1 sonucu — ust duzey kategori siniflandirmasi.
+    
+    HierarchicalResolver.resolve_category() bu modeli doner.
+    """
+    category: CategoryType = Field(
+        ...,
+        description="Ust-duzey kategori (scanning, web, recon, attack, info)"
+    )
+    confidence: float = Field(
+        default=1.0,
+        ge=0.0,
+        le=1.0,
+        description="Kategori siniflandirma guvenliligi"
+    )
+    raw_response: Optional[Dict[str, Any]] = Field(
+        default=None,
+        description="LLM'den gelen ham JSON yaniti"
+    )
+
+
 class Intent(BaseModel):
     """
     LLM'in uretiği niyet yapisi.

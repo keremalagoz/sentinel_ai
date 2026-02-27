@@ -8,6 +8,7 @@
 
 from typing import Optional, Dict, Any
 import logging
+import os
 import time
 import threading
 from dotenv import load_dotenv
@@ -25,6 +26,7 @@ from src.ai.schemas import (
 )
 from src.ai.intent_resolver import IntentResolver, get_intent_resolver
 from src.ai.keyword_filter import KeywordPreFilter
+from src.ai.hierarchical_resolver import HierarchicalResolver, get_hierarchical_resolver
 from src.ai.tool_registry import (
     build_tool_spec,
     get_tool_for_intent,
@@ -57,6 +59,9 @@ class AIOrchestrator:
 
     # Maksimum LLM yanit suresi (ms). Asildiyinda keyword fallback denenebilir.
     MAX_RESPONSE_MS: int = 10_000
+
+    # Feature flag: True ise 2-asamali HierarchicalResolver kullanilir
+    USE_HIERARCHICAL: bool = os.getenv("SENTINEL_USE_HIERARCHICAL", "false").lower() in ("true", "1", "yes")
     
     def __init__(self, model: str = "whiterabbitneo", coordinator=None):
         """
@@ -73,6 +78,14 @@ class AIOrchestrator:
         self._intent_resolver = IntentResolver(model=model)
         self._command_builder = CommandBuilder()
         self._keyword_filter = KeywordPreFilter()
+
+        # Sprint 3.7: Hierarchical resolver (2-asamali)
+        self._hierarchical_resolver: Optional[HierarchicalResolver] = None
+        if self.USE_HIERARCHICAL:
+            self._hierarchical_resolver = HierarchicalResolver(
+                category_model=os.getenv("SENTINEL_CATEGORY_MODEL", "model1"),
+                sub_intent_model=model,
+            )
         
         # Cache
         self._last_intent: Optional[Intent] = None
@@ -117,7 +130,13 @@ class AIOrchestrator:
         logger.debug("Resolving intent for input='%s...'", user_input[:50])
         
         t0 = time.monotonic()
-        intent = self._intent_resolver.resolve(user_input, target)
+
+        # Sprint 3.7: Hierarchical (2-asamali) veya flat resolver
+        if self._hierarchical_resolver is not None:
+            intent = self._hierarchical_resolver.resolve(user_input, target)
+        else:
+            intent = self._intent_resolver.resolve(user_input, target)
+
         elapsed_ms = (time.monotonic() - t0) * 1000
 
         if elapsed_ms > self.MAX_RESPONSE_MS:
@@ -289,6 +308,25 @@ class AIOrchestrator:
         """Kullanilacak modeli degistir"""
         self._model = model
         self._intent_resolver = IntentResolver(model=model)
+        # Sprint 3.7: Hierarchical resolver modeli de guncelle
+        if self._hierarchical_resolver is not None:
+            self._hierarchical_resolver.set_models(
+                category_model=self._hierarchical_resolver.category_model,
+                sub_intent_model=model,
+            )
+
+    def set_hierarchical(self, enabled: bool, category_model: str = "model1") -> None:
+        """Hierarchical (2-asamali) resolver'i ac/kapa (runtime)."""
+        if enabled:
+            self._hierarchical_resolver = HierarchicalResolver(
+                category_model=category_model,
+                sub_intent_model=self._model,
+            )
+            logger.info("Hierarchical resolver ENABLED (cat=%s, sub=%s)",
+                        category_model, self._model)
+        else:
+            self._hierarchical_resolver = None
+            logger.info("Hierarchical resolver DISABLED, using flat resolver")
     
     
     # =========================================================================
