@@ -2,8 +2,6 @@
 # Sprint 3.7: Qwen 2.5 3B (primary) + legacy WhiteRabbitNeo support
 # Usage: docker-compose up -d
 
-version: '3.8'
-
 services:
   # ============================================
   # Service 1: Ollama LLM Service (Port 8002)
