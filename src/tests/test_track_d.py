@@ -1,6 +1,6 @@
 """Track D Tests — Code Quality & Technical Debt
 
-Sprint 3.6 Track D:
+Sprint 3.2 Track D:
   D1: tool_base.py split (backward-compat shim)
   D2: SQLite WAL mode
   D3: Legacy schema cleanup (schemas_legacy.py)

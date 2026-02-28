@@ -1,6 +1,6 @@
 """Keyword Pre-filter for Intent Resolution
 
-Sprint 3.6 Track C2: Regex/keyword tabanli hizli intent on-eleme.
+Sprint 3.2 Track C2: Regex/keyword tabanli hizli intent on-eleme.
 LLM sonucunu cross-validate eder. Uyumsuzlukta warning log + clarification.
 
 Kullanim:
@@ -30,6 +30,14 @@ logger = logging.getLogger(__name__)
 # Ilk eslesen kazanir (oncelik sirasi onemli).
 
 _KEYWORD_PATTERNS: list[Tuple[re.Pattern, IntentType]] = [
+    # Info query (soru isaretli, "nedir", "nasil calisir", "acikla" iceren)
+    # ONCELIKLI: "port tarama nasil calisir" gibi sorular action'dan once yakalanmali
+    (re.compile(
+        r"(nedir\??|ne\s+ise?\s+yarar|nas[i\u0131]l\s+(calisir|kullanilir|yapilir)|"
+        r"what\s+is|how\s+to\s+use|how\s+does|explain|acikla\b)",
+        re.IGNORECASE,
+    ), IntentType.INFO_QUERY),
+
     # Host Discovery / Ping sweep
     (re.compile(
         r"(ping\s+sweep|host\s+discovery|agdaki\s+(aktif\s+)?(cihaz|host)|"
@@ -130,12 +138,13 @@ _KEYWORD_PATTERNS: list[Tuple[re.Pattern, IntentType]] = [
         re.IGNORECASE,
     ), IntentType.SQL_INJECTION),
 
-    # Info query (soru isaretli veya "nedir" iceren)
+    # Selamlama / chitchat -> UNKNOWN
+    # Aksiyon pattern'lari eslesmediyse ve selamlama geciyorsa unknown
     (re.compile(
-        r"(nedir\??|ne\s+ise?\s+yarar|nas[i\u0131]l\s+(calisir|kullanilir)|"
-        r"what\s+is|how\s+to\s+use|explain|acikla\b)",
+        r"^(merhaba|selam|hey\b|hi\b|hello|gunayd[i\u0131]n|"
+        r"iyi\s+(gunler|aksamlar|geceler))",
         re.IGNORECASE,
-    ), IntentType.INFO_QUERY),
+    ), IntentType.UNKNOWN),
 ]
 
 

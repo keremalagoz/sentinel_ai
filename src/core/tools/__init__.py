@@ -1,6 +1,6 @@
 """Tool Implementations — src/core/tools/
 
-Sprint 3.6 Track D1: tool_base.py bolundu, her tool ayri dosyada.
+Sprint 3.2 Track D1: tool_base.py bolundu, her tool ayri dosyada.
 Geriye uyumlu import: `from src.core.tools import PingTool` veya
 `from src.core.tool_base import PingTool` (eski yol hala calisir).
 

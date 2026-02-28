@@ -200,7 +200,7 @@ Katmanlı mimari doğru uygulanmış. `AGENT_RULES.md`'deki "iş mantığı `src
 | UI Security Indicators | **YAPILMADI** | Terminal root uyarısı eksik |
 | Settings Menu (Security) | **KISMEN** | `SettingsDialog` mevcut ama sınırlı |
 
-### Sprint 3.5 Hedef Tablosu
+### Sprint 3.1 Hedef Tablosu
 
 | Hedef | Durum | Açıklama |
 |-------|-------|----------|
@@ -214,7 +214,7 @@ Katmanlı mimari doğru uygulanmış. `AGENT_RULES.md`'deki "iş mantığı `src
 
 ### Genel Takvim Uyumu
 
-Sprint 3 ve 3.5 hedeflerinin **~90%**'ı tamamlanmış. UI Security Indicators (root uyarısı) ve Settings menüsü (temizlik sıklığı ayarları) bekliyor. Ekip Sprint 4 hazırlığına geçmiş durumda. Takvim uyumu **iyi**, ancak dokümantasyon-kod senkronizasyonunda gecikmeler gözlemleniyor (PROJECT_STRUCTURE.md "Son Güncelleme: 21 Ocak 2026" — 35 günlük fark).
+Sprint 3 ve 3.1 hedeflerinin **~90%**'ı tamamlanmış. UI Security Indicators (root uyarısı) ve Settings menüsü (temizlik sıklığı ayarları) bekliyor. Ekip Sprint 4 hazırlığına geçmiş durumda. Takvim uyumu **iyi**, ancak dokümantasyon-kod senkronizasyonunda gecikmeler gözlemleniyor (PROJECT_STRUCTURE.md "Son Güncelleme: 21 Ocak 2026" — 35 günlük fark).
 
 ---
 
@@ -226,7 +226,7 @@ Sprint 3 ve 3.5 hedeflerinin **~90%**'ı tamamlanmış. UI Security Indicators (
 |---|-------|---------|
 | 1 | **Merkezi logging konfigürasyonu** | Hata izleme ve debug için kritik. `main.py` ve `main_developer.py`'ye `logging.basicConfig(level, format, handlers)` ekle. |
 | 2 | **ToolManager callback exception safety** | `_wrapped_callback()` içinde `try/finally` bloğu `_active_count` düzeltmesini garantiye alıyor ama callback payload'ında exception atılırsa user callback hiç çağrılmıyor. Ayrı try blokları ile izole et. |
-| 3 | **Dokümantasyon senkronizasyonu** | PROJECT_STRUCTURE.md 35 gün eski. Sprint 3.5 değişiklikleri (10 yeni tool, telemetry) yansıtılmalı. |
+| 3 | **Dokümantasyon senkronizasyonu** | PROJECT_STRUCTURE.md 35 gün eski. Sprint 3.1 değişiklikleri (10 yeni tool, telemetry) yansıtılmalı. |
 
 ### P1 — Sprint 4 Kapsamında (1-2 hafta)
 

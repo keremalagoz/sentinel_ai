@@ -194,7 +194,7 @@ def _run_intent_resolver() -> bool:
     print("TEST: Intent Resolver (LLM)")
     print("=" * 60)
     
-    resolver = IntentResolver(model="whiterabbitneo")
+    resolver = IntentResolver(model="qwen2.5:3b")
     
     if not resolver.check_available():
         print("  [SKIP] LLM mevcut degil")
@@ -218,7 +218,7 @@ def _run_intent_resolver() -> bool:
 
 
 def test_intent_resolver() -> None:
-    resolver = IntentResolver(model="whiterabbitneo")
+    resolver = IntentResolver(model="qwen2.5:3b")
     if not resolver.check_available():
         pytest.skip("LLM mevcut degil")
     assert _run_intent_resolver() is True
@@ -230,7 +230,7 @@ def _run_orchestrator_e2e() -> bool:
     print("TEST: Orchestrator E2E")
     print("=" * 60)
     
-    orch = AIOrchestrator(model="whiterabbitneo")
+    orch = AIOrchestrator(model="qwen2.5:3b")
     
     if not orch.check_services()[0]:
         print("  [SKIP] LLM mevcut degil")
@@ -269,7 +269,7 @@ def _run_orchestrator_e2e() -> bool:
 
 
 def test_orchestrator_e2e() -> None:
-    orch = AIOrchestrator(model="whiterabbitneo")
+    orch = AIOrchestrator(model="qwen2.5:3b")
     if not orch.check_services()[0]:
         pytest.skip("LLM mevcut degil")
     assert _run_orchestrator_e2e() is True
@@ -281,7 +281,7 @@ def _run_backward_compatibility() -> bool:
     print("TEST: Backward Compatibility")
     print("=" * 60)
     
-    orch = AIOrchestrator(model="whiterabbitneo")
+    orch = AIOrchestrator(model="qwen2.5:3b")
     
     if not orch.check_services()[0]:
         print("  [SKIP] LLM mevcut degil")
@@ -328,7 +328,7 @@ def _run_backward_compatibility() -> bool:
 
 
 def test_backward_compatibility() -> None:
-    orch = AIOrchestrator(model="whiterabbitneo")
+    orch = AIOrchestrator(model="qwen2.5:3b")
     if not orch.check_services()[0]:
         pytest.skip("LLM mevcut degil")
     assert _run_backward_compatibility() is True

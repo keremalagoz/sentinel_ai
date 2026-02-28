@@ -168,9 +168,8 @@ JSON ciktisi: { "intent": "...", "target": "...", "options": {...}, "confidence"
 
 ## 6. Uygulama Zamanlama
 
-- **Sprint 4**: Prototip (HierarchicalResolver + Category prompt)
-- **Sprint 4.1**: Stage 2 prompt optimizasyonu + benchmark
-- **Sprint 4.2**: Full migration (feature flag ile gecis)
+- **Sprint 3.3**: Prototip (HierarchicalResolver + Category/Sub-Intent prompt + benchmark)
+- **Sprint 3.3+**: Prompt optimizasyonu + full migration (feature flag ile gecis)
 
 ## 7. Riskler ve Azaltmalar
 

@@ -1,6 +1,6 @@
 # SENTINEL AI - Proje Durum Raporu
 
-**Tarih:** 26 Şubat 2026  
+**Tarih:** 28 Şubat 2026  
 **Ekip:** Kerem (AI/Data/Backend) & Yiğit (System/UI/Security)
 
 ---
@@ -11,17 +11,20 @@
 
 - Proje altyapısı, Docker servisleri ve temel UI/Core iskeleti tamamlandı.
 - Action Planner v2.1 deterministic akışı devreye alındı.
-- Local AI (WhiteRabbitNeo/Ollama) ile intent çözümleme stabilize edildi.
+- Local AI (WhiteRabbitNeo → Qwen 2.5 3B) ile intent çözümleme stabilize edildi.
 
 ---
 
 ## Mevcut Durum (Özet)
 
-- Mimari: Local-only LLM + deterministic tool execution
+- Mimari: Local-only LLM (Qwen 2.5 3B / Ollama) + deterministic tool execution
+- Model: Qwen 2.5 3B Instruct Q4_K_M (1.84 GB, 29+ dil, 151K vocab)
+- Intent Pipeline: Keyword Pre-Filter → Stage 1 (5 kategori) → Stage 2 (16 intent)
+- Benchmark: %100 doğruluk (30/30, hierarchical mod)
 - Kararlılık: Queue/backpressure, per-tool limit, retry/backoff aktif
 - Güvenilirlik: Registry drift guard (startup + test) aktif
 - Gözlemlenebilirlik: Runtime telemetry (`queue_wait_ms`, `tool_run_ms`) mevcut
-- Test: Full suite **112 passed**
+- Test: Full suite **242 passed**
 
 ---
 
@@ -29,29 +32,30 @@
 
 | Container | Port | İçerik |
 |-----------|------|--------|
-| sentinel-whiterabbitneo | 8002 | WhiteRabbitNeo AI (Ollama) |
+| sentinel-ollama | 11434 | Qwen 2.5 3B AI (Ollama) |
 | sentinel-api | 8000 | API Backend |
 | sentinel-tools | - | Nmap, Gobuster, Nikto, Hydra |
 
 ---
 
-## Aktif Sprint: Sprint 3.6 (Optimizasyon ve Platform Hazırlığı)
+## Tamamlanan Sprint: Sprint 3.2 (Optimizasyon ve Platform Hazırlığı) [OK]
 
-> Sprint 3.5 tamamlandı. Kapsamlı audit raporu sonuçlarına göre Sprint 3.6 açıldı.  
-> Detaylı plan: `docs/sprint_3_6_plan.md`
+> Sprint 3.1 tamamlandı. Kapsamlı audit raporu sonuçlarına göre Sprint 3.2 açıldı ve tamamlandı.  
+> Detaylı plan: `docs/sprint_3_2_plan.md`  
+> Merge: develop'a merge edildi (commit 02e352c)
 
-### Sprint 3.6 Özet Hedefler
+### Sprint 3.2 Özet Hedefler
 
-| Track | Odak | Görev Sayısı | Sorumlu |
-|-------|------|--------------|---------|
-| **A** | Kritik Bugfix (P0) | 4 | Kerem + Yiğit |
-| **B** | Linux Platform Uyumu | 7 | Yiğit + Kerem |
-| **C** | AI Ölçeklenme Altyapısı | 4 | Kerem |
-| **D** | Kod Kalitesi / Teknik Borç | 4 | Kerem + Yiğit |
+| Track | Odak | Görev Sayısı | Sorumlu | Durum |
+|-------|------|--------------|---------|-------|
+| **A** | Kritik Bugfix (P0) | 4/4 | Kerem + Yiğit | [OK] |
+| **B** | Linux Platform Uyumu | 7/7 | Yiğit + Kerem | [OK] |
+| **C** | AI Ölçeklenme Altyapısı | 7/7 | Kerem | [OK] |
+| **D** | Kod Kalitesi / Teknik Borç | 4/4 | Kerem + Yiğit | [OK] |
 
 ---
 
-## Tamamlanan Sprint: Sprint 3.5 (Stabilizasyon / Sertleştirme)
+## Tamamlanan Sprint: Sprint 3.1 (Stabilizasyon / Sertleştirme)
 
 ### Sprint 3: Güvenlik, Yetki ve Temizlik
 
@@ -61,12 +65,12 @@
 | Secure Cleaner (cleaner.py) | Yiğit | [OK] | Güvenli dosya temizleme, Whitelist, Shredding |
 | Input Validation | Yiğit | [OK] | IP/Domain validasyonu, Shell injection check |
 | ProcessManager Update | Yiğit | [OK] | Yeni core modüllerle entegrasyon |
-| UI Security Indicators | Yiğit | [TODO] | Terminalde root uyarisi |
-| Settings Menu (Security) | Yiğit | [TODO] | Temizlik sikligi vb. |
+| UI Security Indicators | Yiğit | [BACKLOG] | Terminalde root uyarisi — Sprint 3'ten kalan |
+| Settings Menu (Security) | Yiğit | [BACKLOG] | Temizlik sikligi vb. — Sprint 3'ten kalan |
 
 ---
 
-### Sprint 3.5: Performans ve Güvenilirlik Sertleştirme
+### Sprint 3.1: Performans ve Güvenilirlik Sertleştirme
 
 | Görev | Sorumlu | Durum | Açıklama |
 |-------|---------|-------|----------|
@@ -80,7 +84,7 @@
 
 ### Test Durumu (Güncel)
 
-- Full test suite: **112 passed**
+- Full test suite: **242 passed** (Sprint 3.3 sonrası: +57 yeni test)
 - P0 doğrulama: `scripts/p0_validation.py --with-pytest` başarılı
 
 ---
@@ -114,16 +118,32 @@
 
 ---
 
-## Siradaki Adimlar
+## Tamamlanan Sprint: Sprint 3.3 (Hybrid LLM Motoru) [OK]
 
-1. Dokümantasyon senkronizasyonunu tamamla
-    - README, PROJECT_STRUCTURE, sprint_roadmap, son_durum tutarlılığı
+> Tasarım dokümanı: `docs/hierarchical_intent_design.md`  
+> Temel: Sprint 3.2 Track C altyapısı
 
-2. Sprint 4 veri modeli/adapter başlangıcı
-    - `models.py` + `nmap_adapter.py` ilk iterasyon
+| # | Görev | Sorumlu | Durum |
+|---|-------|---------|-------|
+| 3.3.1 | CategoryResult + SENTINEL_CATEGORIES modeli | Kerem | [OK] |
+| 3.3.2 | HierarchicalResolver base class | Kerem | [OK] |
+| 3.3.3 | Stage 1 — Category Resolver | Kerem | [OK] |
+| 3.3.4 | Stage 2 — Sub-Intent Resolver | Kerem | [OK] |
+| 3.3.5 | KeywordPreFilter bypass entegrasyonu | Kerem | [OK] |
+| 3.3.6 | Orchestrator feature flag | Kerem | [OK] |
+| 3.3.7 | Flat vs Hierarchical benchmark | Kerem | [OK] |
+| 3.3.8 | Unit testler (57 test) | Kerem | [OK] |
+| 3.3.9 | Model değişimi: WhiteRabbitNeo 7B → Qwen 2.5 3B | Kerem | [OK] |
+| 3.3.10 | Docker/doküman güncellemesi | Kerem | [OK] |
 
-3. Runtime telemetry UI görünürlüğü
-    - Tool kuyruğu ve çalışma sürelerinin arayüzde gösterimi
+---
+
+## Sıradaki Adımlar
+
+1. **Sprint 4** — Veri Adaptasyonu (`models.py` + `nmap_adapter.py`)
+2. **Sprint 3 backlog** — UI Security Indicators, Settings Menu (Yiğit, paralel)
+3. **Sprint 5** — Öneri Motoru
+4. **Runtime telemetry UI** — Tool kuyruk/süre gösterimi (backlog)
 
 ---
 
@@ -132,10 +152,10 @@
 | Branch | Son Durum |
 |--------|-----------|
 | main | Sprint 0 + 1 |
-| develop | Sprint 0 + 1 + 2 + 3 (core) |
-| dev_kerem | Sprint 0 + 1 + 2 + 3 + v2.1 + 3.5 sertleştirme |
+| develop | Sprint 0 → 3.2 dahil (merge commit 02e352c) |
+| dev_kerem | Sprint 0 → 3.3 dahil |
 | dev_yigit | Sprint 0 + 1 + 2 + 3 (core) |
 
 ---
 
-*Son Güncelleme: 25 Şubat 2026*
+*Son Güncelleme: 28 Şubat 2026*

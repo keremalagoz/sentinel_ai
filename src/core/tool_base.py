@@ -1,6 +1,6 @@
 """Backward-compatibility shim for tool_base.py
 
-Sprint 3.6 Track D1: Monolithic tool_base.py split into src/core/tools/ package.
+Sprint 3.2 Track D1: Monolithic tool_base.py split into src/core/tools/ package.
 All implementations now live under src.core.tools.*  modules.
 This file re-exports every public symbol so that existing imports like
     ``from src.core.tool_base import PingTool``

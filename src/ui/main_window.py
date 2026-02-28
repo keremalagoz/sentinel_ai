@@ -51,7 +51,7 @@ class MainWindow(QMainWindow):
         self.setWindowTitle("SENTINEL AI")
         self.setMinimumSize(1200, 700)
         
-        self.backend = BackendGateway(model="whiterabbitneo")
+        self.backend = BackendGateway(model="qwen2.5:3b")
         self.process_manager = self.backend.process_manager
         self._ai_worker = None
         self._is_swapped = False

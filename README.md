@@ -5,7 +5,7 @@
 ![Python](https://img.shields.io/badge/Python-3.11+-3776AB?style=for-the-badge&logo=python&logoColor=white)
 ![PyQt6](https://img.shields.io/badge/PyQt6-GUI-41CD52?style=for-the-badge&logo=qt&logoColor=white)
 ![Docker](https://img.shields.io/badge/Docker-Container-2496ED?style=for-the-badge&logo=docker&logoColor=white)
-![WhiteRabbitNeo](https://img.shields.io/badge/WhiteRabbitNeo-Local_AI-FF6F00?style=for-the-badge&logo=meta&logoColor=white)
+![Qwen 2.5](https://img.shields.io/badge/Qwen_2.5_3B-Local_AI-FF6F00?style=for-the-badge&logo=huggingface&logoColor=white)
 ![License](https://img.shields.io/badge/License-MIT-green?style=for-the-badge)
 
 **Local AI Destekli Güvenlik Test Aracı**
@@ -18,15 +18,16 @@
 
 ## Proje Hakkında
 
-SENTINEL AI, siber güvenlik testlerini yapay zeka destekli komutlarla otomatikleştiren bir masaüstü uygulamasıdır. Mevcut sürümde local AI (WhiteRabbitNeo/Ollama) ile güvenlik taramalarını yönetir.
+SENTINEL AI, siber güvenlik testlerini yapay zeka destekli komutlarla otomatikleştiren bir masaüstü uygulamasıdır. Local AI motoru olarak Qwen 2.5 3B (Ollama) kullanır ve 2 aşamalı hierarchical intent resolution pipeline ile %100 doğruluk sağlar.
 
 ### Özellikler
 
-- **Local AI Motoru** - WhiteRabbitNeo/Ollama tabanlı intent çözümleme
+- **Local AI Motoru** - Qwen 2.5 3B / Ollama tabanlı intent çözümleme (1.9 GB, 29+ dil)
+- **2 Aşamalı Intent Resolution** - Keyword pre-filter → Kategori → Alt-intent pipeline
 - **Modern PyQt6 Arayüzü** - Donmayan, responsive terminal ve sonuç görüntüleme
 - **Docker Altyapısı** - İzole ve taşınabilir servis mimarisi
 - **Güvenli Yetki Yönetimi** - Pkexec ile şifresiz root işlemleri
-- **Deterministik Çalıştırma** - Intent -> Tool -> Command zinciri
+- **Deterministik Çalıştırma** - Intent → Tool → Command zinciri
 - **Çalışma Zamanı Sertleştirme** - Queue/backpressure, per-tool limit, timeout/retry
 
 ### Planlanan Özellikler
@@ -50,12 +51,15 @@ SENTINEL AI, siber güvenlik testlerini yapay zeka destekli komutlarla otomatikl
 │                            │                   │                │
 │         ┌──────────────────┼───────────────────┤                │
 │         ▼                  ▼                   ▼                │
-│  ┌─────────────┐                      ┌─────────────┐          │
-│  │ Local LLM   │                      │ Linux       │          │
-│  │ (WhiteRabbitNeo)                   │ Tools       │          │
-│  │ Port: 8002  │                      │ (nmap, etc) │          │
-│  └─────────────┘                      └─────────────┘          │
+│  ┌─────────────┐  ┌───────────────┐   ┌─────────────┐          │
+│  │ Qwen 2.5 3B │  │ Keyword       │   │ Linux       │          │
+│  │ (Ollama)    │  │ Pre-Filter    │   │ Tools       │          │
+│  │ Port: 11434 │  │ (Regex)       │   │ (nmap, etc) │          │
+│  └─────────────┘  └───────────────┘   └─────────────┘          │
 └─────────────────────────────────────────────────────────────────┘
+
+Intent Pipeline:
+  User Input → KeywordPreFilter → [Stage 1: Category] → [Stage 2: Sub-Intent] → Tool
 ```
 
 ---
@@ -77,9 +81,12 @@ sentinel_root/
 ├── docker/                   # Docker yapılandırmaları
 │   ├── api/                  # API servisi
 │   │   └── Dockerfile
+│   ├── ollama/               # Ollama LLM servisi (Qwen 2.5 3B)
+│   │   ├── Dockerfile
+│   │   └── setup_model.sh
 │   ├── tools/                # Security tools servisi
 │   │   └── Dockerfile
-│   └── whiterabbitneo/       # WhiteRabbitNeo LLM servisi
+│   └── whiterabbitneo/       # (Legacy) WhiteRabbitNeo servisi
 │       └── Dockerfile
 ├── docs/                     # Dokümantasyon
 │   ├── AGENT_RULES.md
@@ -90,12 +97,10 @@ sentinel_root/
 │   ├── sprint1_ready.md
 │   └── sqlite_schema.md
 ├── models/                   # Model dosyaları ve modelfile'lar
-│   ├── model1.gguf
-│   ├── model2.gguf
-│   ├── Modelfile.model1
-│   ├── Modelfile.model2
-│   ├── Modelfile.whiterabbitneo
-│   └── whiterabbitneo-7b-q4.gguf
+│   ├── qwen2.5-3b-instruct-q4.gguf  # Primary (1.84 GB)
+│   ├── Modelfile.qwen2.5            # SENTINEL system prompt
+│   ├── Modelfile.whiterabbitneo      # Legacy modelfile
+│   └── whiterabbitneo-7b-q4.gguf     # Legacy model (4.47 GB)
 ├── src/                      # Kaynak kodlar
 │   ├── ai/                   # Yapay zeka modülleri
 │   ├── core/                 # Backend mantığı
@@ -122,10 +127,8 @@ SENTINEL AI production modda çalışır:
 - **İşletim Sistemi:** Linux (Ubuntu 20.04+ önerilir)
 - **Python:** 3.11+
 - **Docker:** 20.10+ & Docker Compose
-- **RAM:** Minimum 8GB (WhiteRabbitNeo için 16GB önerilir)
-- **Disk:** 10GB+ (Model indirme için)
-- **RAM:** Minimum 4GB (Native Ollama için 8GB önerilir)
-- **Disk:** ~5GB (Model için)
+- **RAM:** Minimum 4GB (8GB önerilir)
+- **Disk:** ~3GB (Qwen 2.5 3B model + bağımlılıklar)
 
 ### 1. Projeyi Klonlayın
 
@@ -161,9 +164,9 @@ nano .env
 # Servisleri arka planda başlat
 docker-compose up -d
 
-# İlk çalıştırmada WhiteRabbitNeo modeli indirilecek
+# İlk çalıştırmada Qwen 2.5 3B modeli indirilecek (~1.9 GB)
 # İndirme durumunu izle:
-docker-compose logs -f whiterabbitneo-service
+docker-compose logs -f ollama-service
 ```
 
 ### 5. Uygulamayı Başlatın
@@ -179,7 +182,7 @@ python main.py
 
 | Servis | Port | Açıklama |
 |--------|------|----------|
-| `whiterabbitneo-service` | 8002 | WhiteRabbitNeo LLM API (Ollama) |
+| `ollama-service` | 11434 | Qwen 2.5 3B LLM API (Ollama) |
 | `api-service` | 8000 | Backend API (Orchestrator) |
 | `tools-service` | - | Security tools (nmap, gobuster, nikto, hydra) |
 
@@ -254,11 +257,11 @@ Mevcut sürümde sistem local-only çalışır ve varsayılan akışta veri dı�
 ## Test
 
 ```bash
-# Tüm testleri çalıştır
-pytest src/tests/
+# Tüm testleri çalıştır (242 test)
+pytest src/tests/ -q
 
 # Belirli bir modülü test et
-pytest src/tests/test_process_manager.py -v
+pytest src/tests/test_sprint1.py -v
 
 # Coverage raporu
 pytest --cov=src src/tests/

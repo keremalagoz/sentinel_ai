@@ -1,25 +1,25 @@
 # SENTINEL AI - Docker Compose Configuration
-# Sprint 0.2: Full service definitions
+# Sprint 3.3: Qwen 2.5 3B (primary) + legacy WhiteRabbitNeo support
 # Usage: docker-compose up -d
-
-version: '3.8'
 
 services:
   # ============================================
-  # Service 1: WhiteRabbitNeo LLM (Port 8002)
+  # Service 1: Ollama LLM Service (Port 8002)
+  # Primary: Qwen 2.5 3B Instruct (1.9 GB)
   # ============================================
-  whiterabbitneo-service:
+  ollama-service:
     build:
       context: .
-      dockerfile: docker/whiterabbitneo/Dockerfile
-    container_name: sentinel-whiterabbitneo
+      dockerfile: docker/ollama/Dockerfile
+    container_name: sentinel-ollama
     ports:
       - "8002:11434"  # External:Internal
     volumes:
-      - whiterabbitneo_models:/root/.ollama  # Model cache
+      - ollama_models:/root/.ollama  # Model cache
     environment:
       - OLLAMA_HOST=0.0.0.0
       - OLLAMA_GPU_LAYERS=99
+      - SENTINEL_MODEL=qwen2.5          # qwen2.5 | whiterabbitneo | both
       - NVIDIA_VISIBLE_DEVICES=all
       - NVIDIA_DRIVER_CAPABILITIES=compute,utility
     restart: unless-stopped
@@ -36,12 +36,12 @@ services:
       interval: 30s
       timeout: 30s
       retries: 5
-      start_period: 300s  # Model indirme icin 5 dakika bekle
+      start_period: 120s  # Qwen 2.5 indirme icin 2 dakika yeterli
     networks:
       - sentinel-net
 
   # ============================================
-  # Service 3: API Backend (Port 8000)
+  # Service 2: API Backend (Port 8000)
   # ============================================
   api-service:
     build:
@@ -57,14 +57,16 @@ services:
       - .env
     environment:
       - DB_PATH=/app/data/sentinel_api.db
+      - OLLAMA_URL=http://ollama-service:11434
+      - SENTINEL_CATEGORY_MODEL=sentinel-qwen
     depends_on:
-      - whiterabbitneo-service
+      - ollama-service
     restart: unless-stopped
     networks:
       - sentinel-net
 
   # ============================================
-  # Service 4: Security Tools (Nmap, Gobuster, etc.)
+  # Service 3: Security Tools (Nmap, Gobuster, etc.)
   # ============================================
   tools-service:
     build:
@@ -84,7 +86,7 @@ services:
 
 # Named volumes for model persistence
 volumes:
-  whiterabbitneo_models:
+  ollama_models:
     driver: local
 
 # Custom network for service isolation

@@ -105,7 +105,7 @@ class SQLiteBackend:
         self.connection = sqlite3.connect(str(self.db_path))
         self.connection.row_factory = sqlite3.Row  # Enable dict-like row access
 
-        # Sprint 3.6 D2: WAL mode — daha iyi concurrent read/write performansi
+        # Sprint 3.2 D2: WAL mode — daha iyi concurrent read/write performansi
         self.connection.execute("PRAGMA journal_mode=WAL")
         self.connection.execute("PRAGMA synchronous=NORMAL")
         

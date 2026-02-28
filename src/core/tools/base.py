@@ -3,7 +3,7 @@
 Sprint 1 Week 2: Tool execution with QProcess integration
 Async tool execution, output capture, timeout handling
 
-Re-structured in Sprint 3.6 Track D1: Moved from monolithic tool_base.py
+Re-structured in Sprint 3.2 Track D1: Moved from monolithic tool_base.py
 """
 
 from abc import ABC, abstractmethod
