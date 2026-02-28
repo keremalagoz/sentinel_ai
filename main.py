@@ -1,6 +1,6 @@
 # SENTINEL AI - Main Entry Point
 # ================================
-# Sprint 3.6+: Production Mode
+# Sprint 3.2+: Production Mode
 # Yigit (UI/UX) & Kerem (AI/Backend)
 
 import sys

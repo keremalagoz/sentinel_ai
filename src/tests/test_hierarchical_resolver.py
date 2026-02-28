@@ -1,4 +1,4 @@
-"""Sprint 3.7 — Hierarchical Resolver Unit Tests
+"""Sprint 3.3 — Hierarchical Resolver Unit Tests
 
 Test suite for 2-stage intent resolution:
   - CategoryType / CategoryResult / SENTINEL_CATEGORIES models

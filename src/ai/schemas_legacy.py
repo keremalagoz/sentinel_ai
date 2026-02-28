@@ -1,6 +1,6 @@
 """Legacy Sprint 2 Schemas — Backward Compatibility
 
-Sprint 3.6 Track D3: schemas.py'deki eski ToolCommand, AIResponse,
+Sprint 3.2 Track D3: schemas.py'deki eski ToolCommand, AIResponse,
 TOOL_COMMAND_SCHEMA, AI_RESPONSE_SCHEMA burada tutulur.
 Yeni kodlar Action Planner v2 (schemas.py) API'sini kullanmalidir.
 

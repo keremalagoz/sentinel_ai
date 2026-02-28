@@ -3,7 +3,7 @@
 Merkezi platform tespit ve yardimci fonksiyonlari.
 Tum tool'lar ve core moduller bu modulu kullanir.
 
-Sprint 3.6 Track B7: Linux platform uyumlulugu icin temel modul.
+Sprint 3.2 Track B7: Linux platform uyumlulugu icin temel modul.
 """
 
 import os

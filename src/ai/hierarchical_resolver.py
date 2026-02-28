@@ -1,6 +1,6 @@
 """Hierarchical Intent Resolver — 2 Asamali Niyet Cozumleme
 
-Sprint 3.7: Hybrid LLM Motoru.
+Sprint 3.3: Hybrid LLM Motoru.
 Flat 16-intent yerine 2 asamali (Category -> Sub-Intent) cozumleme:
   Stage 1 (hafif model): 5 kategoriden birini sec  (~1-2s)
   Stage 2 (ana model):   Kategori icindeki spesifik intent'i belirle

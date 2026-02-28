@@ -1,6 +1,6 @@
 """Keyword Pre-filter for Intent Resolution
 
-Sprint 3.6 Track C2: Regex/keyword tabanli hizli intent on-eleme.
+Sprint 3.2 Track C2: Regex/keyword tabanli hizli intent on-eleme.
 LLM sonucunu cross-validate eder. Uyumsuzlukta warning log + clarification.
 
 Kullanim:

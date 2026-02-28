@@ -1,4 +1,4 @@
-# SENTINEL AI — Sprint 3.6: Optimizasyon ve Platform Hazırlığı
+# SENTINEL AI — Sprint 3.2: Optimizasyon ve Platform Hazırlığı
 
 **Başlangıç:** 26 Şubat 2026  
 **Hedef Bitiş:** ~7 Mart 2026 (1.5 hafta)  
@@ -9,7 +9,7 @@
 
 ## Sprint Amacı
 
-Sprint 3.5'teki stabilizasyon çalışmalarının ardından, kapsamlı audit raporunda tespit edilen **kritik hataları düzeltmek**, **Linux hedef platforma uyumluluk** sağlamak ve **Sprint 4+ için ölçeklenme altyapısını** kurmak. Sprint 4'e temiz ve güvenli bir kod tabanıyla girmek ana motivasyondur.
+Sprint 3.1'deki stabilizasyon çalışmalarının ardından, kapsamlı audit raporunda tespit edilen **kritik hataları düzeltmek**, **Linux hedef platforma uyumluluk** sağlamak ve **Sprint 4+ için ölçeklenme altyapısını** kurmak. Sprint 4'e temiz ve güvenli bir kod tabanıyla girmek ana motivasyondur.
 
 ---
 
@@ -123,7 +123,7 @@ Sprint 3.5'teki stabilizasyon çalışmalarının ardından, kapsamlı audit rap
 - [x] SQLite WAL mode aktif, `PRAGMA journal_mode` sorgusu `wal` donduruyor
 - [x] `schemas_legacy.py` olusturuldu, legacy sema kodu ayrildi (schemas.py 601 -> ~340 satir)
 - [x] Singleton getter'lar `threading.Lock` ile korunuyor (intent_resolver, orchestrator, command_builder)
-- [x] 18 yeni Track D testi, toplam 185 test gecti
+- [x] 18 yeni Track D testi, toplam 185 test gecti (Sprint 3.3 sonrasi 242)
 
 ---
 
@@ -172,7 +172,7 @@ Sprint 3.5'teki stabilizasyon çalışmalarının ardından, kapsamlı audit rap
 
 ---
 
-## Definition of Done (Sprint 3.6)
+## Definition of Done (Sprint 3.2)
 
 1. Track A (P0 bugfix) — ✅ **%100 tamamlandı** (26 Şubat 2026)
 2. Track B (Linux uyumluluk) — ✅ **%100 tamamlandı** (26 Şubat 2026)
@@ -186,7 +186,7 @@ Sprint 3.5'teki stabilizasyon çalışmalarının ardından, kapsamlı audit rap
 
 ## Sprint 4'e Geçiş Koşulları
 
-Sprint 3.6 tamamlandığında Sprint 4'e geçiş için şu koşullar aranır:
+Sprint 3.2 tamamlandığında Sprint 4'e geçiş için şu koşullar aranır:
 
 - [x] P0 görevlerin tamamı kapatılmış (Track A + Track C P0'lar)
 - [x] Linux'ta en az temel tool'lar (ping, nmap, dns) çalışır durumda (cross-platform build_command tamamlandı)
@@ -202,7 +202,7 @@ Sprint 3.6 tamamlandığında Sprint 4'e geçiş için şu koşullar aranır:
 
 Audit raporunda ve takip konuşmalarında belirlenen tüm konuların sprint karşılığı:
 
-| Audit / Konuşma Konusu | Sprint 3.6 Karşılığı | Durum |
+| Audit / Konuşma Konusu | Sprint 3.2 Karşılığı | Durum |
 |-------------------------|----------------------|-------|
 | **P0 — Merkezi logging** | A1 | ✅ Tamamlandı (`f7ace9f`) |
 | **P0 — Callback deadlock** | A2 | ✅ Tamamlandı (`fe79566`) |
@@ -231,6 +231,6 @@ Audit raporunda ve takip konuşmalarında belirlenen tüm konuların sprint kar�
 
 ---
 
-*Sprint 3.6 Planı — 26 Şubat 2026*  
-*Son Güncelleme: 26 Şubat 2026 — Track A+B tamamlandı, main_developer.py kaldırıldı*  
+*Sprint 3.2 Planı — 26 Şubat 2026*  
+*Son Güncelleme: 28 Şubat 2026 — Sprint numarası 3.6 → 3.2 olarak yeniden düzenlendi*  
 *Hazırlayan: GitHub Copilot (Audit Report verileri doğrultusunda)*

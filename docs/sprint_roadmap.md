@@ -1,6 +1,6 @@
 # SENTINEL AI - Sprint Roadmap (Güncel)
 
-**Güncelleme Tarihi:** 27 Şubat 2026  
+**Güncelleme Tarihi:** 28 Şubat 2026  
 **Mimari:** Action Planner v2.1 (Local-Only LLM + Deterministic Command Builder)
 
 ---
@@ -34,7 +34,7 @@ Temel akış:
   - `sqlite_backend.py`
   - `parser_framework.py`
 - **Docker Servisleri:**
-  - `whiterabbitneo-service` (8002)
+  - `ollama-service` (8002 → 11434)
   - `api-service` (8000)
   - `tools-service`
 
@@ -87,23 +87,23 @@ Temel akış:
 
 ---
 
-### Sprint 3.5 — Stabilizasyon ve Sertleştirme ✅
+### Sprint 3.1 — Stabilizasyon ve Sertleştirme ✅
 
 | # | Görev | Sorumlu | Durum | Açıklama |
-|---|-------|---------|-------|----------|
-| 3.5.1 | Queue backpressure | Kerem | ✅ | ToolManager kuyruk taşmasını kontrollü reddetme |
-| 3.5.2 | Global concurrency limiti | Kerem | ✅ | Eşzamanlı çalışma üst sınırı |
-| 3.5.3 | Per-tool concurrency limiti | Kerem | ✅ | Tool bazlı paralellik kontrolü |
-| 3.5.4 | Local LLM timeout/retry/backoff | Kerem | ✅ | intent_resolver timeout + retry + backoff |
-| 3.5.5 | Registry drift guard | Kerem | ✅ | Startup doğrulama + test guard |
-| 3.5.6 | Adaptif timeout tahmini | Kerem | ✅ | Tool bazlı tahmini timeout stratejisi |
-| 3.5.7 | Runtime telemetry yüzeyi | Kerem | ✅ | queue_wait_ms / tool_run_ms metrikleri |
+|---|-------|---------|-------|-----------|
+| 3.1.1 | Queue backpressure | Kerem | ✅ | ToolManager kuyruk taşmasını kontrollü reddetme |
+| 3.1.2 | Global concurrency limiti | Kerem | ✅ | Eşzamanlı çalışma üst sınırı |
+| 3.1.3 | Per-tool concurrency limiti | Kerem | ✅ | Tool bazlı paralellik kontrolü |
+| 3.1.4 | Local LLM timeout/retry/backoff | Kerem | ✅ | intent_resolver timeout + retry + backoff |
+| 3.1.5 | Registry drift guard | Kerem | ✅ | Startup doğrulama + test guard |
+| 3.1.6 | Adaptif timeout tahmini | Kerem | ✅ | Tool bazlı tahmini timeout stratejisi |
+| 3.1.7 | Runtime telemetry yüzeyi | Kerem | ✅ | queue_wait_ms / tool_run_ms metrikleri |
 
 ---
 
-### Sprint 3.6 — Optimizasyon ve Platform Hazırlığı ✅
+### Sprint 3.2 — Optimizasyon ve Platform Hazırlığı ✅
 
-> Detaylı plan: [sprint_3_6_plan.md](sprint_3_6_plan.md)  
+> Detaylı plan: [sprint_3_2_plan.md](sprint_3_2_plan.md)  
 > Merge: develop'a merge edildi (commit `02e352c`)
 
 **Track A — Kritik Bugfix (4/4) ✅**
@@ -148,26 +148,30 @@ Temel akış:
 | D3 | Legacy Schema Temizliği → `schemas_legacy.py` | Kerem | ✅ | `2c6794a` |
 | D4 | Singleton Thread Safety (Lock guard) | Kerem | ✅ | `2c6794a` |
 
-**Sprint 3.6 Toplam: 22/22 görev ✅**
+**Sprint 3.2 Toplam: 22/22 görev ✅**
 
 ---
 
-### Sprint 3.7 — Hybrid LLM Motoru ve 2 Aşamalı Intent Resolution ✅
+### Sprint 3.3 — Hybrid LLM Motoru ve 2 Aşamalı Intent Resolution ✅
 
 > Tasarım dokümanı: [hierarchical_intent_design.md](hierarchical_intent_design.md)  
-> Temel: Sprint 3.6 Track C altyapısı (confidence, keyword filter, dual-model, benchmark)  
+> Temel: Sprint 3.2 Track C altyapısı (confidence, keyword filter, dual-model, benchmark)  
 > Hedef: Flat 17-intent → Hierarchical 5-category + sub-intent geçişi
 
 | # | Görev | Sorumlu | Durum | Açıklama |
 |---|-------|---------|-------|----------|
-| 3.7.1 | CategoryResult + SENTINEL_CATEGORIES modeli | Kerem | ✅ | Pydantic model, 5 kategori taksonomisi dict |
-| 3.7.2 | HierarchicalResolver base class | Kerem | ✅ | ABC: `resolve_category()`, `resolve_sub_intent()`, `resolve()` |
-| 3.7.3 | Stage 1 — Category Resolver | Kerem | ✅ | 5 kategorili prompt, hafif model çağrısı (~1-2s) |
-| 3.7.4 | Stage 2 — Sub-Intent Resolver | Kerem | ✅ | Kategori bazlı daraltılmış prompt, ana model çağrısı |
-| 3.7.5 | KeywordPreFilter bypass entegrasyonu | Kerem | ✅ | Yüksek confidence keyword → Stage 1 atla, direkt Stage 2 |
-| 3.7.6 | Orchestrator feature flag | Kerem | ✅ | `USE_HIERARCHICAL = True/False`, flat/hierarchical geçiş |
-| 3.7.7 | Flat vs Hierarchical benchmark | Kerem | ✅ | `intent_benchmark.py` genişlet, accuracy/latency karşılaştırma |
-| 3.7.8 | Unit testler | Kerem | ✅ | HierarchicalResolver, category routing, fallback senaryoları (57 test) |
+| 3.3.1 | CategoryResult + SENTINEL_CATEGORIES modeli | Kerem | ✅ | Pydantic model, 5 kategori taksonomisi dict |
+| 3.3.2 | HierarchicalResolver base class | Kerem | ✅ | ABC: `resolve_category()`, `resolve_sub_intent()`, `resolve()` |
+| 3.3.3 | Stage 1 — Category Resolver | Kerem | ✅ | 5 kategorili prompt, hafif model çağrısı (~1-2s) |
+| 3.3.4 | Stage 2 — Sub-Intent Resolver | Kerem | ✅ | Kategori bazlı daraltılmış prompt, ana model çağrısı |
+| 3.3.5 | KeywordPreFilter bypass entegrasyonu | Kerem | ✅ | Yüksek confidence keyword → Stage 1 atla, direkt Stage 2 |
+| 3.3.6 | Orchestrator feature flag | Kerem | ✅ | `USE_HIERARCHICAL = True/False`, flat/hierarchical geçiş |
+| 3.3.7 | Flat vs Hierarchical benchmark | Kerem | ✅ | `intent_benchmark.py` genişlet, accuracy/latency karşılaştırma |
+| 3.3.8 | Unit testler | Kerem | ✅ | HierarchicalResolver, category routing, fallback senaryoları (57 test) |
+| 3.3.9 | Model değişimi: WhiteRabbitNeo 7B → Qwen 2.5 3B | Kerem | ✅ | %50 daha az VRAM, %59 daha az disk, %100 benchmark |
+| 3.3.10 | Docker/doküman güncellemesi | Kerem | ✅ | ollama-service, Qwen 2.5 3B default, README/PROJECT_STRUCTURE güncel |
+
+**Sprint 3.3 Toplam: 10/10 görev ✅**
 
 ---
 
@@ -175,10 +179,10 @@ Temel akış:
 
 - Mimari: Local-only LLM + deterministic execution
 - Test sağlığı: full suite yeşil (**242 passed**)
-- Tamamlanan: Sprint 0 → 3.7 (toplam **55 görev** tamamlandı)
-- Aktif sprint: **Sprint 3.7 tamamlandı** — sonraki: Sprint 4
+- Tamamlanan: Sprint 0 → 3.3 (toplam **55 görev** tamamlandı)
+- Aktif sprint: **Sprint 3.3 tamamlandı** — sonraki: Sprint 4
 - Backlog: 2 görev (Sprint 3'ten kalan UI görevleri — Yiğit)
-- Sonraki hedef: Sprint 3.7 → Sprint 4 (Veri Adaptasyonu)
+- Sonraki hedef: Sprint 3.3 → Sprint 4 (Veri Adaptasyonu)
 
 ---
 
@@ -186,12 +190,16 @@ Temel akış:
 
 ### Sprint 4 — Veri Adaptasyonu ve Sonuç Modelleri
 
+> Detaylı plan: [sprint_4_plan.md](sprint_4_plan.md)
+
 | # | Görev | Sorumlu | Durum | Açıklama |
 |---|-------|---------|-------|----------|
 | 4.1 | Pydantic Veri Modeli (`models.py`) | Kerem | ⬜ | ScanResult, Host, Port, Service modelleri |
 | 4.2 | XML Repair fonksiyonu | Kerem | ⬜ | Kesik XML çıktılarını düzeltme |
 | 4.3 | Nmap Adapter (`nmap_adapter.py`) | Kerem | ⬜ | XML → Pydantic dönüşümü |
 | 4.4 | UI Tablo Gösterimi (`results_view.py`) | Yiğit | ⬜ | Parse edilmiş sonuçları tablo olarak göster |
+| 4.5 | Adapter Entegrasyonu | Kerem | ⬜ | ToolManager → Adapter → UI pipeline |
+| 4.6 | Unit Testler | Kerem | ⬜ | Model/XML/adapter testleri |
 
 ### Sprint 5 — Öneri Motoru
 
@@ -243,11 +251,11 @@ Bir sprint maddesi tamamlandı sayılması için:
 
 | Metrik | Değer |
 |--------|-------|
-| Tamamlanan görev | **47** |
-| Aktif (Sprint 3.7) | **8** |
+| Tamamlanan görev | **55** |
+| Aktif (Sprint 3.3) | **10** |
 | Backlog (yerleştirilmemiş) | **3** |
 | Bekleyen (Sprint 4-6) | **9** |
-| Toplam test | **185 passed** |
+| Toplam test | **242 passed** |
 | Son merge | develop `02e352c` |
 
 

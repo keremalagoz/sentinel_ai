@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Intent Benchmark Script — Sprint 3.6 Track C4 + Sprint 3.7 Hierarchical
+"""Intent Benchmark Script — Sprint 3.2 Track C4 + Sprint 3.3 Hierarchical
 
 30 ornek girdi ile IntentResolver / HierarchicalResolver dogruluk ve latency
 olcumu yapar. Sonuclari JSON ve ozet tablo olarak yazar.
@@ -119,7 +119,7 @@ class CaseResult:
     correct: bool
     latency_ms: float
     error: Optional[str] = None
-    # Sprint 3.7: Hierarchical ek alanlari
+    # Sprint 3.3: Hierarchical ek alanlari
     expected_category: Optional[str] = None
     actual_category: Optional[str] = None
     category_correct: Optional[bool] = None
@@ -140,7 +140,7 @@ class BenchmarkSummary:
     min_latency_ms: float = 0.0
     model: str = ""
     mode: str = "flat"  # "flat" | "hierarchical"
-    # Sprint 3.7: Hierarchical ek metrikleri
+    # Sprint 3.3: Hierarchical ek metrikleri
     category_correct: int = 0
     category_accuracy_pct: float = 0.0
     keyword_bypass_count: int = 0

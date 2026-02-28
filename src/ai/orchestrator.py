@@ -79,7 +79,7 @@ class AIOrchestrator:
         self._command_builder = CommandBuilder()
         self._keyword_filter = KeywordPreFilter()
 
-        # Sprint 3.7: Hierarchical resolver (2-asamali)
+        # Sprint 3.3: Hierarchical resolver (2-asamali)
         self._hierarchical_resolver: Optional[HierarchicalResolver] = None
         if self.USE_HIERARCHICAL:
             self._hierarchical_resolver = HierarchicalResolver(
@@ -131,7 +131,7 @@ class AIOrchestrator:
         
         t0 = time.monotonic()
 
-        # Sprint 3.7: Hierarchical (2-asamali) veya flat resolver
+        # Sprint 3.3: Hierarchical (2-asamali) veya flat resolver
         if self._hierarchical_resolver is not None:
             intent = self._hierarchical_resolver.resolve(user_input, target)
         else:
@@ -308,7 +308,7 @@ class AIOrchestrator:
         """Kullanilacak modeli degistir"""
         self._model = model
         self._intent_resolver = IntentResolver(model=model)
-        # Sprint 3.7: Hierarchical resolver modeli de guncelle
+        # Sprint 3.3: Hierarchical resolver modeli de guncelle
         if self._hierarchical_resolver is not None:
             self._hierarchical_resolver.set_models(
                 category_model=self._hierarchical_resolver.category_model,

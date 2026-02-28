@@ -1,5 +1,5 @@
 # SENTINEL AI - Docker Compose Configuration
-# Sprint 3.7: Qwen 2.5 3B (primary) + legacy WhiteRabbitNeo support
+# Sprint 3.3: Qwen 2.5 3B (primary) + legacy WhiteRabbitNeo support
 # Usage: docker-compose up -d
 
 services:

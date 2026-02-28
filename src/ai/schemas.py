@@ -65,7 +65,7 @@ class IntentType(str, Enum):
 
 
 # =============================================================================
-# HIERARCHICAL INTENT — Sprint 3.7: Kategori Taksonomisi
+# HIERARCHICAL INTENT — Sprint 3.3: Kategori Taksonomisi
 # =============================================================================
 
 class CategoryType(str, Enum):
@@ -329,7 +329,7 @@ INTENT_SCHEMA = {
 
 # =============================================================================
 # LEGACY Re-exports — asil kaynak: src/ai/schemas_legacy.py
-# Sprint 3.6 D3: Legacy sema kodu ayri dosyaya tasinmistir.
+# Sprint 3.2 D3: Legacy sema kodu ayri dosyaya tasinmistir.
 # Mevcut importlar (`from src.ai.schemas import ToolCommand`) calismaya devam eder.
 # =============================================================================
 

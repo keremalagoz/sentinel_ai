@@ -38,13 +38,13 @@
 
 ---
 
-## Tamamlanan Sprint: Sprint 3.6 (Optimizasyon ve Platform Hazırlığı) [OK]
+## Tamamlanan Sprint: Sprint 3.2 (Optimizasyon ve Platform Hazırlığı) [OK]
 
-> Sprint 3.5 tamamlandı. Kapsamlı audit raporu sonuçlarına göre Sprint 3.6 açıldı ve tamamlandı.  
-> Detaylı plan: `docs/sprint_3_6_plan.md`  
+> Sprint 3.1 tamamlandı. Kapsamlı audit raporu sonuçlarına göre Sprint 3.2 açıldı ve tamamlandı.  
+> Detaylı plan: `docs/sprint_3_2_plan.md`  
 > Merge: develop'a merge edildi (commit 02e352c)
 
-### Sprint 3.6 Özet Hedefler
+### Sprint 3.2 Özet Hedefler
 
 | Track | Odak | Görev Sayısı | Sorumlu | Durum |
 |-------|------|--------------|---------|-------|
@@ -55,7 +55,7 @@
 
 ---
 
-## Tamamlanan Sprint: Sprint 3.5 (Stabilizasyon / Sertleştirme)
+## Tamamlanan Sprint: Sprint 3.1 (Stabilizasyon / Sertleştirme)
 
 ### Sprint 3: Güvenlik, Yetki ve Temizlik
 
@@ -70,7 +70,7 @@
 
 ---
 
-### Sprint 3.5: Performans ve Güvenilirlik Sertleştirme
+### Sprint 3.1: Performans ve Güvenilirlik Sertleştirme
 
 | Görev | Sorumlu | Durum | Açıklama |
 |-------|---------|-------|----------|
@@ -84,7 +84,7 @@
 
 ### Test Durumu (Güncel)
 
-- Full test suite: **242 passed** (Sprint 3.7 sonrası: +57 yeni test)
+- Full test suite: **242 passed** (Sprint 3.3 sonrası: +57 yeni test)
 - P0 doğrulama: `scripts/p0_validation.py --with-pytest` başarılı
 
 ---
@@ -118,23 +118,23 @@
 
 ---
 
-## Tamamlanan Sprint: Sprint 3.7 (Hybrid LLM Motoru) [OK]
+## Tamamlanan Sprint: Sprint 3.3 (Hybrid LLM Motoru) [OK]
 
 > Tasarım dokümanı: `docs/hierarchical_intent_design.md`  
-> Temel: Sprint 3.6 Track C altyapısı
+> Temel: Sprint 3.2 Track C altyapısı
 
 | # | Görev | Sorumlu | Durum |
 |---|-------|---------|-------|
-| 3.7.1 | CategoryResult + SENTINEL_CATEGORIES modeli | Kerem | [OK] |
-| 3.7.2 | HierarchicalResolver base class | Kerem | [OK] |
-| 3.7.3 | Stage 1 — Category Resolver | Kerem | [OK] |
-| 3.7.4 | Stage 2 — Sub-Intent Resolver | Kerem | [OK] |
-| 3.7.5 | KeywordPreFilter bypass entegrasyonu | Kerem | [OK] |
-| 3.7.6 | Orchestrator feature flag | Kerem | [OK] |
-| 3.7.7 | Flat vs Hierarchical benchmark | Kerem | [OK] |
-| 3.7.8 | Unit testler (57 test) | Kerem | [OK] |
-| 3.7.9 | Model değişimi: WhiteRabbitNeo 7B → Qwen 2.5 3B | Kerem | [OK] |
-| 3.7.10 | Docker/doküman güncellemesi | Kerem | [OK] |
+| 3.3.1 | CategoryResult + SENTINEL_CATEGORIES modeli | Kerem | [OK] |
+| 3.3.2 | HierarchicalResolver base class | Kerem | [OK] |
+| 3.3.3 | Stage 1 — Category Resolver | Kerem | [OK] |
+| 3.3.4 | Stage 2 — Sub-Intent Resolver | Kerem | [OK] |
+| 3.3.5 | KeywordPreFilter bypass entegrasyonu | Kerem | [OK] |
+| 3.3.6 | Orchestrator feature flag | Kerem | [OK] |
+| 3.3.7 | Flat vs Hierarchical benchmark | Kerem | [OK] |
+| 3.3.8 | Unit testler (57 test) | Kerem | [OK] |
+| 3.3.9 | Model değişimi: WhiteRabbitNeo 7B → Qwen 2.5 3B | Kerem | [OK] |
+| 3.3.10 | Docker/doküman güncellemesi | Kerem | [OK] |
 
 ---
 
@@ -152,8 +152,8 @@
 | Branch | Son Durum |
 |--------|-----------|
 | main | Sprint 0 + 1 |
-| develop | Sprint 0 → 3.6 dahil (merge commit 02e352c) |
-| dev_kerem | Sprint 0 → 3.7 dahil |
+| develop | Sprint 0 → 3.2 dahil (merge commit 02e352c) |
+| dev_kerem | Sprint 0 → 3.3 dahil |
 | dev_yigit | Sprint 0 + 1 + 2 + 3 (core) |
 
 ---

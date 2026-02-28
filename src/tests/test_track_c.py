@@ -1,4 +1,4 @@
-"""Sprint 3.6 Track C — AI Scaling Infrastructure Tests
+"""Sprint 3.2 Track C — AI Scaling Infrastructure Tests
 
 Unit tests for:
   C1: Intent confidence score (schemas + resolver)

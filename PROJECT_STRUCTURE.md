@@ -1,6 +1,6 @@
 # SENTINEL AI - Proje Yapısı (Sadeleştirilmiş)
 
-**Versiyon**: Action Planner v2.1 - Sprint 3.7 (Hybrid LLM Motoru + Qwen 2.5 3B)  
+**Versiyon**: Action Planner v2.1 - Sprint 3.3 (Hybrid LLM Motoru + Qwen 2.5 3B)  
 **Tarih**: 28 Subat 2026  
 **Mimari**: Local-Only LLM (Qwen 2.5 3B) + 2-Asamali Intent Resolution + Deterministic Execution
 
@@ -96,7 +96,8 @@ sentinel_root/
 │   ├── execution_history_model.md # Execution history veri modeli
 │   ├── execution_state_model.md # Execution state management
 │   ├── sprint_roadmap.md       # Sprint plani ve kapsam
-│   ├── sprint_3_6_plan.md      # Sprint 3.6 detayli plan
+│   ├── sprint_3_2_plan.md      # Sprint 3.2 detayli plan
+│   ├── sprint_4_plan.md        # Sprint 4 detayli plan
 │   ├── sprint1_ready.md        # Sprint 1 completion raporu
 │   ├── conversation_audit_report.md # Kapsamli audit raporu
 │   └── sqlite_schema.md        # SQLite veritabani semasi
@@ -432,7 +433,7 @@ response = orchestrator.process("192.168.1.1'i tara", target="192.168.1.1")
 ---
 
 ### **src/ai/hierarchical_resolver.py**
-HierarchicalResolver - 2 Asamali Intent Cozumleme (Sprint 3.7)
+HierarchicalResolver - 2 Asamali Intent Cozumleme (Sprint 3.3)
 
 **Sorumluluklar**:
 - Stage 1: Kullanici girdisini 5 kategoriye siniflandir (scanning, web, recon, attack, info)
@@ -449,7 +450,7 @@ User Input -> KeywordPreFilter -> [Stage 1: Category] -> [Stage 2: Sub-Intent] -
 ---
 
 ### **src/ai/keyword_filter.py**
-KeywordPreFilter - Regex tabanli hizli intent on-eleme (Sprint 3.6)
+KeywordPreFilter - Regex tabanli hizli intent on-eleme (Sprint 3.2)
 
 **Sorumluluklar**:
 - 16 regex pattern ile keyword tabanli intent tahmini
@@ -566,7 +567,7 @@ Docker orchestration
 ---
 
 ### **docker/ollama/Dockerfile**
-Ollama LLM container (Sprint 3.7)
+Ollama LLM container (Sprint 3.3)
 
 **İçerik**: Ollama + Qwen 2.5 3B (primary) + WhiteRabbitNeo (legacy, optional)
 **Env**: `SENTINEL_MODEL=qwen2.5` (qwen2.5 | whiterabbitneo | both)
@@ -675,18 +676,18 @@ python main.py
 - Tool Base (3 tool)
 - Integration Layer (ToolManager + IntegratedTool)
 
-**Sprint 3.5 - Stabilizasyon / Sertlestirme**:
+**Sprint 3.1 - Stabilizasyon / Sertlestirme**:
 - Queue backpressure, global/per-tool concurrency limit
 - Local LLM timeout/retry/backoff
 - Registry drift guard, runtime telemetry
 
-**Sprint 3.6 - Optimizasyon ve Platform Hazirligi** (22/22 gorev):
+**Sprint 3.2 - Optimizasyon ve Platform Hazirligi** (22/22 gorev):
 - Track A: Kritik Bugfix (P0)
 - Track B: Linux Platform Uyumu
 - Track C: AI Olceklenme Altyapisi (keyword filter, benchmark, etc.)
 - Track D: Kod Kalitesi / Teknik Borc
 
-**Sprint 3.7 - Hybrid LLM Motoru** (8/8 gorev, +57 test):
+**Sprint 3.3 - Hybrid LLM Motoru** (10/10 gorev, +57 test):
 - 2-Asamali Intent Resolution (Category -> Sub-Intent)
 - Model degisimi: WhiteRabbitNeo 7B -> Qwen 2.5 3B
 - Keyword override: LLM sadece NER, intent keyword'den gelir
@@ -737,5 +738,5 @@ nmap --version
 ---
 
 **Son Güncelleme**: 28 Şubat 2026  
-**Versiyon**: Sprint 3.7 Complete + Qwen 2.5 3B  
+**Versiyon**: Sprint 3.3 Complete + Qwen 2.5 3B  
 **Sonraki Hedef**: Sprint 4 - Veri Adaptasyonu ve Parsing
