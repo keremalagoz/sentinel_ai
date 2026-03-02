@@ -12,7 +12,6 @@ Kaynak: `requirements.txt`
 | PyQt6 | GPL-3.0 veya ticari lisans | Dağıtım senaryosunda özellikle doğrulanmalı |
 | pydantic | MIT |  |
 | openai | Apache-2.0 |  |
-| python-dotenv | BSD-3-Clause |  |
 | defusedxml | PSF benzeri/PSFL uyumlu | Sürüm bazında doğrulanmalı |
 | fastapi | MIT |  |
 | uvicorn | BSD-3-Clause |  |

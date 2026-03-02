@@ -5,15 +5,9 @@ Exposes AI Orchestrator via FastAPI (Headless mode - no Qt dependencies)
 """
 
 from fastapi import FastAPI, HTTPException
-from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 from typing import Optional, Dict, Any, List
 import uvicorn
-import sys
-import os
-
-# Add project root to path
-sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from src.ai.schemas import IntentType
 from src.ai.tool_registry import build_tool_spec, get_supported_intents, get_tool_for_intent
@@ -29,8 +23,6 @@ app = FastAPI(
 _command_builder = get_command_builder()
 
 
-
-# Request/Response Models
 class ExecuteIntentRequest(BaseModel):
     intent_type: str
     target: str
@@ -50,8 +42,6 @@ class ExecuteIntentResponse(BaseModel):
     message: str
     command: Optional[Dict[str, Any]] = None
 
-
-# API Endpoints
 
 @app.get("/health")
 async def health_check():
@@ -120,7 +110,6 @@ async def execute_intent(request: ExecuteIntentRequest):
 async def get_stats():
     """Get backend statistics"""
     try:
-        # Return basic stats
         return {
             "success": True,
             "stats": {
@@ -136,14 +125,12 @@ async def get_stats():
 @app.on_event("shutdown")
 async def shutdown_event():
     """Cleanup on shutdown"""
-    # Cleanup execution manager if needed
     pass
 
 
-# Development server
 if __name__ == "__main__":
     uvicorn.run(
-        "api_server:app",
+        "src.application.api_server:app",
         host="0.0.0.0",
         port=8000,
         reload=False

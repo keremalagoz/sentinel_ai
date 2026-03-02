@@ -69,15 +69,13 @@ Intent Pipeline:
 ```
 sentinel_root/
 ├── main.py                   # Production giriş noktası
-├── api_server.py             # API modunda komut üretimi
 ├── requirements.txt          # Python bağımlılıkları
 ├── docker-compose.yml        # Docker servis tanımları
-├── .env                      # Çevre değişkenleri
-├── .env.example              # .env şablonu
 ├── PROJECT_STRUCTURE.md      # Proje yapısı rehberi
 ├── README.md                 # Bu dosya
 ├── son_durum.md              # Durum raporu
 ├── data/                     # Veri klasörü
+│   └── databases/            # SQLite veritabanı dosyaları
 ├── docker/                   # Docker yapılandırmaları
 │   ├── api/                  # API servisi
 │   │   └── Dockerfile
@@ -103,15 +101,16 @@ sentinel_root/
 │   └── whiterabbitneo-7b-q4.gguf     # Legacy model (4.47 GB)
 ├── src/                      # Kaynak kodlar
 │   ├── ai/                   # Yapay zeka modülleri
+│   ├── application/          # Uygulama katmanı (API dahil)
 │   ├── core/                 # Backend mantığı
 │   ├── ui/                   # PyQt6 arayüz dosyaları
 │   ├── plugins/              # Harici araç eklentileri
 │   └── tests/                # Unit testler
+├── scripts/                  # Yardımcı scriptler
+│   └── validate_ui.py
 ├── temp/                     # Geçici dosyalar
 │  └── sentinel_safe/
-├── sentinel_production.db    # Production veritabanı
-├── sentinel_dev.db           # Developer mode veritabanı
-└── sentinel_state.db         # Test/default veritabanı
+└── ...
 ```
 
 ---
@@ -148,17 +147,7 @@ source venv/bin/activate
 pip install -r requirements.txt
 ```
 
-### 3. Ortam Değişkenlerini Ayarlayın
-
-```bash
-# .env dosyasını oluştur
-cp .env.example .env
-
-# API anahtarını düzenle
-nano .env
-```
-
-### 4. Docker Servislerini Başlatın
+### 3. Docker Servislerini Başlatın
 
 ```bash
 # Servisleri arka planda başlat
@@ -169,7 +158,7 @@ docker-compose up -d
 docker-compose logs -f ollama-service
 ```
 
-### 5. Uygulamayı Başlatın
+### 4. Uygulamayı Başlatın
 
 **Çalıştırma:**
 ```bash

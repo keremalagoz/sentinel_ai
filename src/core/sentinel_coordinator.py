@@ -59,12 +59,12 @@ class SentinelCoordinator(QObject):
     tool_completed = pyqtSignal(str, object)  # tool_id, IntegratedToolResult
     tool_error = pyqtSignal(str, str)  # tool_id, error_message
     
-    def __init__(self, db_path: str = "sentinel_state.db", parent: Optional[QObject] = None):
+    def __init__(self, db_path: str = "data/databases/sentinel_state.db", parent: Optional[QObject] = None):
         """
         Initialize coordinator.
         
         Args:
-            db_path: SQLite database path (default: "sentinel_state.db")
+            db_path: SQLite database path (default: "data/databases/sentinel_state.db")
             parent: Optional Qt parent
         """
         super().__init__(parent)

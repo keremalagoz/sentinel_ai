@@ -11,7 +11,6 @@ import logging
 import os
 import time
 import threading
-from dotenv import load_dotenv
 
 # V2 Imports
 from src.ai.schemas import (
@@ -35,7 +34,6 @@ from src.ai.tool_registry import (
 )
 from src.ai.command_builder import CommandBuilder, get_command_builder
 
-load_dotenv()
 logger = logging.getLogger(__name__)
 
 

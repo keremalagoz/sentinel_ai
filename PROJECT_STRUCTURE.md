@@ -28,15 +28,13 @@ Sistem garantileri:
 ```
 sentinel_root/
 ├── main.py                      # Production Entry Point (Docker + Local AI)
-├── api_server.py                # API modunda komut üretimi
 ├── requirements.txt             # Python bağımlılıkları
 ├── docker-compose.yml           # Docker orchestration
-├── .env                         # Yerel/servis değişkenleri
-├── .env.example                 # .env şablonu
 ├── README.md                    # Proje ana dokümantasyonu
 ├── PROJECT_STRUCTURE.md         # Proje yapısı ve kılavuz
 ├── son_durum.md                 # Proje durum raporu
 ├── data/                        # Veri klasörü
+│   └── databases/               # SQLite veritabanı dosyaları
 │
 ├── src/                         # Ana kaynak kodu
 │   ├── ai/                      # AI Modülleri (Local-only)
@@ -64,7 +62,8 @@ sentinel_root/
 │   │
 │   ├── application/             # Application facade katmani
 │   │   ├── __init__.py
-│   │   └── backend_gateway.py   # UI-Backend facade (guvenlik katmanli)
+│   │   ├── backend_gateway.py   # UI-Backend facade (guvenlik katmanli)
+│   │   └── api_server.py        # API modunda komut üretimi
 │   │
 │   ├── ui/                      # UI Bilesenleri
 │   │   ├── main_window.py       # Ana pencere (unified header)
@@ -104,6 +103,10 @@ sentinel_root/
 │
 ├── temp/                        # Geçici Dosyalar
 │   └── sentinel_safe/          # Güvenli sandbox klasörü
+├── scripts/                     # Yardımcı scriptler
+│   ├── intent_benchmark.py
+│   ├── p0_validation.py
+│   └── validate_ui.py
 │
 ├── docker/                      # Docker Konfigürasyonları
 │   ├── api/                    # API container
@@ -116,9 +119,7 @@ sentinel_root/
 │   ├── Modelfile.qwen2.5             # Qwen Modelfile (SENTINEL system prompt)
 │   ├── whiterabbitneo-7b-q4.gguf     # WhiteRabbitNeo 7B (~4.47 GB) - Yedek
 │   └── Modelfile.whiterabbitneo      # WhiteRabbitNeo Modelfile
-├── sentinel_production.db       # Production veritabanı
-├── sentinel_dev.db             # Developer mode veritabanı
-└── sentinel_state.db           # Test/default veritabanı
+└── ...
 
 ```
 
@@ -594,7 +595,6 @@ Python paketleri
 **Ana Paketler**:
 - `PyQt6`: UI framework
 - `pydantic`: Veri validasyonu
-- `python-dotenv`: Ortam değişkenleri
 - `defusedxml`: Güvenli XML işleme
 - `fastapi`: API server
 - `uvicorn`: ASGI server
@@ -608,38 +608,15 @@ pip install -r requirements.txt
 
 ## Veritabanı Dosyaları
 
-### **sentinel_production.db**
-Production mode veritabanı (main.py)
+### **data/databases/**
+Uygulama veritabanları bu klasör altında tutulur.
 
-### **sentinel_state.db**
-Test/default veritabanı (test_ui_integration.py)
+Örnekler:
+- `data/databases/sentinel_state.db`
+- `data/databases/sentinel_dev.db`
+- `data/databases/sentinel_production.db`
 
 **Not**: `.gitignore` ile ignore edilir, commit edilmez
-
----
-
-## Çevre Değişkenleri
-
-### **.env**
-Yerel/servis yapılandırma değişkenleri
-
-**İçerik**:
-```bash
-OLLAMA_BASE_URL=http://localhost:11434
-SENTINEL_CATEGORY_MODEL=qwen2.5:3b
-SENTINEL_USE_HIERARCHICAL=true
-```
-
-**Not**: `.gitignore` ile korunur, commit edilmez
-
-### **.env.example**
-.env şablonu
-
-**Kullanım**:
-```powershell
-Copy-Item .env.example .env
-# .env dosyasını düzenle ve API key ekle
-```
 
 ---
 
@@ -720,7 +697,7 @@ python -m pytest src/tests/test_sprint1.py -v
 python -m pytest src/tests/ -v
 
 # Backend Stats (CLI)
-python -c "from src.core.sqlite_backend import SQLiteBackend; b = SQLiteBackend('sentinel_dev.db'); print(b.get_stats())"
+python -c "from src.core.sqlite_backend import SQLiteBackend; b = SQLiteBackend('data/databases/sentinel_dev.db'); print(b.get_stats())"
 
 # Nmap Version Check
 nmap --version

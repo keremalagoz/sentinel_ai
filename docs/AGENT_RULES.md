@@ -40,7 +40,7 @@ Backend servisleri için "Lokalde çalışsın" teklifi kesinlikle yasaktır.
 
 `requirements.txt` dosyasındaki kütüphaneler projenin onaylı mühimmatıdır.
 
-* **Onaylı:** `PyQt6`, `pydantic`, `openai`, `python-dotenv`, `defusedxml`.
+* **Onaylı:** `PyQt6`, `pydantic`, `openai`, `defusedxml`.
 * **Yasak:**
     * `tkinter` (Modern UI ihlali).
     * `subprocess.Popen` (Blocking call ihlali yerine `QProcess` kullan).

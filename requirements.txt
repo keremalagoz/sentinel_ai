@@ -4,7 +4,6 @@
 PyQt6>=6.6.0
 pydantic>=2.5.0
 openai>=1.6.0
-python-dotenv>=1.0.0
 defusedxml>=0.7.1
 
 # API Server (Öncelik 5)
