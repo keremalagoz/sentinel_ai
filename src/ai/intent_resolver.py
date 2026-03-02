@@ -12,11 +12,9 @@ import time
 import threading
 from typing import Optional, List, Dict, Any
 from openai import OpenAI
-from dotenv import load_dotenv
 
 from src.ai.schemas import Intent, IntentType
 
-load_dotenv()
 logger = logging.getLogger(__name__)
 
 # Pre-compiled regex for JSON extraction (H5 optimization)

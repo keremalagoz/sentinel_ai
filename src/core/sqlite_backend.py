@@ -89,7 +89,7 @@ class SQLiteBackend:
     - Checkpoint/restore
     """
     
-    def __init__(self, db_path: str = "sentinel_state.db"):
+    def __init__(self, db_path: str = "data/databases/sentinel_state.db"):
         """
         Initialize SQLite backend.
         
@@ -102,6 +102,7 @@ class SQLiteBackend:
     
     def _initialize_database(self) -> None:
         """Create database and tables if they don't exist"""
+        self.db_path.parent.mkdir(parents=True, exist_ok=True)
         self.connection = sqlite3.connect(str(self.db_path))
         self.connection.row_factory = sqlite3.Row  # Enable dict-like row access
 
