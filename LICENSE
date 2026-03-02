@@ -1,0 +1,49 @@
+SENTINEL SOURCE-AVAILABLE LICENSE
+Version 1.0 — 2 Mart 2026
+
+Copyright (c) 2026 Sentinel AI Contributors
+
+Bu lisans, Sentinel AI kaynak kodunun görüntülenmesi, çalıştırılması ve
+yalnızca kişisel/eğitsel/araştırma amaçlı kullanımı için verilmiştir.
+
+1) Tanımlar
+"Yazılım" bu depodaki kaynak kodu, scriptler, yapılandırmalar ve dokümantasyonu
+ifade eder. "Model Varlıkları" (ağırlık dosyaları, GGUF, model artefaktları)
+bu lisansın kapsamı dışındadır ve kendi upstream lisanslarına tabidir.
+
+2) Verilen haklar
+Bu lisans size aşağıdaki sınırlı, münhasır olmayan, devredilemez hakları verir:
+- Yazılımı görüntüleme ve inceleme
+- Yazılımı yerel ortamda çalıştırma
+- Yazılımı değiştirmeden, bu lisans metni korunarak paylaşma
+
+3) Yasaklar
+Aşağıdakiler açıkça yasaktır:
+- Ticari kullanım (ücretli hizmet, ürün, danışmanlık, gelir üretimi dahil)
+- Yazılımın türetilmiş sürümünü dağıtmak, satmak veya lisanslamak
+- Yazılımdan alınan kod parçalarını başka projelerde yeniden kullanıp dağıtmak
+- Bu lisans bildirimlerini kaldırmak veya değiştirmek
+
+4) Türev çalışma
+Yerel ortamda değişiklik yapabilirsiniz; ancak değiştirilmiş sürümleri kamuya açık
+veya özel olarak dağıtamaz, satamaz veya lisanslayamazsınız.
+
+5) Üçüncü taraf bileşenler
+Yazılım üçüncü taraf paketler/araçlar içerebilir. Her bir bileşen kendi lisansına
+tabidir. Detaylar için THIRD_PARTY_NOTICES.md dosyasına bakın.
+
+6) Model varlıkları
+Model dosyaları ve ağırlıklar (ör. GGUF) bu lisans ile lisanslanmaz. Bu varlıklar,
+sağlayıcılarının lisans şartlarına tabidir. Detaylar için MODEL_LICENSES.md
+dosyasına bakın.
+
+7) Garanti reddi
+YAZILIM "OLDUĞU GİBİ" SUNULUR; AÇIK VEYA ZIMNİ HİÇBİR GARANTİ VERİLMEZ.
+YAZARLAR VE KATKIDA BULUNANLAR, YAZILIMIN KULLANIMINDAN DOĞAN HİÇBİR DOĞRUDAN
+VEYA DOLAYLI ZARARDAN SORUMLU DEĞİLDİR.
+
+8) Fesih
+Bu lisans şartlarının ihlali halinde verilen tüm haklar otomatik olarak sona erer.
+
+9) İstisna ve ticari lisans
+Ticari veya farklı kullanım izinleri için proje sahipleriyle iletişime geçin.

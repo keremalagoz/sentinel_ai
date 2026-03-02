@@ -6,7 +6,7 @@
 ![PyQt6](https://img.shields.io/badge/PyQt6-GUI-41CD52?style=for-the-badge&logo=qt&logoColor=white)
 ![Docker](https://img.shields.io/badge/Docker-Container-2496ED?style=for-the-badge&logo=docker&logoColor=white)
 ![Qwen 2.5](https://img.shields.io/badge/Qwen_2.5_3B-Local_AI-FF6F00?style=for-the-badge&logo=huggingface&logoColor=white)
-![License](https://img.shields.io/badge/License-MIT-green?style=for-the-badge)
+![License](https://img.shields.io/badge/License-Source--Available-orange?style=for-the-badge)
 
 **Local AI Destekli Güvenlik Test Aracı**
 
@@ -312,7 +312,17 @@ dev_yigit   ← Yiğit'in geliştirme branch'ı
 
 ## Lisans
 
-Bu proje MIT lisansı altında lisanslanmıştır. Detaylar için [LICENSE](LICENSE) dosyasına bakın.
+Bu proje, kaynak kodu görünür (source-available) bir lisans modeli ile dağıtılır.
+
+- Ticari kullanım **yasaktır**
+- Değiştirilmiş sürümlerin dağıtımı **yasaktır**
+- Kodun değiştirilmeden paylaşımı, lisans metni korunarak **serbesttir**
+
+Detaylar için [LICENSE](LICENSE) dosyasına bakın.
+
+Model lisansları için: [MODEL_LICENSES.md](MODEL_LICENSES.md)
+
+Üçüncü taraf bileşenler için: [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)
 
 ---
 
