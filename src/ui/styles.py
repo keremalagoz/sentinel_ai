@@ -61,7 +61,6 @@ MAIN_WINDOW_STYLE = f"""
     QWidget {{
         color: {Colors.TEXT_PRIMARY};
         font-family: {Fonts.UI};
-        font-size: {Fonts.SIZE_MD};
     }}
     QToolTip {{
         background-color: {Colors.BG_TERTIARY};
@@ -200,7 +199,6 @@ TERMINAL_THEME = f"""
         background-color: {Colors.BG_SECONDARY};
         color: {Colors.TEXT_SECONDARY};
         font-family: {Fonts.MONO};
-        font-size: {Fonts.SIZE_MD};
         border: none;
         selection-background-color: {Colors.BG_ELEVATED};
     }}
