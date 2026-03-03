@@ -10,24 +10,40 @@ from PyQt6.QtWidgets import (
 )
 from PyQt6.QtCore import pyqtSlot, pyqtSignal, Qt, QEvent
 from PyQt6.QtGui import QTextCursor, QFont, QAction
-from typing import List, Optional, Set
+from typing import List, Dict, Optional, Set
 
 from src.ui.styles import Colors, Fonts, TERMINAL_THEME, SCROLLBAR_MODERN
+from src.ui.i18n import t
+
+# Pre-built prompt icon styles (M4 optimization)
+_PROMPT_STYLE_IDLE = f"color: {Colors.SUCCESS}; background: transparent; border: none;"
+_PROMPT_STYLE_RUNNING = f"color: {Colors.WARNING}; background: transparent; border: none;"
+_PROMPT_STYLE_ROOT = f"color: {Colors.DANGER}; background: transparent; border: none;"
+
+# Pre-built HTML escape table (M10 optimization)
+_ESCAPE_TABLE = str.maketrans({
+    '&': '&amp;',
+    '<': '&lt;',
+    '>': '&gt;',
+    '\n': '<br>',  # will be handled separately since maketrans is char-to-char
+})
 
 
 class TerminalSession:
     """Single terminal session data"""
-    def __init__(self, session_id: int):
+    def __init__(self, session_id: int, text_font_size: int = 13):
         self.id = session_id
-        self.name = f"Terminal {session_id}"
+        self.name = t("terminal.tab_name").format(id=session_id)
         self.output = QTextEdit()
         self.output.setReadOnly(True)
         self.output.setStyleSheet(TERMINAL_THEME + SCROLLBAR_MODERN)
-        font = QFont("JetBrains Mono, Fira Code, Consolas", 10)
-        font.setPixelSize(13)
+        font = QFont("JetBrains Mono")
+        font.setFamilies(["JetBrains Mono", "Fira Code", "Consolas"])
+        font.setPixelSize(text_font_size)
         self.output.setFont(font)
         self.is_running = False
         self.requires_root = False
+        self._awaiting_first_output_line = False
 
 
 class TerminalView(QWidget):
@@ -48,6 +64,8 @@ class TerminalView(QWidget):
         self._manager = process_manager
         self._sessions: List[TerminalSession] = []
         self._active_session: Optional[TerminalSession] = None
+        self._session_tab_map: Dict[int, int] = {}  # M5: session_id -> tab_index
+        self._text_font_size = 13
         self._max_buffer_lines = 10000
         self._used_ids: Set[int] = set()
         self._command_history: List[str] = []
@@ -84,12 +102,12 @@ class TerminalView(QWidget):
         section_layout = QHBoxLayout(section_bar)
         section_layout.setContentsMargins(12, 0, 12, 0)
         
-        section_label = QLabel("Terminal")
+        self._section_label = QLabel(t("terminal.section"))
         sl_font = QFont()
         sl_font.setPixelSize(11)
-        section_label.setFont(sl_font)
-        section_label.setStyleSheet(f"color: {Colors.TEXT_DIM}; background: transparent; border: none;")
-        section_layout.addWidget(section_label)
+        self._section_label.setFont(sl_font)
+        self._section_label.setStyleSheet(f"color: {Colors.TEXT_DIM}; background: transparent; border: none;")
+        section_layout.addWidget(self._section_label)
         
         section_layout.addStretch()
         
@@ -155,7 +173,8 @@ class TerminalView(QWidget):
         
         # Prompt icon
         self._prompt_icon = QLabel("❯")
-        prompt_font = QFont("JetBrains Mono, Consolas", 10)
+        prompt_font = QFont("JetBrains Mono")
+        prompt_font.setFamilies(["JetBrains Mono", "Fira Code", "Consolas"])
         prompt_font.setPixelSize(16)
         prompt_font.setBold(True)
         self._prompt_icon.setFont(prompt_font)
@@ -164,9 +183,10 @@ class TerminalView(QWidget):
         
         # Input field
         self._input = QLineEdit()
-        self._input.setPlaceholderText("Enter command...")
-        input_font = QFont("JetBrains Mono, Consolas", 10)
-        input_font.setPixelSize(13)
+        self._input.setPlaceholderText(t("terminal.placeholder"))
+        input_font = QFont("JetBrains Mono")
+        input_font.setFamilies(["JetBrains Mono", "Fira Code", "Consolas"])
+        input_font.setPixelSize(self._text_font_size)
         self._input.setFont(input_font)
         self._input.setStyleSheet(f"""
             QLineEdit {{
@@ -175,6 +195,7 @@ class TerminalView(QWidget):
                 border: 1px solid {Colors.BG_ELEVATED};
                 border-radius: 18px;
                 padding: 8px 16px;
+                font-family: {Fonts.MONO};
             }}
             QLineEdit:focus {{
                 border: 1px solid {Colors.ACCENT_PRIMARY};
@@ -184,7 +205,7 @@ class TerminalView(QWidget):
         self._input.installEventFilter(self)
         input_layout.addWidget(self._input, stretch=1)
 
-        self._stop_btn = QPushButton("Stop")
+        self._stop_btn = QPushButton(t("btn.stop"))
         self._stop_btn.setCursor(Qt.CursorShape.PointingHandCursor)
         self._stop_btn.setFixedHeight(32)
         self._stop_btn.setStyleSheet(f"""
@@ -245,12 +266,13 @@ class TerminalView(QWidget):
     
     def _add_terminal(self) -> TerminalSession:
         session_id = self._get_next_id()
-        session = TerminalSession(session_id)
+        session = TerminalSession(session_id, self._text_font_size)
         self._sessions.append(session)
         self._output_stack.addWidget(session.output)
         
         tab_index = self._tab_bar.addTab(session.name)
         self._tab_bar.setTabData(tab_index, session.id)
+        self._session_tab_map[session.id] = tab_index
         
         self._switch_terminal(session)
         return session
@@ -270,6 +292,8 @@ class TerminalView(QWidget):
         session.output.deleteLater()
         self._sessions.remove(session)
         self._used_ids.discard(session.id)
+        self._session_tab_map.pop(session.id, None)
+        self._rebuild_tab_map()
         
         if self._active_session == session and self._sessions:
             self._switch_terminal(self._sessions[-1])
@@ -310,12 +334,12 @@ class TerminalView(QWidget):
         if self._active_session.is_running:
             self._stop_btn.show()
             if self._active_session.requires_root:
-                self._prompt_icon.setStyleSheet(f"color: {Colors.DANGER}; background: transparent; border: none;")
+                self._prompt_icon.setStyleSheet(_PROMPT_STYLE_ROOT)
             else:
-                self._prompt_icon.setStyleSheet(f"color: {Colors.WARNING}; background: transparent; border: none;")
+                self._prompt_icon.setStyleSheet(_PROMPT_STYLE_RUNNING)
         else:
             self._stop_btn.hide()
-            self._prompt_icon.setStyleSheet(f"color: {Colors.SUCCESS}; background: transparent; border: none;")
+            self._prompt_icon.setStyleSheet(_PROMPT_STYLE_IDLE)
     
     def _update_status(self):
         self._update_tab_indicators()
@@ -334,6 +358,15 @@ class TerminalView(QWidget):
             if session:
                 prefix = "● " if session.is_running else ""
                 self._tab_bar.setTabText(i, f"{prefix}{session.name}")
+                self._session_tab_map[session.id] = i
+    
+    def _rebuild_tab_map(self):
+        """Rebuild session_id -> tab_index mapping after tab removal."""
+        self._session_tab_map.clear()
+        for i in range(self._tab_bar.count()):
+            sid = self._tab_bar.tabData(i)
+            if sid is not None:
+                self._session_tab_map[sid] = i
     
     def _connect_manager_signals(self):
         if self._manager:
@@ -355,6 +388,7 @@ class TerminalView(QWidget):
             return
         self._active_session.is_running = True
         self._active_session.requires_root = requires_root
+        self._active_session._awaiting_first_output_line = True
         self._update_status()
         if correlation_id:
             self._log(f"[CID:{correlation_id}]", Colors.TEXT_DIM)
@@ -362,13 +396,13 @@ class TerminalView(QWidget):
             self._log(f"[RISK] {risk_label.upper()}", Colors.WARNING if risk_label.lower() != "safe" else Colors.SUCCESS)
         self._log(f"$ {command} {' '.join(args)}", Colors.TEXT_SECONDARY)
         if requires_root:
-            self._log("[!] ROOT: Yuksek yetki ile calistiriliyor", Colors.WARNING)
+            self._log(t("terminal.root_running"), Colors.WARNING)
         self._manager.start_process(command, args, requires_root, correlation_id=correlation_id)
     
     def stop_command(self):
         if self._manager:
             self._manager.stop_process()
-            self._log("[X] Process terminated by user", Colors.DANGER)
+            self._log(t("terminal.terminated"), Colors.DANGER)
             if self._active_session:
                 self._active_session.is_running = False
                 self._active_session.requires_root = False
@@ -382,6 +416,27 @@ class TerminalView(QWidget):
     
     def get_active_session_name(self) -> str:
         return self._active_session.name if self._active_session else "Terminal"
+
+    def set_text_font_size(self, size: int):
+        self._text_font_size = max(11, min(24, int(size)))
+
+        input_font = self._input.font()
+        input_font.setPixelSize(self._text_font_size)
+        self._input.setFont(input_font)
+
+        for session in self._sessions:
+            output_font = session.output.font()
+            output_font.setPixelSize(self._text_font_size)
+            session.output.setFont(output_font)
+
+    def refresh_texts(self) -> None:
+        """Update translatable texts after language change."""
+        self._section_label.setText(t("terminal.section"))
+        self._input.setPlaceholderText(t("terminal.placeholder"))
+        self._stop_btn.setText(t("btn.stop"))
+        for session in self._sessions:
+            session.name = t("terminal.tab_name").format(id=session.id)
+        self._update_tab_indicators()
     
     # ── Internal ──
     
@@ -406,6 +461,10 @@ class TerminalView(QWidget):
         output = self._active_session.output
         cursor = output.textCursor()
         cursor.movePosition(QTextCursor.MoveOperation.End)
+        if self._active_session._awaiting_first_output_line:
+            if output.toPlainText() and not text.startswith("\n"):
+                cursor.insertHtml("<br>")
+            self._active_session._awaiting_first_output_line = False
         cursor.insertHtml(f"<span style='color: {color};'>{self._escape(text)}</span>")
         output.setTextCursor(cursor)
         output.ensureCursorVisible()
@@ -424,12 +483,13 @@ class TerminalView(QWidget):
         if doc.lineCount() > self._max_buffer_lines:
             cursor = QTextCursor(doc)
             cursor.movePosition(QTextCursor.MoveOperation.Start)
+            # M9: Select 1000 lines at once instead of deleting line by line
             for _ in range(1000):
-                cursor.select(QTextCursor.SelectionType.LineUnderCursor)
-                cursor.removeSelectedText()
+                cursor.movePosition(QTextCursor.MoveOperation.Down, QTextCursor.MoveMode.KeepAnchor)
                 if cursor.atEnd():
                     break
-                cursor.deleteChar()
+            cursor.removeSelectedText()
+            cursor.deleteChar()  # Remove trailing newline
     
     @pyqtSlot(int, str)
     def _on_finished(self, exit_code: int, log_path: str):
@@ -438,9 +498,9 @@ class TerminalView(QWidget):
             self._active_session.requires_root = False
             self._update_status()
             if exit_code == 0:
-                self._log("[OK] Completed", Colors.SUCCESS)
+                self._log(t("terminal.completed"), Colors.SUCCESS)
             else:
-                self._log(f"[X] Exit code {exit_code}", Colors.DANGER)
+                self._log(t("terminal.exit_code").format(code=exit_code), Colors.DANGER)
         self.sig_process_finished.emit(exit_code)
     
     @pyqtSlot()
@@ -449,10 +509,11 @@ class TerminalView(QWidget):
             self._active_session.is_running = False
             self._active_session.requires_root = False
             self._update_status()
-            self._log("[!] Authentication failed or cancelled", Colors.WARNING)
+            self._log(t("terminal.auth_failed"), Colors.WARNING)
     
     @staticmethod
     def _escape(text: str) -> str:
+        # M10: Optimized HTML escape
         return (text
             .replace("&", "&amp;")
             .replace("<", "&lt;")

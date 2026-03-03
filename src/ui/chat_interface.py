@@ -17,8 +17,84 @@ import json
 import os
 
 from src.ui.styles import Colors, Fonts, SCROLLBAR_MODERN
+from src.ui.i18n import t
 
 CHAT_HISTORY_FILE = os.path.join(os.path.dirname(__file__), '..', '..', 'temp', 'chat_history.json')
+
+# ── Pre-built QSS constants (M3: avoid per-widget f-string formatting) ────
+_COMMAND_CARD_STYLE = f"""
+    QFrame#CommandCard {{
+        background-color: {Colors.BG_PRIMARY};
+        border: 1px solid {Colors.BG_ELEVATED};
+        border-radius: 8px;
+    }}
+    QFrame#CommandCard:hover {{
+        border: 1px solid {Colors.ACCENT_PRIMARY};
+    }}
+"""
+_RUN_BTN_STYLE = f"""
+    QPushButton {{
+        background-color: {Colors.ACCENT_PRIMARY};
+        color: white;
+        border: none;
+        border-radius: 4px;
+        padding: 6px 16px;
+        font-weight: bold;
+    }}
+    QPushButton:hover {{
+        background-color: {Colors.ACCENT_HOVER};
+    }}
+"""
+_COPY_BTN_STYLE = f"""
+    QPushButton {{
+        background-color: transparent;
+        color: {Colors.TEXT_SECONDARY};
+        border: 1px solid {Colors.BG_ELEVATED};
+        border-radius: 4px;
+        padding: 6px 16px;
+    }}
+    QPushButton:hover {{
+        background-color: {Colors.BG_TERTIARY};
+    }}
+"""
+_BUBBLE_USER_STYLE = f"""
+    QFrame {{
+        background-color: {Colors.ACCENT_PRIMARY};
+        border-radius: 12px;
+        border-top-right-radius: 4px;
+    }}
+"""
+_BUBBLE_AI_STYLE = f"""
+    QFrame {{
+        background-color: {Colors.BG_TERTIARY};
+        border-radius: 12px;
+        border-top-left-radius: 4px;
+    }}
+"""
+_IDENTITY_USER_STYLE = f"color: {Colors.ACCENT_PRIMARY}; background: transparent; border: none;"
+_IDENTITY_AI_STYLE = f"color: {Colors.SUCCESS}; background: transparent; border: none;"
+_MSG_USER_STYLE = "color: white; background: transparent; border: none;"
+_MSG_AI_STYLE = f"color: {Colors.TEXT_PRIMARY}; background: transparent; border: none;"
+_CMD_LABEL_STYLE = f"color: {Colors.TEXT_PRIMARY}; background: transparent; border: none; font-family: {Fonts.MONO};"
+
+# ── QFont cache (M2: avoid creating identical QFont objects repeatedly) ────
+_font_cache: dict = {}
+
+def _get_cached_font(family: str, size: int, bold: bool = False) -> QFont:
+    """Return a cached QFont instance for the given parameters."""
+    key = (family, size, bold)
+    cached = _font_cache.get(key)
+    if cached is not None:
+        return cached
+    font = QFont(family)
+    if family == "mono":
+        font = QFont("JetBrains Mono")
+        font.setFamilies(["JetBrains Mono", "Fira Code", "Consolas"])
+    font.setPixelSize(size)
+    if bold:
+        font.setBold(True)
+    _font_cache[key] = font
+    return font
 
 
 # ── Command Card ─────────────────────────────────────────
@@ -29,23 +105,15 @@ class CommandCard(QFrame):
     run_clicked = pyqtSignal(str)
     copy_clicked = pyqtSignal(str)
     
-    def __init__(self, command: str, parent=None):
+    def __init__(self, command: str, text_size: int = 13, parent=None):
         super().__init__(parent)
         self.command = command
+        self._text_size = text_size
         self._setup_ui()
     
     def _setup_ui(self):
         self.setObjectName("CommandCard")
-        self.setStyleSheet(f"""
-            QFrame#CommandCard {{
-                background-color: {Colors.BG_PRIMARY};
-                border: 1px solid {Colors.BG_ELEVATED};
-                border-radius: 8px;
-            }}
-            QFrame#CommandCard:hover {{
-                border: 1px solid {Colors.ACCENT_PRIMARY};
-            }}
-        """)
+        self.setStyleSheet(_COMMAND_CARD_STYLE)
         
         layout = QVBoxLayout(self)
         layout.setContentsMargins(10, 8, 10, 8)
@@ -53,10 +121,8 @@ class CommandCard(QFrame):
         
         # Command text
         cmd_label = QLabel(self.command)
-        cmd_font = QFont("JetBrains Mono, Consolas", 10)
-        cmd_font.setPixelSize(12)
-        cmd_label.setFont(cmd_font)
-        cmd_label.setStyleSheet(f"color: {Colors.TEXT_PRIMARY}; background: transparent; border: none;")
+        cmd_label.setFont(_get_cached_font("mono", self._text_size))
+        cmd_label.setStyleSheet(_CMD_LABEL_STYLE)
         cmd_label.setWordWrap(True)
         cmd_label.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
         layout.addWidget(cmd_label)
@@ -67,38 +133,15 @@ class CommandCard(QFrame):
         btn_layout.setContentsMargins(0, 0, 0, 0)
         btn_layout.setSpacing(8)
         
-        self._run_btn = QPushButton("Run")
+        self._run_btn = QPushButton(t("btn.run"))
         self._run_btn.setCursor(Qt.CursorShape.PointingHandCursor)
-        self._run_btn.setStyleSheet(f"""
-            QPushButton {{
-                background-color: {Colors.ACCENT_PRIMARY};
-                color: white;
-                border: none;
-                border-radius: 4px;
-                padding: 6px 16px;
-                font-weight: bold;
-            }}
-            QPushButton:hover {{
-                background-color: {Colors.ACCENT_HOVER};
-            }}
-        """)
+        self._run_btn.setStyleSheet(_RUN_BTN_STYLE)
         self._run_btn.clicked.connect(self._on_run)
         btn_layout.addWidget(self._run_btn)
         
-        self._copy_btn = QPushButton("Copy")
+        self._copy_btn = QPushButton(t("btn.copy"))
         self._copy_btn.setCursor(Qt.CursorShape.PointingHandCursor)
-        self._copy_btn.setStyleSheet(f"""
-            QPushButton {{
-                background-color: transparent;
-                color: {Colors.TEXT_SECONDARY};
-                border: 1px solid {Colors.BG_ELEVATED};
-                border-radius: 4px;
-                padding: 6px 16px;
-            }}
-            QPushButton:hover {{
-                background-color: {Colors.BG_TERTIARY};
-            }}
-        """)
+        self._copy_btn.setStyleSheet(_COPY_BTN_STYLE)
         self._copy_btn.clicked.connect(self._on_copy)
         btn_layout.addWidget(self._copy_btn)
         
@@ -123,9 +166,18 @@ class ChatBubble(QFrame):
     
     command_run = pyqtSignal(str)
     
-    def __init__(self, message: str, is_user: bool, command: Optional[str] = None, timestamp: Optional[str] = None, parent=None):
+    def __init__(
+        self,
+        message: str,
+        is_user: bool,
+        command: Optional[str] = None,
+        timestamp: Optional[str] = None,
+        text_size: int = 13,
+        parent=None,
+    ):
         super().__init__(parent)
         self.is_user = is_user
+        self._text_size = text_size
         self._setup_ui(message, command, timestamp)
     
     def _setup_ui(self, message: str, command: Optional[str], timestamp: Optional[str]):
@@ -137,65 +189,42 @@ class ChatBubble(QFrame):
         
         # Identity label
         identity = QLabel()
-        id_font = QFont()
-        id_font.setPixelSize(11)
-        id_font.setBold(True)
-        identity.setFont(id_font)
+        identity.setFont(_get_cached_font("ui", max(11, self._text_size - 2), bold=True))
         
         if not timestamp:
             timestamp = datetime.now().strftime("%H:%M")
         
         if self.is_user:
-            identity.setText(f"You · {timestamp}")
-            identity.setStyleSheet(f"color: {Colors.ACCENT_PRIMARY}; background: transparent; border: none;")
+            identity.setText(f"{t('chat.you')} \u00b7 {timestamp}")
+            identity.setStyleSheet(_IDENTITY_USER_STYLE)
             identity.setAlignment(Qt.AlignmentFlag.AlignRight)
         else:
-            identity.setText(f"Sentinel · {timestamp}")
-            identity.setStyleSheet(f"color: {Colors.SUCCESS}; background: transparent; border: none;")
+            identity.setText(f"{t('chat.sentinel')} \u00b7 {timestamp}")
+            identity.setStyleSheet(_IDENTITY_AI_STYLE)
             identity.setAlignment(Qt.AlignmentFlag.AlignLeft)
         
         layout.addWidget(identity)
         
         # Message bubble
         bubble = QFrame()
-        if self.is_user:
-            bubble.setStyleSheet(f"""
-                QFrame {{
-                    background-color: {Colors.ACCENT_PRIMARY};
-                    border-radius: 12px;
-                    border-top-right-radius: 4px;
-                }}
-            """)
-        else:
-            bubble.setStyleSheet(f"""
-                QFrame {{
-                    background-color: {Colors.BG_TERTIARY};
-                    border-radius: 12px;
-                    border-top-left-radius: 4px;
-                }}
-            """)
+        bubble.setStyleSheet(_BUBBLE_USER_STYLE if self.is_user else _BUBBLE_AI_STYLE)
         
         bubble_layout = QVBoxLayout(bubble)
-        bubble_layout.setContentsMargins(12, 10, 12, 10)
+        bubble_layout.setContentsMargins(16, 12, 16, 12)
         bubble_layout.setSpacing(8)
         
-        msg_label = QLabel(message)
-        msg_label.setWordWrap(True)
-        msg_label.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
-        msg_font = QFont()
-        msg_font.setPixelSize(13)
-        msg_label.setFont(msg_font)
-        
-        if self.is_user:
-            msg_label.setStyleSheet("color: white; background: transparent; border: none;")
-        else:
-            msg_label.setStyleSheet(f"color: {Colors.TEXT_PRIMARY}; background: transparent; border: none;")
+        self._msg_label = QLabel(message)
+        self._msg_label.setWordWrap(True)
+        self._msg_label.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
+        self._msg_label.setFont(_get_cached_font("ui", self._text_size))
+        self._msg_label.setStyleSheet(_MSG_USER_STYLE if self.is_user else _MSG_AI_STYLE)
+        msg_label = self._msg_label  # local alias for downstream code
         
         bubble_layout.addWidget(msg_label)
         
         # Command card (AI only)
         if command and not self.is_user:
-            cmd_card = CommandCard(command)
+            cmd_card = CommandCard(command, text_size=self._text_size)
             cmd_card.run_clicked.connect(self.command_run.emit)
             bubble_layout.addWidget(cmd_card)
         
@@ -224,7 +253,7 @@ class ActionButtons(QFrame):
         self.setFixedHeight(36)
         self.setStyleSheet(f"background-color: {Colors.BG_PRIMARY}; border: none;")
         
-        self._yes_btn = QPushButton("Yes")
+        self._yes_btn = QPushButton(t("btn.yes"))
         self._yes_btn.setCursor(Qt.CursorShape.PointingHandCursor)
         self._yes_btn.setFixedHeight(28)
         self._yes_btn.setStyleSheet(f"""
@@ -238,7 +267,7 @@ class ActionButtons(QFrame):
         self._layout.addWidget(self._yes_btn)
         self._yes_btn.hide()
         
-        self._no_btn = QPushButton("No")
+        self._no_btn = QPushButton(t("btn.no"))
         self._no_btn.setCursor(Qt.CursorShape.PointingHandCursor)
         self._no_btn.setFixedHeight(28)
         self._no_btn.setStyleSheet(f"""
@@ -255,7 +284,7 @@ class ActionButtons(QFrame):
         from PyQt6.QtWidgets import QLineEdit
         self._password_input = QLineEdit()
         self._password_input.setEchoMode(QLineEdit.EchoMode.Password)
-        self._password_input.setPlaceholderText("Enter password...")
+        self._password_input.setPlaceholderText(t("chat.enter_password"))
         self._password_input.setFixedHeight(28)
         self._password_input.setStyleSheet(f"""
             QLineEdit {{
@@ -291,6 +320,12 @@ class ActionButtons(QFrame):
             self._password_input.clear()
             self.hide_all()
 
+    def refresh_texts(self) -> None:
+        """Update translatable texts after language change."""
+        self._yes_btn.setText(t("btn.yes"))
+        self._no_btn.setText(t("btn.no"))
+        self._password_input.setPlaceholderText(t("chat.enter_password"))
+
 
 # ── History Dialog ───────────────────────────────────────
 
@@ -301,7 +336,7 @@ class HistoryDialog(QDialog):
     
     def __init__(self, history: List[Dict], parent=None):
         super().__init__(parent)
-        self.setWindowTitle("Sohbet Gecmisi")
+        self.setWindowTitle(t("chat.history_title"))
         self.setFixedSize(420, 500)
         self.setStyleSheet(f"""
             QDialog {{
@@ -318,7 +353,7 @@ class HistoryDialog(QDialog):
         
         # Header
         header = QHBoxLayout()
-        title = QLabel("Sohbet Gecmisi")
+        title = QLabel(t("chat.history_title"))
         t_font = QFont()
         t_font.setPixelSize(16)
         t_font.setBold(True)
@@ -327,7 +362,7 @@ class HistoryDialog(QDialog):
         header.addWidget(title)
         header.addStretch()
         
-        count_label = QLabel(f"{len(history)} sohbet")
+        count_label = QLabel(t("chat.history_count").format(n=len(history)))
         count_label.setStyleSheet(f"color: {Colors.TEXT_DIM}; font-size: 11px;")
         header.addWidget(count_label)
         layout.addLayout(header)
@@ -358,7 +393,7 @@ class HistoryDialog(QDialog):
         """)
         
         for chat in history:
-            chat_title = chat.get('title', 'Untitled')
+            chat_title = chat.get('title', t('chat.untitled'))
             chat_date = chat.get('date', '')
             # Truncate long titles
             if len(chat_title) > 35:
@@ -377,7 +412,7 @@ class HistoryDialog(QDialog):
         btn_layout = QHBoxLayout()
         btn_layout.addStretch()
         
-        close_btn = QPushButton("Kapat")
+        close_btn = QPushButton(t("btn.close"))
         close_btn.setCursor(Qt.CursorShape.PointingHandCursor)
         close_btn.setFixedHeight(32)
         close_btn.setStyleSheet(f"""
@@ -480,6 +515,14 @@ class ChatInterface(QWidget):
         self._current_chat_id = None
         self._messages: List[Dict] = []
         self._command_running = False
+        self._text_font_size = 13
+        self._history_cache: Optional[List[Dict]] = None
+        self._dirty = False
+        self._debounce_timer = QTimer()
+        self._debounce_timer.setSingleShot(True)
+        self._debounce_timer.setInterval(500)
+        self._debounce_timer.timeout.connect(self._flush_history)
+        self._bubble_refs: List[ChatBubble] = []
         self.setStyleSheet(f"background-color: {Colors.BG_SECONDARY};")
         self._setup_ui()
         self._load_or_create_chat()
@@ -501,12 +544,12 @@ class ChatInterface(QWidget):
         section_layout = QHBoxLayout(section_bar)
         section_layout.setContentsMargins(12, 0, 12, 0)
         
-        section_label = QLabel("Chat")
+        self._section_label = QLabel(t("chat.section"))
         sl_font = QFont()
         sl_font.setPixelSize(11)
-        section_label.setFont(sl_font)
-        section_label.setStyleSheet(f"color: {Colors.TEXT_DIM}; background: transparent; border: none;")
-        section_layout.addWidget(section_label)
+        self._section_label.setFont(sl_font)
+        self._section_label.setStyleSheet(f"color: {Colors.TEXT_DIM}; background: transparent; border: none;")
+        section_layout.addWidget(self._section_label)
         section_layout.addStretch()
         
         layout.addWidget(section_bar)
@@ -556,9 +599,9 @@ class ChatInterface(QWidget):
         input_layout.setSpacing(8)
         
         self._input = AutoExpandTextEdit()
-        self._input.setPlaceholderText("Ask Sentinel...")
+        self._input.setPlaceholderText(t("chat.placeholder"))
         input_font = QFont()
-        input_font.setPixelSize(13)
+        input_font.setPixelSize(self._text_font_size)
         self._input.setFont(input_font)
         self._input.setStyleSheet(f"""
             QTextEdit {{
@@ -640,23 +683,37 @@ class ChatInterface(QWidget):
                 'date': datetime.now().strftime("%Y-%m-%d %H:%M"),
                 'messages': self._messages
             })
-        self._save_history(history)
+        self._history_cache = history
+        self._dirty = True
+        self._debounce_timer.start()
+    
+    def _flush_history(self):
+        """Write cached history to disk (called by debounce timer)."""
+        if not self._dirty:
+            return
+        if self._history_cache is not None:
+            self._save_history(self._history_cache)
+        self._dirty = False
     
     def _get_chat_title(self) -> str:
         for msg in self._messages:
             if msg.get('is_user'):
-                return msg.get('text', 'Untitled')[:30]
-        return "Untitled"
+                return msg.get('text', t('chat.untitled'))[:30]
+        return t('chat.untitled')
     
     def _load_history(self) -> List[Dict]:
+        if self._history_cache is not None:
+            return self._history_cache
         try:
             os.makedirs(os.path.dirname(CHAT_HISTORY_FILE), exist_ok=True)
             if os.path.exists(CHAT_HISTORY_FILE):
                 with open(CHAT_HISTORY_FILE, 'r', encoding='utf-8') as f:
-                    return json.load(f)
+                    self._history_cache = json.load(f)
+                    return self._history_cache
         except Exception as e:
             print(f"[WARN] Could not load chat history: {e}")
-        return []
+        self._history_cache = []
+        return self._history_cache
     
     def _save_history(self, history: List[Dict]):
         try:
@@ -671,6 +728,18 @@ class ChatInterface(QWidget):
         dialog = HistoryDialog(history, self)
         dialog.chat_selected.connect(self._load_chat)
         dialog.exec()
+
+    def delete_all_history(self) -> int:
+        deleted = 0
+        try:
+            history = self._load_history()
+            deleted = len(history)
+            self._history_cache = []
+            self._save_history([])
+        except Exception as e:
+            print(f"[WARN] Could not clear chat history: {e}")
+        self._new_chat()
+        return deleted
     
     def _load_chat(self, chat_id: str):
         if self._current_chat_id and self._messages:
@@ -702,18 +771,58 @@ class ChatInterface(QWidget):
         if is_user:
             container_layout.addStretch()
         
-        bubble = ChatBubble(message, is_user=is_user, command=command, timestamp=timestamp)
-        bubble.setMaximumWidth(380)
+        bubble = ChatBubble(
+            message,
+            is_user=is_user,
+            command=command,
+            timestamp=timestamp,
+            text_size=self._text_font_size,
+        )
+        bubble.setFixedWidth(self._get_target_bubble_width())
         if not is_user:
             bubble.command_run.connect(self.command_requested.emit)
         
         container_layout.addWidget(bubble)
+        self._bubble_refs.append(bubble)
         
         if not is_user:
             container_layout.addStretch()
         
         self._messages_layout.insertWidget(self._messages_layout.count() - 1, bubble_container)
         self._scroll_to_bottom()
+
+    def _get_target_bubble_width(self) -> int:
+        viewport_width = self._scroll.viewport().width()
+        target_width = int(viewport_width * 0.62)
+        target_width = max(420, min(760, target_width))
+        return min(target_width, max(320, viewport_width - 48))
+
+    def _update_bubble_widths(self):
+        target_width = self._get_target_bubble_width()
+        for bubble in self._bubble_refs:
+            bubble.setFixedWidth(target_width)
+
+    def resizeEvent(self, event):
+        super().resizeEvent(event)
+        self._update_bubble_widths()
+
+    def set_text_font_size(self, size: int):
+        self._text_font_size = max(11, min(24, int(size)))
+        input_font = self._input.font()
+        input_font.setPixelSize(self._text_font_size)
+        self._input.setFont(input_font)
+        # H4: Update existing bubble fonts instead of full re-render
+        new_font = _get_cached_font("ui", self._text_font_size)
+        for bubble in self._bubble_refs:
+            if hasattr(bubble, '_msg_label'):
+                bubble._msg_label.setFont(new_font)
+
+    def refresh_texts(self) -> None:
+        """Update translatable texts after language change."""
+        self._section_label.setText(t("chat.section"))
+        self._input.setPlaceholderText(t("chat.placeholder"))
+        self._action_buttons.refresh_texts()
+        self._render_messages()
     
     def add_user_message(self, message: str, correlation_id: Optional[str] = None):
         timestamp = datetime.now().strftime("%H:%M")
@@ -753,6 +862,7 @@ class ChatInterface(QWidget):
         self._action_buttons.hide_all()
     
     def clear_chat(self):
+        self._bubble_refs.clear()
         while self._messages_layout.count() > 1:
             item = self._messages_layout.takeAt(0)
             if item.widget():
@@ -769,4 +879,6 @@ class ChatInterface(QWidget):
         QTimer.singleShot(0, lambda v=current_value: bar.setValue(min(v, bar.maximum())))
     
     def save_on_close(self):
+        self._flush_history()
         self._save_current_chat()
+        self._flush_history()

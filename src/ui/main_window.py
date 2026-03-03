@@ -19,7 +19,20 @@ from src.ui.styles import Colors, Fonts, GLOBAL_STYLE, STATUS_BAR_STYLE
 from src.ui.terminal_view import TerminalView
 from src.ui.chat_interface import ChatInterface
 from src.ui.settings_dialog import SecuritySettingsDialog
+from src.ui.i18n import t, set_language
 from src.application.backend_gateway import BackendGateway
+
+# Pre-built status dot styles (M11 optimization)
+_DOT_STYLES = {
+    "idle": f"background-color: {Colors.STATUS_IDLE}; border-radius: 4px; border: none;",
+    "running": f"background-color: {Colors.STATUS_RUNNING}; border-radius: 4px; border: none;",
+    "root": f"background-color: {Colors.STATUS_ROOT}; border-radius: 4px; border: none;",
+}
+_BADGE_STYLES = {
+    "idle": f"color: {Colors.TEXT_DIM}; background-color: {Colors.BG_TERTIARY}; padding: 2px 8px; border-radius: 4px; border: none;",
+    "running": f"color: {Colors.ACCENT_PRIMARY}; background-color: {Colors.ACCENT_SUBTLE}; padding: 2px 8px; border-radius: 4px; border: none;",
+    "root": f"color: #ffffff; background-color: {Colors.DANGER}; padding: 2px 8px; border-radius: 4px; border: none;",
+}
 
 
 SECURITY_SETTINGS_FILE = os.path.join(
@@ -65,16 +78,22 @@ class MainWindow(QMainWindow):
         self.process_manager = self.backend.process_manager
         self._ai_worker = None
         self._is_horizontal_layout = False
+        self._is_swapped = False
         self._awaiting_root_confirmation = False
         self._awaiting_terminal_yesno = False
         self._pending_command = None
         self._pending_correlation_id = ""
         self._security_settings = self._load_security_settings()
         self._risk_level = "low"
+        self._ai_state = "checking"   # checking | online | offline
+        self._ai_model_name = ""
+        set_language(self._security_settings.get("language", "en"))
+        self.backend.cleanup_old_sessions(self._security_settings.get("cleanup_days", 7))
         
         self.setStyleSheet(GLOBAL_STYLE)
         self._setup_ui()
         self._connect_signals()
+        self._apply_text_settings(self._security_settings)
     
     def _setup_ui(self):
         central = QWidget()
@@ -119,7 +138,7 @@ class MainWindow(QMainWindow):
         # Status dot (tooltip with connection info)
         self._status_dot = QLabel()
         self._status_dot.setFixedSize(8, 8)
-        self._status_dot.setToolTip("Disconnected")
+        self._status_dot.setToolTip(t("header.disconnected"))
         self._status_dot.setStyleSheet(f"""
             background-color: {Colors.STATUS_IDLE};
             border-radius: 4px;
@@ -128,7 +147,7 @@ class MainWindow(QMainWindow):
         header_layout.addWidget(self._status_dot)
         
         # Execution status badge (READY/RUNNING/ROOT) -- in header
-        self._header_badge = QLabel("READY")
+        self._header_badge = QLabel(t("badge.ready"))
         badge_font = QFont(Fonts.UI)
         badge_font.setPixelSize(9)
         badge_font.setBold(True)
@@ -145,25 +164,29 @@ class MainWindow(QMainWindow):
         header_layout.addStretch()
         
         # -- Chat controls --
-        self._history_btn = self._make_header_btn("Hist", tooltip="Sohbet Gecmisi", width=46)
+        self._history_btn = self._make_header_btn(t("btn.hist"), tooltip=t("tooltip.history"))
         self._history_btn.clicked.connect(self._show_history)
         header_layout.addWidget(self._history_btn)
         
-        self._new_chat_btn = self._make_header_btn("+C", tooltip="Yeni Sohbet", width=36, bold=True)
+        self._new_chat_btn = self._make_header_btn(t("btn.new_chat"), tooltip=t("tooltip.new_chat"), bold=True)
         self._new_chat_btn.clicked.connect(self._new_chat)
         header_layout.addWidget(self._new_chat_btn)
         
         # -- Terminal controls --
-        self._new_terminal_btn = self._make_header_btn("+T", tooltip="Yeni Terminal", width=36, bold=True)
+        self._new_terminal_btn = self._make_header_btn(t("btn.new_terminal"), tooltip=t("tooltip.new_terminal"), bold=True)
         self._new_terminal_btn.clicked.connect(self._add_terminal)
         header_layout.addWidget(self._new_terminal_btn)
 
-        self._layout_btn = self._make_header_btn("Layout", tooltip="Altli/Ustlu - Sagli/Sollu Degistir", width=62)
+        self._swap_btn = self._make_header_btn(t("btn.swap"), tooltip=t("tooltip.swap"))
+        self._swap_btn.clicked.connect(self._swap_chat_terminal)
+        header_layout.addWidget(self._swap_btn)
+
+        self._layout_btn = self._make_header_btn(t("btn.layout"), tooltip=t("tooltip.layout"))
         self._layout_btn.clicked.connect(self._toggle_layout_orientation)
         header_layout.addWidget(self._layout_btn)
         
         # Settings
-        self._settings_btn = self._make_header_btn("Settings", tooltip="Ayarlar", width=66)
+        self._settings_btn = self._make_header_btn(t("btn.settings"), tooltip=t("tooltip.settings"))
         self._settings_btn.clicked.connect(self._on_settings)
         header_layout.addWidget(self._settings_btn)
         
@@ -208,14 +231,14 @@ class MainWindow(QMainWindow):
         status_layout.setSpacing(16)
         
         exec_mode = self.backend.process_manager._exec_mgr.mode.value.upper()
-        self._mode_label = QLabel(f"Mode: {exec_mode}")
+        self._mode_label = QLabel(f"{t('status.mode')}: {exec_mode}")
         status_layout.addWidget(self._mode_label)
         
-        self._ai_label = QLabel("AI: Checking...")
+        self._ai_label = QLabel(f"AI: {t('status.checking')}")
         self._ai_label.setStyleSheet(f"color: {Colors.WARNING};")
         status_layout.addWidget(self._ai_label)
         
-        self._session_label = QLabel("Session: --")
+        self._session_label = QLabel(t("status.session_default"))
         status_layout.addWidget(self._session_label)
         
         status_layout.addStretch()
@@ -228,20 +251,15 @@ class MainWindow(QMainWindow):
         # Check AI connectivity after UI is ready
         QTimer.singleShot(500, self._check_ai_status)
     
-    def _make_header_btn(self, text, tooltip="", size=None, width=None, bold=False):
-        """Create a consistent header button"""
+    def _make_header_btn(self, text: str, tooltip: str = "", bold: bool = False) -> QPushButton:
+        """Create a consistent header button (auto-width for i18n)."""
         btn = QPushButton(text)
         btn.setToolTip(tooltip)
         btn.setCursor(Qt.CursorShape.PointingHandCursor)
-        if size:
-            btn.setFixedSize(size, 28)
-        elif width:
-            btn.setFixedSize(width, 28)
-        else:
-            btn.setFixedHeight(28)
+        btn.setFixedHeight(28)
         
         font = QFont()
-        font.setPixelSize(11 if not size else 13)
+        font.setPixelSize(11)
         if bold:
             font.setBold(True)
         btn.setFont(font)
@@ -295,6 +313,16 @@ class MainWindow(QMainWindow):
             self.splitter.setOrientation(Qt.Orientation.Vertical)
             self.splitter.setSizes([620, 260])
 
+    def _swap_chat_terminal(self):
+        """Swap the positions of Chat and Terminal in the splitter."""
+        self._is_swapped = not self._is_swapped
+        sizes = self.splitter.sizes()
+        if self._is_swapped:
+            self.splitter.insertWidget(0, self.terminal_view)
+        else:
+            self.splitter.insertWidget(0, self.chat_interface)
+        self.splitter.setSizes(list(reversed(sizes)))
+
     def _on_splitter_moved(self, pos: int, index: int):
         self.chat_interface.keep_scroll_position()
     
@@ -320,10 +348,10 @@ class MainWindow(QMainWindow):
     def _risk_to_ui(self, risk_level: str) -> str:
         normalized = self._normalize_risk(risk_level)
         if normalized == "high":
-            return "ROOT-REQUIRED"
+            return t("risk.root_required")
         if normalized == "medium":
-            return "CAUTION"
-        return "SAFE"
+            return t("risk.caution")
+        return t("risk.safe")
 
     def _update_risk_indicator(self, risk_level: str) -> None:
         normalized = self._normalize_risk(risk_level)
@@ -334,7 +362,7 @@ class MainWindow(QMainWindow):
             color = Colors.WARNING
         elif normalized == "high":
             color = Colors.DANGER
-        self._session_label.setText(f"Risk: {label}")
+        self._session_label.setText(f"{t('status.risk')}: {label}")
         self._session_label.setStyleSheet(f"color: {color};")
 
     def _request_root_confirmation(
@@ -349,7 +377,7 @@ class MainWindow(QMainWindow):
         self._awaiting_root_confirmation = True
         self._update_risk_indicator(risk_level)
         self.chat_interface.add_ai_message(
-            "Bu komut ROOT yetkisi gerektiriyor. Çalıştırmak için onay ver (Yes/No).",
+            t("msg.root_confirm"),
             None,
             correlation_id=correlation_id,
         )
@@ -368,12 +396,12 @@ class MainWindow(QMainWindow):
                 )
                 self.chat_interface.show_stop_button()
                 self.chat_interface.add_ai_message(
-                    "Root komut onaylandı, çalıştırılıyor.",
+                    t("msg.root_approved"),
                     correlation_id=self._pending_correlation_id,
                 )
             else:
                 self.chat_interface.add_ai_message(
-                    "Root komut kullanıcı tarafından iptal edildi.",
+                    t("msg.root_cancelled"),
                     correlation_id=self._pending_correlation_id,
                 )
 
@@ -408,8 +436,7 @@ class MainWindow(QMainWindow):
         cmd, args, requires_root, risk_level = self.backend.parse_command_with_risk(command)
         if not cmd:
             self.terminal_view._log(
-                f"[!] Komut reddedildi: '{command.split()[0] if command.strip() else ''}' "
-                f"izin verilen komutlar degil veya guvenlik kontrolunden gecemedi.",
+                t("msg.cmd_rejected").format(cmd=command.split()[0] if command.strip() else ""),
                 Colors.WARNING,
             )
             return
@@ -432,7 +459,7 @@ class MainWindow(QMainWindow):
         self.chat_interface.add_user_message(text, correlation_id=correlation_id)
 
         if self._ai_worker and self._ai_worker.isRunning():
-            self.chat_interface.add_ai_message("Önceki AI isteği hâlâ işleniyor, lütfen birkaç saniye bekleyin.")
+            self.chat_interface.add_ai_message(t("msg.ai_busy"))
             return
 
         self._ai_worker = AIWorker(self.backend, text)
@@ -451,7 +478,7 @@ class MainWindow(QMainWindow):
             risk_level = self._normalize_risk(str(getattr(command, "risk_level", "low")))
             requires_root = bool(getattr(command, "requires_root", False))
 
-        message = getattr(response, "message", None) or "AI yanıtı alınamadı."
+        message = getattr(response, "message", None) or t("msg.ai_no_response")
         if requires_root:
             risk_level = "high"
         self._update_risk_indicator(risk_level)
@@ -463,7 +490,7 @@ class MainWindow(QMainWindow):
 
     def _on_ai_error(self, error: str):
         self.chat_interface.add_ai_message(
-            f"AI hatası: {error}",
+            t("msg.ai_error").format(error=error),
             correlation_id=self._pending_correlation_id or None,
         )
     
@@ -482,33 +509,16 @@ class MainWindow(QMainWindow):
     
     def _update_status_dot(self, state: str) -> None:
         """Update the header status dot and badge based on execution state."""
-        color_map = {
-            "idle": Colors.STATUS_IDLE,
-            "running": Colors.STATUS_RUNNING,
-            "root": Colors.STATUS_ROOT,
-        }
-        color = color_map.get(state, Colors.STATUS_IDLE)
-        self._status_dot.setStyleSheet(f"""
-            background-color: {color};
-            border-radius: 4px;
-            border: none;
-        """)
+        self._status_dot.setStyleSheet(_DOT_STYLES.get(state, _DOT_STYLES["idle"]))
         
         # Update header badge
-        badge_config = {
-            "idle": ("READY", Colors.TEXT_DIM, Colors.BG_TERTIARY),
-            "running": ("RUNNING", Colors.ACCENT_PRIMARY, Colors.ACCENT_SUBTLE),
-            "root": ("ROOT", "#ffffff", Colors.DANGER),
+        badge_text_map = {
+            "idle": t("badge.ready"),
+            "running": t("badge.running"),
+            "root": t("badge.root"),
         }
-        text, fg, bg = badge_config.get(state, ("READY", Colors.TEXT_DIM, Colors.BG_TERTIARY))
-        self._header_badge.setText(text)
-        self._header_badge.setStyleSheet(f"""
-            color: {fg};
-            background-color: {bg};
-            padding: 2px 8px;
-            border-radius: 4px;
-            border: none;
-        """)
+        self._header_badge.setText(badge_text_map.get(state, t("badge.ready")))
+        self._header_badge.setStyleSheet(_BADGE_STYLES.get(state, _BADGE_STYLES["idle"]))
     
     def _on_prompt_detected(self, prompt_type: str):
         if prompt_type == "password":
@@ -532,6 +542,7 @@ class MainWindow(QMainWindow):
         dialog = SecuritySettingsDialog(
             self,
             cleanup_handler=self.backend.cleanup_old_sessions,
+            clear_all_chats_handler=self.chat_interface.delete_all_history,
         )
         dialog.settings_changed.connect(self._apply_security_settings)
         dialog.set_settings(self._security_settings)
@@ -546,10 +557,12 @@ class MainWindow(QMainWindow):
                     return {
                         "cleanup_days": int(data.get("cleanup_days", 7)),
                         "secure_delete": bool(data.get("secure_delete", True)),
+                        "font_size": int(data.get("font_size", 13)),
+                        "language": str(data.get("language", "en")),
                     }
         except Exception:
             pass
-        return {"cleanup_days": 7, "secure_delete": True}
+        return {"cleanup_days": 7, "secure_delete": True, "font_size": 13, "language": "en"}
 
     def _save_security_settings(self) -> None:
         try:
@@ -563,14 +576,59 @@ class MainWindow(QMainWindow):
         self._security_settings = {
             "cleanup_days": int(settings.get("cleanup_days", 7)),
             "secure_delete": bool(settings.get("secure_delete", True)),
+            "font_size": int(settings.get("font_size", 13)),
+            "language": str(settings.get("language", "en")),
         }
+        set_language(self._security_settings["language"])
+        self._apply_text_settings(self._security_settings)
+        self._refresh_ui_texts()
         self._save_security_settings()
+
+    def _apply_text_settings(self, settings: dict) -> None:
+        font_size = int(settings.get("font_size", 13))
+        self.chat_interface.set_text_font_size(font_size)
+        self.terminal_view.set_text_font_size(font_size)
     
     def closeEvent(self, event):
         self.chat_interface.save_on_close()
         self.backend.shutdown()
         event.accept()
     
+    def _refresh_ui_texts(self) -> None:
+        """Re-apply all translatable UI texts after language change."""
+        self._history_btn.setText(t("btn.hist"))
+        self._history_btn.setToolTip(t("tooltip.history"))
+        self._new_chat_btn.setText(t("btn.new_chat"))
+        self._new_chat_btn.setToolTip(t("tooltip.new_chat"))
+        self._new_terminal_btn.setText(t("btn.new_terminal"))
+        self._new_terminal_btn.setToolTip(t("tooltip.new_terminal"))
+        self._swap_btn.setText(t("btn.swap"))
+        self._swap_btn.setToolTip(t("tooltip.swap"))
+        self._layout_btn.setText(t("btn.layout"))
+        self._layout_btn.setToolTip(t("tooltip.layout"))
+        self._settings_btn.setText(t("btn.settings"))
+        self._settings_btn.setToolTip(t("tooltip.settings"))
+
+        exec_mode = self.backend.process_manager._exec_mgr.mode.value.upper()
+        self._mode_label.setText(f"{t('status.mode')}: {exec_mode}")
+        self._update_ai_label()
+        self._update_risk_indicator(self._risk_level)
+
+        self.chat_interface.refresh_texts()
+        self.terminal_view.refresh_texts()
+
+    def _update_ai_label(self) -> None:
+        """Refresh the AI status label with current state + language."""
+        if self._ai_state == "online":
+            self._ai_label.setText(f"AI: {self._ai_model_name}")
+            self._ai_label.setStyleSheet(f"color: {Colors.SUCCESS};")
+        elif self._ai_state == "offline":
+            self._ai_label.setText(f"AI: {t('msg.offline')}")
+            self._ai_label.setStyleSheet(f"color: {Colors.DANGER};")
+        else:
+            self._ai_label.setText(f"AI: {t('status.checking')}")
+            self._ai_label.setStyleSheet(f"color: {Colors.WARNING};")
+
     def _check_ai_status(self) -> None:
         """Check Ollama connectivity and update status bar."""
         self._ai_checker = _OllamaChecker()
@@ -580,12 +638,12 @@ class MainWindow(QMainWindow):
     def _on_ai_check_result(self, status: str) -> None:
         """Handle AI connectivity check result."""
         if status.startswith("online"):
-            model_name = status.split(":", 1)[1] if ":" in status else "Connected"
-            self._ai_label.setText(f"AI: {model_name}")
-            self._ai_label.setStyleSheet(f"color: {Colors.SUCCESS};")
+            self._ai_state = "online"
+            self._ai_model_name = status.split(":", 1)[1] if ":" in status else "Connected"
         else:
-            self._ai_label.setText("AI: Offline")
-            self._ai_label.setStyleSheet(f"color: {Colors.DANGER};")
+            self._ai_state = "offline"
+            self._ai_model_name = ""
+        self._update_ai_label()
 
 
 class _OllamaChecker(QThread):
