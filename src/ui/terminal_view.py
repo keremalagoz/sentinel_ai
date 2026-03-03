@@ -6,7 +6,7 @@ No sub-header, section label only, clean layout
 from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout,
     QTextEdit, QPushButton, QFrame, QLabel, QStackedWidget, QLineEdit,
-    QListWidget, QListWidgetItem, QSplitter, QMenu
+    QTabBar, QMenu
 )
 from PyQt6.QtCore import pyqtSlot, pyqtSignal, Qt, QEvent
 from PyQt6.QtGui import QTextCursor, QFont, QAction
@@ -84,7 +84,7 @@ class TerminalView(QWidget):
         section_layout = QHBoxLayout(section_bar)
         section_layout.setContentsMargins(12, 0, 12, 0)
         
-        section_label = QLabel("⬢ Terminal")
+        section_label = QLabel("Terminal")
         sl_font = QFont()
         sl_font.setPixelSize(11)
         section_label.setFont(sl_font)
@@ -93,108 +93,73 @@ class TerminalView(QWidget):
         
         section_layout.addStretch()
         
-        # Status badge
-        self._status_badge = QLabel("READY")
-        badge_font = QFont()
-        badge_font.setPixelSize(10)
-        badge_font.setBold(True)
-        self._status_badge.setFont(badge_font)
-        self._status_badge.setStyleSheet(f"""
-            color: {Colors.TEXT_SECONDARY};
-            background-color: {Colors.BG_TERTIARY};
-            padding: 2px 8px;
-            border-radius: 4px;
-            font-weight: bold;
-        """)
-        section_layout.addWidget(self._status_badge)
-        
         layout.addWidget(section_bar)
         
-        # ── Content area with splitter ──
-        content_splitter = QSplitter(Qt.Orientation.Horizontal)
-        content_splitter.setHandleWidth(1)
-        content_splitter.setStyleSheet(f"""
-            QSplitter::handle {{
-                background-color: {Colors.BG_ELEVATED};
-            }}
-        """)
+        # ── Tabs Area ──
+        tab_container = QFrame()
+        tab_container.setFixedHeight(30)
+        tab_container.setStyleSheet(f"background-color: {Colors.BG_SECONDARY}; border-bottom: 1px solid {Colors.BG_ELEVATED};")
+        tab_layout = QHBoxLayout(tab_container)
+        tab_layout.setContentsMargins(0, 0, 0, 0)
+        tab_layout.setSpacing(0)
         
-        # Output stack (left)
-        self._output_stack = QStackedWidget()
-        content_splitter.addWidget(self._output_stack)
-        
-        # Terminal list sidebar (right)
-        self._sidebar = QFrame()
-        self._sidebar.setStyleSheet(f"""
-            QFrame {{
-                background-color: {Colors.BG_PRIMARY};
-                border-left: 1px solid {Colors.BG_ELEVATED};
-            }}
-        """)
-        self._sidebar.setFixedWidth(130)
-        
-        sidebar_layout = QVBoxLayout(self._sidebar)
-        sidebar_layout.setContentsMargins(0, 0, 0, 0)
-        sidebar_layout.setSpacing(0)
-        
-        self._terminal_list = QListWidget()
-        list_font = QFont()
-        list_font.setPixelSize(12)
-        self._terminal_list.setFont(list_font)
-        self._terminal_list.setStyleSheet(f"""
-            QListWidget {{
-                background-color: transparent;
-                border: none;
-                outline: none;
-            }}
-            QListWidget::item {{
-                padding: 8px 10px;
+        self._tab_bar = QTabBar()
+        self._tab_bar.setTabsClosable(True)
+        self._tab_bar.setSelectionBehaviorOnRemove(QTabBar.SelectionBehavior.SelectPreviousTab)
+        self._tab_bar.setStyleSheet(f"""
+            QTabBar::tab {{
+                background: {Colors.BG_SECONDARY};
                 color: {Colors.TEXT_SECONDARY};
-                border-radius: 0;
+                border: none;
+                border-right: 1px solid {Colors.BG_ELEVATED};
+                padding: 6px 16px;
+                min-width: 80px;
+                font-family: {Fonts.UI};
+                font-size: 12px;
             }}
-            QListWidget::item:hover {{
-                background-color: {Colors.BG_TERTIARY};
+            QTabBar::tab:selected {{
+                background: {Colors.BG_TERTIARY};
                 color: {Colors.TEXT_PRIMARY};
+                border-top: 2px solid {Colors.ACCENT_PRIMARY};
             }}
-            QListWidget::item:selected {{
-                background-color: {Colors.ACCENT_SUBTLE};
-                color: {Colors.ACCENT_PRIMARY};
-                border-left: 2px solid {Colors.ACCENT_PRIMARY};
+            QTabBar::tab:hover:!selected {{
+                background: {Colors.BG_ELEVATED};
             }}
         """)
-        self._terminal_list.itemClicked.connect(self._on_terminal_selected)
-        self._terminal_list.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
-        self._terminal_list.customContextMenuRequested.connect(self._show_terminal_context_menu)
-        sidebar_layout.addWidget(self._terminal_list)
+        self._tab_bar.currentChanged.connect(self._on_tab_changed)
+        self._tab_bar.tabCloseRequested.connect(self._on_tab_close_requested)
+        tab_layout.addWidget(self._tab_bar)
+
+        tab_layout.addStretch()
         
-        content_splitter.addWidget(self._sidebar)
-        content_splitter.setSizes([600, 130])
-        content_splitter.setCollapsible(0, False)
-        content_splitter.setCollapsible(1, True)
+        layout.addWidget(tab_container)
         
-        layout.addWidget(content_splitter, stretch=1)
+        # ── Content area ──
+        self._output_stack = QStackedWidget()
+        layout.addWidget(self._output_stack, stretch=1)
         
         # ── Input area ──
+        # ── Input area (redesigned) ──
         input_frame = QFrame()
         input_frame.setStyleSheet(f"""
             QFrame {{
-                background-color: {Colors.BG_PRIMARY};
+                background-color: {Colors.BG_SECONDARY};
                 border-top: 1px solid {Colors.BG_ELEVATED};
             }}
         """)
-        input_frame.setFixedHeight(44)
+        input_frame.setFixedHeight(52)
         
         input_layout = QHBoxLayout(input_frame)
-        input_layout.setContentsMargins(12, 0, 12, 0)
-        input_layout.setSpacing(8)
+        input_layout.setContentsMargins(12, 8, 12, 8)
+        input_layout.setSpacing(12)
         
         # Prompt icon
-        self._prompt_icon = QLabel(">")
+        self._prompt_icon = QLabel("❯")
         prompt_font = QFont("JetBrains Mono, Consolas", 10)
-        prompt_font.setPixelSize(14)
+        prompt_font.setPixelSize(16)
         prompt_font.setBold(True)
         self._prompt_icon.setFont(prompt_font)
-        self._prompt_icon.setStyleSheet(f"color: {Colors.SUCCESS}; background: transparent; border: none;")
+        self._prompt_icon.setStyleSheet(f"color: {Colors.SUCCESS}; background: transparent; border: none; padding-left: 4px;")
         input_layout.addWidget(self._prompt_icon)
         
         # Input field
@@ -205,14 +170,39 @@ class TerminalView(QWidget):
         self._input.setFont(input_font)
         self._input.setStyleSheet(f"""
             QLineEdit {{
-                background-color: transparent;
+                background-color: {Colors.BG_TERTIARY};
                 color: {Colors.TEXT_PRIMARY};
-                border: none;
+                border: 1px solid {Colors.BG_ELEVATED};
+                border-radius: 18px;
+                padding: 8px 16px;
+            }}
+            QLineEdit:focus {{
+                border: 1px solid {Colors.ACCENT_PRIMARY};
             }}
         """)
         self._input.returnPressed.connect(self._on_input_submit)
         self._input.installEventFilter(self)
         input_layout.addWidget(self._input, stretch=1)
+
+        self._stop_btn = QPushButton("Stop")
+        self._stop_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        self._stop_btn.setFixedHeight(32)
+        self._stop_btn.setStyleSheet(f"""
+            QPushButton {{
+                background-color: {Colors.DANGER};
+                color: white;
+                border: none;
+                border-radius: 8px;
+                padding: 0 14px;
+                font-weight: bold;
+            }}
+            QPushButton:hover {{
+                background-color: #dc2626;
+            }}
+        """)
+        self._stop_btn.clicked.connect(self.stop_command)
+        self._stop_btn.hide()
+        input_layout.addWidget(self._stop_btn)
         
         layout.addWidget(input_frame)
     
@@ -259,9 +249,8 @@ class TerminalView(QWidget):
         self._sessions.append(session)
         self._output_stack.addWidget(session.output)
         
-        item = QListWidgetItem(f"  {session.name}")
-        item.setData(Qt.ItemDataRole.UserRole, session.id)
-        self._terminal_list.addItem(item)
+        tab_index = self._tab_bar.addTab(session.name)
+        self._tab_bar.setTabData(tab_index, session.id)
         
         self._switch_terminal(session)
         return session
@@ -272,10 +261,9 @@ class TerminalView(QWidget):
         if session.is_running and session == self._active_session and self._manager:
             self._manager.stop_process()
         
-        for i in range(self._terminal_list.count()):
-            item = self._terminal_list.item(i)
-            if item and item.data(Qt.ItemDataRole.UserRole) == session.id:
-                self._terminal_list.takeItem(i)
+        for i in range(self._tab_bar.count()):
+            if self._tab_bar.tabData(i) == session.id:
+                self._tab_bar.removeTab(i)
                 break
         
         self._output_stack.removeWidget(session.output)
@@ -286,86 +274,51 @@ class TerminalView(QWidget):
         if self._active_session == session and self._sessions:
             self._switch_terminal(self._sessions[-1])
     
-    def _show_terminal_context_menu(self, pos):
-        item = self._terminal_list.itemAt(pos)
-        if not item:
+    def _on_tab_changed(self, index: int):
+        if index < 0:
             return
-        session_id = item.data(Qt.ItemDataRole.UserRole)
-        session = next((s for s in self._sessions if s.id == session_id), None)
-        if not session:
-            return
-        
-        menu = QMenu(self)
-        menu.setStyleSheet(f"""
-            QMenu {{
-                background-color: {Colors.BG_SECONDARY};
-                border: 1px solid {Colors.BG_ELEVATED};
-                border-radius: 4px; padding: 4px;
-            }}
-            QMenu::item {{
-                padding: 6px 20px 6px 10px;
-                color: {Colors.TEXT_PRIMARY}; border-radius: 3px;
-            }}
-            QMenu::item:selected {{
-                background-color: {Colors.ACCENT_SUBTLE};
-                color: {Colors.ACCENT_PRIMARY};
-            }}
-        """)
-        
-        close_action = QAction("Terminali Kapat", self)
-        close_action.triggered.connect(lambda: self._close_terminal(session))
-        menu.addAction(close_action)
-        if len(self._sessions) <= 1:
-            close_action.setEnabled(False)
-        
-        menu.exec(self._terminal_list.mapToGlobal(pos))
-    
-    def _on_terminal_selected(self, item: QListWidgetItem):
-        session_id = item.data(Qt.ItemDataRole.UserRole)
+        session_id = self._tab_bar.tabData(index)
         session = next((s for s in self._sessions if s.id == session_id), None)
         if session:
             self._switch_terminal(session)
+            
+    def _on_tab_close_requested(self, index: int):
+        if index < 0:
+            return
+        session_id = self._tab_bar.tabData(index)
+        session = next((s for s in self._sessions if s.id == session_id), None)
+        if session:
+            self._close_terminal(session)
     
     def _switch_terminal(self, session: TerminalSession):
         self._active_session = session
         self._output_stack.setCurrentWidget(session.output)
         
-        for i in range(self._terminal_list.count()):
-            item = self._terminal_list.item(i)
-            if item.data(Qt.ItemDataRole.UserRole) == session.id:
-                self._terminal_list.setCurrentItem(item)
+        for i in range(self._tab_bar.count()):
+            if self._tab_bar.tabData(i) == session.id:
+                if self._tab_bar.currentIndex() != i:
+                    self._tab_bar.setCurrentIndex(i)
+                break
         
-        self._update_sidebar_indicators()
+        self._update_tab_indicators()
         self._update_status_badge()
     
     def _update_status_badge(self):
         if not self._active_session:
+            self._stop_btn.hide()
             return
         if self._active_session.is_running:
+            self._stop_btn.show()
             if self._active_session.requires_root:
-                self._status_badge.setText("ROOT")
-                self._status_badge.setStyleSheet(f"""
-                    color: white; background-color: {Colors.DANGER};
-                    padding: 2px 8px; border-radius: 4px; font-weight: bold;
-                """)
                 self._prompt_icon.setStyleSheet(f"color: {Colors.DANGER}; background: transparent; border: none;")
             else:
-                self._status_badge.setText("RUNNING")
-                self._status_badge.setStyleSheet(f"""
-                    color: {Colors.ACCENT_PRIMARY}; background-color: {Colors.ACCENT_SUBTLE};
-                    padding: 2px 8px; border-radius: 4px; font-weight: bold;
-                """)
                 self._prompt_icon.setStyleSheet(f"color: {Colors.WARNING}; background: transparent; border: none;")
         else:
-            self._status_badge.setText("READY")
-            self._status_badge.setStyleSheet(f"""
-                color: {Colors.TEXT_SECONDARY}; background-color: {Colors.BG_TERTIARY};
-                padding: 2px 8px; border-radius: 4px; font-weight: bold;
-            """)
+            self._stop_btn.hide()
             self._prompt_icon.setStyleSheet(f"color: {Colors.SUCCESS}; background: transparent; border: none;")
     
     def _update_status(self):
-        self._update_sidebar_indicators()
+        self._update_tab_indicators()
         self._update_status_badge()
         if self._active_session:
             self.sig_status_changed.emit(
@@ -374,14 +327,13 @@ class TerminalView(QWidget):
                 self._active_session.requires_root
             )
     
-    def _update_sidebar_indicators(self):
-        for i in range(self._terminal_list.count()):
-            item = self._terminal_list.item(i)
-            session_id = item.data(Qt.ItemDataRole.UserRole)
+    def _update_tab_indicators(self):
+        for i in range(self._tab_bar.count()):
+            session_id = self._tab_bar.tabData(i)
             session = next((s for s in self._sessions if s.id == session_id), None)
             if session:
-                prefix = "● " if session.is_running else "  "
-                item.setText(f"{prefix}{session.name}")
+                prefix = "● " if session.is_running else ""
+                self._tab_bar.setTabText(i, f"{prefix}{session.name}")
     
     def _connect_manager_signals(self):
         if self._manager:
@@ -391,16 +343,27 @@ class TerminalView(QWidget):
     
     # ── Public API ──
     
-    def start_command(self, command: str, args: list, requires_root: bool = False):
+    def start_command(
+        self,
+        command: str,
+        args: list,
+        requires_root: bool = False,
+        correlation_id: str = "",
+        risk_label: str = "",
+    ):
         if not self._manager or not self._active_session:
             return
         self._active_session.is_running = True
         self._active_session.requires_root = requires_root
         self._update_status()
+        if correlation_id:
+            self._log(f"[CID:{correlation_id}]", Colors.TEXT_DIM)
+        if risk_label:
+            self._log(f"[RISK] {risk_label.upper()}", Colors.WARNING if risk_label.lower() != "safe" else Colors.SUCCESS)
         self._log(f"$ {command} {' '.join(args)}", Colors.TEXT_SECONDARY)
         if requires_root:
             self._log("[!] ROOT: Yuksek yetki ile calistiriliyor", Colors.WARNING)
-        self._manager.start_process(command, args, requires_root)
+        self._manager.start_process(command, args, requires_root, correlation_id=correlation_id)
     
     def stop_command(self):
         if self._manager:

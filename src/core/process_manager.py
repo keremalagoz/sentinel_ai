@@ -26,6 +26,7 @@ class AdvancedProcessManager(QObject):
         self._process = QProcess(self)
         self._log_file = None
         self._log_path = ""
+        self._correlation_id = ""
         self._exec_mgr = get_execution_manager()
         
         self._process.readyReadStandardOutput.connect(self._handle_stdout)
@@ -33,7 +34,13 @@ class AdvancedProcessManager(QObject):
         self._process.finished.connect(self._handle_finished)
         self._process.errorOccurred.connect(self._handle_error)
     
-    def start_process(self, command: str, args: list, requires_root: bool = False) -> None:
+    def start_process(
+        self,
+        command: str,
+        args: list,
+        requires_root: bool = False,
+        correlation_id: str = "",
+    ) -> None:
         """
         Komutu ExecutionManager ile hazırlayıp çalıştırır.
         Moda göre (Docker/Native) otomatik ayarlanır.
@@ -42,6 +49,7 @@ class AdvancedProcessManager(QObject):
         final_cmd, final_args, temp_root = self._exec_mgr.prepare_command(
             command, args, requires_root
         )
+        self._correlation_id = correlation_id or ""
         
         # 2. Log dosyasını hazırla
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -59,6 +67,8 @@ class AdvancedProcessManager(QObject):
                 self._log_file = open(self._log_path, "a", encoding="utf-8")
                 
                 self._log_file.write(f"[SESSION START] {datetime.now().isoformat()}\n")
+                if self._correlation_id:
+                    self._log_file.write(f"[CID] {self._correlation_id}\n")
                 self._log_file.write(f"[MODE] {self._exec_mgr.mode.value.upper()}\n")
                 self._log_file.write(f"[COMMAND] {final_cmd} {shlex.join(final_args)}\n")
                 self._log_file.write("-" * 50 + "\n")
@@ -81,7 +91,10 @@ class AdvancedProcessManager(QObject):
             self._process.write(data)
             
             if self._log_file:
-                self._log_file.write(f"[INPUT] {text}\n")
+                if self._correlation_id:
+                    self._log_file.write(f"[INPUT][CID:{self._correlation_id}] {text}\n")
+                else:
+                    self._log_file.write(f"[INPUT] {text}\n")
                 self._log_file.flush()
     
     def stop_process(self) -> None:
@@ -133,6 +146,7 @@ class AdvancedProcessManager(QObject):
             self.sig_auth_failed.emit()
         
         self.sig_process_finished.emit(exit_code, self._log_path)
+        self._correlation_id = ""
     
     def _handle_error(self, error: QProcess.ProcessError) -> None:
         """
@@ -146,7 +160,11 @@ class AdvancedProcessManager(QObject):
         - ReadError: Process'ten okunamadı
         """
         error_messages = {
-            QProcess.ProcessError.FailedToStart: "Komut bulunamadi veya calistirilamadi",
+            QProcess.ProcessError.FailedToStart: (
+                "Komut bulunamadi veya calistirilamadi. "
+                "Guvenlik araclari (nmap, nikto, hydra vb.) Docker konteynerinde calisir. "
+                "Docker servislerinin ayakta oldugundan emin olun."
+            ),
             QProcess.ProcessError.Crashed: "Process beklenmedik sekilde sonlandi",
             QProcess.ProcessError.Timedout: "Process zaman asimina ugradi",
             QProcess.ProcessError.WriteError: "Process'e yazilamadi",

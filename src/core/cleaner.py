@@ -139,36 +139,79 @@ class SecureCleaner:
 
     def cleanup_old_sessions(self, days: int = 7) -> int:
         """
-        Eski session loglarını (temp/session_*.txt) temizler.
-        ExecutionManager'ın kullandığı path'e göre işlem yapar.
+        Eski session loglarını (sentinel_*, session_*) temizler.
+        System temp + proje ici temp dizinlerini birlikte tarar.
         """
-        # Hedeflenen temp klasörünü belirle
-        target_processed_dir = None
-        
-        if self._exec_mgr.is_windows:
-            target_processed_dir = Path(os.path.join(os.environ.get("TEMP", ""), "sentinel"))
-        elif self._exec_mgr.is_linux:
-            target_processed_dir = Path("/tmp")
-        else:
-            target_processed_dir = Path("temp") # Fallback (Proje içi)
-
-        if not target_processed_dir.exists():
-            return 0
-            
         deleted_count = 0
         cutoff = datetime.now() - timedelta(days=days)
-        
-        # sentinel_ ile başlayan veya session_ ile başlayan dosyaları ara
-        # ExecutionManager 'sentinel_' prefix ekliyor
-        for item in target_processed_dir.glob("sentinel_*"):
-            try:
-                # Dosya değiştirilme tarihi
-                mtime = datetime.fromtimestamp(item.stat().st_mtime)
-                if mtime < cutoff:
-                    if self.delete(str(item), secure=False):
-                        deleted_count += 1
-            except Exception:
+
+        project_temp_dir = Path(os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "temp"))
+
+        candidate_dirs: List[Path] = [project_temp_dir]
+        if self._exec_mgr.is_windows:
+            candidate_dirs.append(Path(os.path.join(os.environ.get("TEMP", ""), "sentinel")))
+        elif self._exec_mgr.is_linux:
+            candidate_dirs.append(Path("/tmp"))
+
+        seen_paths = set()
+        for target_dir in candidate_dirs:
+            if not target_dir.exists():
                 continue
+            for pattern in ("sentinel_*", "session_*"):
+                for item in target_dir.glob(pattern):
+                    try:
+                        real_item = str(item.resolve())
+                    except Exception:
+                        real_item = str(item)
+
+                    if real_item in seen_paths:
+                        continue
+                    seen_paths.add(real_item)
+
+                    if not item.is_file():
+                        continue
+
+                    try:
+                        mtime = datetime.fromtimestamp(item.stat().st_mtime)
+                        if mtime < cutoff and self.delete(str(item), secure=False):
+                            deleted_count += 1
+                    except Exception:
+                        continue
+
+        # Ayrica chat_history.json dosyasini da temizle (Proje ici temp dizininde bulunur)
+        chat_history_path = project_temp_dir / "chat_history.json"
+        
+        if chat_history_path.exists():
+            try:
+                import json
+                with open(chat_history_path, 'r', encoding='utf-8') as f:
+                    history = json.load(f)
+                
+                new_history = []
+                for chat in history:
+                    if not chat.get('messages'):
+                        deleted_count += 1
+                        continue
+
+                    chat_date_str = chat.get('date')
+                    keep = True
+                    if chat_date_str:
+                        try:
+                            chat_date = datetime.strptime(chat_date_str, "%Y-%m-%d %H:%M")
+                            if chat_date < cutoff:
+                                keep = False
+                                deleted_count += 1
+                        except Exception:
+                            pass
+                    
+                    if keep:
+                        new_history.append(chat)
+                        
+                if len(new_history) != len(history):
+                    with open(chat_history_path, 'w', encoding='utf-8') as f:
+                        json.dump(new_history, f, ensure_ascii=False, indent=2)
+            except Exception as e:
+                print(f"[WARN] Chat history cleanup failed: {e}")
                 
         return deleted_count
 

@@ -13,11 +13,17 @@ class Colors:
     BG_SECONDARY = "#18181b"    # Panel Background (Chat/Terminal)
     BG_TERTIARY = "#27272a"     # Hover/Active States
     BG_ELEVATED = "#3f3f46"     # Borders / Dividers
+    BG_HOVER = "#2d2d33"        # Subtle hover (between tertiary and elevated)
     
     # Accents
     ACCENT_PRIMARY = "#3b82f6"  # Bright Blue (Cursor Style)
     ACCENT_HOVER = "#2563eb"    # Darker Blue
     ACCENT_SUBTLE = "rgba(59, 130, 246, 0.1)" # Low Opacity Blue
+    ACCENT_GLOW = "rgba(59, 130, 246, 0.25)"  # Blue glow for focus effects
+    
+    # Gradient
+    GRADIENT_START = "#0f0f14"  # Header gradient start (subtle indigo-black)
+    GRADIENT_END = "#09090b"    # Header gradient end
     
     # Text
     TEXT_PRIMARY = "#f4f4f5"    # Almost White
@@ -29,6 +35,11 @@ class Colors:
     WARNING = "#eab308"
     DANGER = "#ef4444"
     SECURE = "#8b5cf6"          # Purple
+    
+    # Status Indicators
+    STATUS_IDLE = "#52525b"     # Gray dot
+    STATUS_RUNNING = "#22c55e"  # Green dot
+    STATUS_ROOT = "#ef4444"     # Red dot
 
 class Fonts:
     """Typography System"""
@@ -215,6 +226,48 @@ SCROLLBAR_MODERN = f"""
     }}
     QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical {{
         background: none;
+    }}
+"""
+
+# --- STATUS BAR ---
+
+STATUS_BAR_STYLE = f"""
+    QFrame#StatusBar {{
+        background-color: {Colors.BG_PRIMARY};
+        border-top: 1px solid {Colors.BG_ELEVATED};
+    }}
+    QLabel {{
+        color: {Colors.TEXT_DIM};
+        font-size: {Fonts.SIZE_XS};
+        background: transparent;
+        border: none;
+    }}
+"""
+
+# --- ROOT BADGE ---
+
+ROOT_BADGE_STYLE = f"""
+    QLabel#RootBadge {{
+        background-color: rgba(239, 68, 68, 0.15);
+        color: {Colors.DANGER};
+        border: 1px solid rgba(239, 68, 68, 0.3);
+        border-radius: 4px;
+        padding: 2px 6px;
+        font-size: {Fonts.SIZE_XS};
+        font-weight: bold;
+    }}
+"""
+
+# --- COMMAND CARD ENHANCED ---
+
+COMMAND_CARD_STYLE = f"""
+    QFrame#CommandCard {{
+        background-color: {Colors.BG_PRIMARY};
+        border: 1px solid {Colors.BG_ELEVATED};
+        border-radius: 8px;
+    }}
+    QFrame#CommandCard:hover {{
+        border: 1px solid {Colors.ACCENT_PRIMARY};
     }}
 """
 

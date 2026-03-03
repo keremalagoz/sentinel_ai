@@ -27,7 +27,7 @@ class SecuritySettingsDialog(QDialog):
     def __init__(self, parent=None, cleanup_handler=None):
         super().__init__(parent)
         self.setWindowTitle("Security Settings")
-        self.setFixedSize(400, 350)
+        self.setFixedSize(450, 520)
         self._cleanup_handler = cleanup_handler
         self.setStyleSheet(f"""
             QDialog {{
@@ -97,6 +97,48 @@ class SecuritySettingsDialog(QDialog):
         cleanup_layout.addWidget(self._secure_delete)
         
         layout.addWidget(cleanup_group)
+        
+        # Connection Status Group
+        status_group = QGroupBox("Connection Status")
+        status_layout = QVBoxLayout(status_group)
+        
+        # Docker status
+        docker_row = QHBoxLayout()
+        docker_label = QLabel("Docker:")
+        docker_label.setStyleSheet(f"color: {Colors.TEXT_SECONDARY};")
+        docker_row.addWidget(docker_label)
+        
+        self._docker_status = QLabel("Checking...")
+        self._docker_status.setStyleSheet(f"color: {Colors.WARNING}; font-weight: bold;")
+        docker_row.addWidget(self._docker_status)
+        docker_row.addStretch()
+        status_layout.addLayout(docker_row)
+        
+        # AI model status
+        ai_row = QHBoxLayout()
+        ai_label = QLabel("AI Model:")
+        ai_label.setStyleSheet(f"color: {Colors.TEXT_SECONDARY};")
+        ai_row.addWidget(ai_label)
+        
+        self._ai_status = QLabel("Offline")
+        self._ai_status.setStyleSheet(f"color: {Colors.TEXT_DIM}; font-weight: bold;")
+        ai_row.addWidget(self._ai_status)
+        ai_row.addStretch()
+        status_layout.addLayout(ai_row)
+        
+        # Execution mode
+        mode_row = QHBoxLayout()
+        mode_label = QLabel("Mode:")
+        mode_label.setStyleSheet(f"color: {Colors.TEXT_SECONDARY};")
+        mode_row.addWidget(mode_label)
+        
+        self._mode_status = QLabel("Native")
+        self._mode_status.setStyleSheet(f"color: {Colors.ACCENT_PRIMARY}; font-weight: bold;")
+        mode_row.addWidget(self._mode_status)
+        mode_row.addStretch()
+        status_layout.addLayout(mode_row)
+        
+        layout.addWidget(status_group)
         
         # Cleanup Actions Group
         actions_group = QGroupBox("Cleanup Actions")
@@ -216,3 +258,29 @@ class SecuritySettingsDialog(QDialog):
             "cleanup_days": self._days_spin.value(),
             "secure_delete": self._secure_delete.isChecked()
         }
+
+    def set_settings(self, settings: dict) -> None:
+        """Initialize dialog fields from saved settings."""
+        self._days_spin.setValue(int(settings.get("cleanup_days", self._days_spin.value())))
+        self._secure_delete.setChecked(bool(settings.get("secure_delete", self._secure_delete.isChecked())))
+
+    def update_connection_status(self, docker_running: bool, ai_status_text: str, exec_mode: str) -> None:
+        """Updates the labels in the connection status group."""
+        if docker_running:
+            self._docker_status.setText("Running")
+            self._docker_status.setStyleSheet(f"color: {Colors.SUCCESS}; font-weight: bold;")
+        else:
+            self._docker_status.setText("Stopped / Missing")
+            self._docker_status.setStyleSheet(f"color: {Colors.DANGER}; font-weight: bold;")
+            
+        self._ai_status.setText(ai_status_text)
+        if "Offline" in ai_status_text:
+            self._ai_status.setStyleSheet(f"color: {Colors.DANGER}; font-weight: bold;")
+        else:
+            self._ai_status.setStyleSheet(f"color: {Colors.SUCCESS}; font-weight: bold;")
+            
+        self._mode_status.setText(exec_mode)
+        if exec_mode == "DOCKER":
+            self._mode_status.setStyleSheet(f"color: {Colors.SUCCESS}; font-weight: bold;")
+        else:
+            self._mode_status.setStyleSheet(f"color: {Colors.ACCENT_PRIMARY}; font-weight: bold;")
