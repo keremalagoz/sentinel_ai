@@ -20,6 +20,11 @@ from src.core.sqlite_backend import (
     EntityType, ExecutionStatus, ParseStatus
 )
 
+# Pre-compiled regex patterns (M7 optimization)
+_CVE_RE = re.compile(r'CVE-\d{4}-\d{4,7}', re.IGNORECASE)
+_CVSS_RE = re.compile(r'(?:CVSS|cvss)[:\s]+(\d+\.?\d*)')
+_VERSION_RE = re.compile(r'\d+\.\d+[\w\.\-]*')
+
 
 class ParserException(Exception):
     """Parser exception - raised when parsing fails"""
@@ -72,13 +77,11 @@ def extract_cve_info(text: str) -> Dict[str, Any]:
     }
     
     # Extract CVE IDs (CVE-YYYY-NNNNN)
-    cve_pattern = r'CVE-\d{4}-\d{4,7}'
-    cve_matches = re.findall(cve_pattern, text, re.IGNORECASE)
+    cve_matches = _CVE_RE.findall(text)
     result["cve_ids"] = list(set(cve_matches))
     
     # Extract CVSS score (0.0 - 10.0)
-    cvss_pattern = r'(?:CVSS|cvss)[:\s]+(\d+\.?\d*)'
-    cvss_match = re.search(cvss_pattern, text)
+    cvss_match = _CVSS_RE.search(text)
     if cvss_match:
         try:
             score = float(cvss_match.group(1))
@@ -141,9 +144,8 @@ def parse_service_version(version_string: str) -> Dict[str, Any]:
         result["product"] = parts[0]
     
     # Find version number (digits with dots)
-    version_pattern = r'\d+\.\d+[\w\.\-]*'
     for part in parts:
-        if re.match(version_pattern, part):
+        if _VERSION_RE.match(part):
             result["version"] = part
             break
     
@@ -198,8 +200,7 @@ def analyze_banner(banner: str) -> Dict[str, Any]:
             break
     
     # Extract version hints
-    version_pattern = r'\d+\.\d+[\w\.\-]*'
-    versions = re.findall(version_pattern, banner)
+    versions = _VERSION_RE.findall(banner)
     result["version_hints"] = versions[:3]  # Limit to 3
     
     # OS hints
