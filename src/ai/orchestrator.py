@@ -34,6 +34,7 @@ from src.ai.tool_registry import (
     build_execution_kwargs
 )
 from src.ai.command_builder import CommandBuilder, get_command_builder
+from src.ui.i18n import t
 
 load_dotenv()
 logger = logging.getLogger(__name__)
@@ -165,28 +166,26 @@ class AIOrchestrator:
                 intent.intent_type.value,
             )
             result["message"] = (
-                f"Talebinizi tam olarak anlayamadim "
-                f"(guven: {intent.confidence:.0%}). "
-                f"Lutfen daha acik belirtin."
+                t("ai.low_confidence").format(conf=f"{intent.confidence:.0%}")
             )
             result["needs_clarification"] = True
             return result
 
         # Netlestime gerekli mi?
         if intent.needs_clarification:
-            result["message"] = intent.clarification_reason or "Lutfen talebi netlestirin."
+            result["message"] = intent.clarification_reason or t("ai.clarify")
             result["needs_clarification"] = True
             return result
         
         # Bilgi sorusu mu?
         if intent.intent_type == IntentType.INFO_QUERY:
             result["success"] = True
-            result["message"] = "Bu bir bilgi sorusu, komut gerektirmiyor."
+            result["message"] = t("ai.info_query")
             return result
         
         # Unknown intent
         if intent.intent_type == IntentType.UNKNOWN:
-            result["message"] = "Talebi anlayamadim. Lutfen daha acik belirtin."
+            result["message"] = t("ai.unknown_intent")
             result["needs_clarification"] = True
             return result
         
@@ -208,8 +207,7 @@ class AIOrchestrator:
         # Target validation
         if not final_target:
             result["message"] = (
-                "Hedef belirtilmedi. Lütfen mesajına IP veya domain ekleyerek tekrar dene. "
-                "Örnek: '192.168.1.20 port taraması yap'"
+                t("ai.no_target")
             )
             result["needs_clarification"] = True
             return result
@@ -221,7 +219,7 @@ class AIOrchestrator:
         )
         
         if tool_spec is None:
-            result["message"] = f"Bu intent icin tool bulunamadi: {intent.intent_type.value}"
+            result["message"] = t("ai.no_tool").format(intent=intent.intent_type.value)
             return result
         
         self._last_tool_spec = tool_spec
@@ -235,7 +233,7 @@ class AIOrchestrator:
         command, error = self._command_builder.build(tool_spec, explanation)
         
         if error:
-            result["message"] = f"Komut olusturulamadi: {error}"
+            result["message"] = t("ai.cmd_failed").format(error=error)
             return result
         
         # =====================================================================
@@ -243,7 +241,7 @@ class AIOrchestrator:
         # =====================================================================
         result["success"] = True
         result["command"] = command
-        result["message"] = f"Komut hazir: {command.to_display_string()}"
+        result["message"] = t("ai.cmd_ready").format(cmd=command.to_display_string())
         
         return result
     

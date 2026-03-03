@@ -24,6 +24,9 @@ import time
 from abc import ABC, abstractmethod
 from typing import Dict, List, Optional, Any
 
+# Pre-compiled regex for JSON extraction (H5 optimization)
+_JSON_BLOCK_RE = re.compile(r"```(?:json)?\s*(\{[\s\S]*?\})\s*```")
+
 from openai import OpenAI
 
 from src.ai.schemas import (
@@ -511,8 +514,7 @@ class HierarchicalResolver(HierarchicalResolverBase):
     def _extract_json(text: str) -> str:
         """Text icinden JSON objesini cikar."""
         # Markdown code block
-        pattern = r"```(?:json)?\s*(\{[\s\S]*?\})\s*```"
-        match = re.search(pattern, text)
+        match = _JSON_BLOCK_RE.search(text)
         if match:
             return match.group(1).strip()
 
