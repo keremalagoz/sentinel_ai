@@ -1,6 +1,6 @@
 # SENTINEL AI - Sprint Roadmap (Güncel)
 
-**Güncelleme Tarihi:** 28 Şubat 2026  
+**Güncelleme Tarihi:** 4 Mart 2026  
 **Mimari:** Action Planner v2.1 (Local-Only LLM + Deterministic Command Builder)
 
 ---
@@ -175,14 +175,46 @@ Temel akış:
 
 ---
 
+### Sprint 3.4 — UI / i18n / Performans Optimizasyonu ✅
+
+> Sorumlu: Yiğit  
+> Tarih: 1–4 Mart 2026  
+> Kapsam: UI hata düzeltme, çok dil desteği, ayarlar diyalogu, performans optimizasyonu, kapsamlı test
+
+| # | Görev | Sorumlu | Durum | Açıklama |
+|---|-------|---------|-------|----------|
+| 3.4.1 | Sprint 3 font hataları (5 bug) | Yiğit | ✅ | Chat/terminal font tutarlılığı, bold, miras |
+| 3.4.2 | Layout Swap (Chat/Terminal pozisyon) | Yiğit | ✅ | Yatay/dikey düzen değiştirme |
+| 3.4.3 | i18n sistemi (11 dil, 78 anahtar) | Yiğit | ✅ | `src/ui/i18n.py` — EN, TR, ES, ZH, JA, AR, DE, RU, FR, PT, HI |
+| 3.4.4 | Ayarlar Diyalogu | Yiğit | ✅ | `settings_dialog.py` — dil, font boyutu, oturum temizleme |
+| 3.4.5 | Orchestrator i18n entegrasyonu | Yiğit | ✅ | "Komut hazır" çevirisi + badge fallback |
+| 3.4.6 | UI test altyapısı (conftest + 3 dosya) | Yiğit | ✅ | 500 yeni test (i18n, widget, özellik) |
+| 3.4.7 | Performans audit (12 sorun tespiti) | Yiğit | ✅ | 5 HIGH + 7 MEDIUM optimizasyon fırsatı |
+| 3.4.8 | 12 optimizasyon fix uygulaması | Yiğit | ✅ | Debounce, cache, pre-compile, QSS sabitleri |
+| 3.4.9 | Optimizasyon testleri (91 test) | Yiğit | ✅ | 13 sınıf, timing + anti-pattern taraması |
+
+**Sprint 3.4 Toplam: 9/9 görev ✅**
+
+**Değişen dosyalar (optimizasyon)**:
+- `src/ui/chat_interface.py` — debounce, bubble_refs, font_cache, QSS sabitleri
+- `src/ui/terminal_view.py` — prompt stiller, session_tab_map, buffer
+- `src/ui/main_window.py` — _DOT_STYLES, _BADGE_STYLES
+- `src/ui/i18n.py` — get_available_languages no-copy
+- `src/ai/intent_resolver.py` — _JSON_BLOCK_RE pre-compile
+- `src/ai/hierarchical_resolver.py` — _JSON_BLOCK_RE pre-compile
+- `src/core/validators.py` — _HOSTNAME_RE, _INTERNAL_HOSTNAME_RE
+- `src/core/parser_framework.py` — _CVE_RE, _CVSS_RE, _VERSION_RE
+
+---
+
 ## 3.1) Hızlı Durum Özeti
 
 - Mimari: Local-only LLM + deterministic execution
-- Test sağlığı: full suite yeşil (**242 passed**)
-- Tamamlanan: Sprint 0 → 3.3 (toplam **55 görev** tamamlandı)
-- Aktif sprint: **Sprint 3.3 tamamlandı** — sonraki: Sprint 4
+- Test sağlığı: full suite yeşil (**715 passed**)
+- Tamamlanan: Sprint 0 → 3.4 (toplam **64 görev** tamamlandı)
+- Aktif sprint: **Sprint 3.4 tamamlandı** — sonraki: Sprint 4
 - Backlog: 2 görev (Sprint 3'ten kalan UI görevleri — Yiğit)
-- Sonraki hedef: Sprint 3.3 → Sprint 4 (Veri Adaptasyonu)
+- Sonraki hedef: Sprint 4 (Veri Adaptasyonu)
 
 ---
 
@@ -251,11 +283,11 @@ Bir sprint maddesi tamamlandı sayılması için:
 
 | Metrik | Değer |
 |--------|-------|
-| Tamamlanan görev | **55** |
-| Aktif (Sprint 3.3) | **10** |
+| Tamamlanan görev | **64** |
+| Aktif (Sprint 3.4) | **9** |
 | Backlog (yerleştirilmemiş) | **3** |
 | Bekleyen (Sprint 4-6) | **9** |
-| Toplam test | **242 passed** |
+| Toplam test | **715 passed** |
 | Son merge | develop `02e352c` |
 
 

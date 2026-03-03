@@ -1,4 +1,4 @@
-# UI Regression Checklist (Sprint 3 Sonu)
+# UI Regression Checklist (Sprint 3.4 Sonu)
 
 Bu liste, `develop` öncesi 3-5 dakikalık hızlı doğrulama için hazırlanmıştır.
 
@@ -33,10 +33,41 @@ Bu liste, `develop` öncesi 3-5 dakikalık hızlı doğrulama için hazırlanmı
 - İzin verilmeyen komut terminalden girildiğinde reddedilir ve uyarı logu görülür.
 - İzinli komutlar çalışır.
 
+## 7) i18n / Dil Desteği (Sprint 3.4)
+- `Settings` → Dil dropdown'unda 11 dil listelenir (EN, TR, ES, ZH, JA, AR, DE, RU, FR, PT, HI).
+- Dil değiştirildiginde tüm header butonları ve etiketler anında güncellenir.
+- Chat giriş alanı placeholder'ı seçilen dilde görünür.
+- Terminal prompt metni seçilen dilde görünür.
+- Settings diyalogu etiketleri seçilen dilde görünür.
+- Uygulama yeniden başlatıldığında seçilen dil korunur.
+- Olmayan bir çeviri anahtarı için İngilizce fallback çalışır.
+
+## 8) Ayarlar Diyalogu (Sprint 3.4)
+- `Settings` butonu diyalogu açar.
+- Dil seçimi dropdown çalışır ve değişiklik anında uygulanır.
+- Font boyutu slider çalışır (11-24px arası).
+- Font boyutu değiştiğinde chat balonları yeniden oluşturulmadan güncellenir.
+- `Clean Old Sessions Now` butonu hata vermeden çalışır.
+
+## 9) Layout Swap (Sprint 3.4)
+- `Layout` butonu ile Chat/Terminal pozisyonu değişir.
+- Dikey düzende: Chat üst, Terminal alt (veya ters).
+- Yatay düzende: Chat sol, Terminal sağ (veya ters).
+- Layout değiştirme sırasında mevcut içerik korunur.
+
+## 10) Performans (Sprint 3.4)
+- Chat geçmişi kaydı anlık disk yazımı yapmaz (debounce 500ms).
+- Pencere yeniden boyutlandırılırken hissedilir takılma olmaz.
+- Font değişikliği anlık uygulanır, gecikme yok.
+- Çoklu terminal sekmesi açma/kapama akıcıdır.
+
 ## Önerilen Kısa Akış
 1. Uygulamayı başlat.
-2. `Layout` ile iki yönü test et.
-3. Terminalden uzun bir komut çalıştırıp `Stop` test et.
-4. Chatten mesaj gönder, geçmişi aç-kapat.
-5. Settings temizleme testini çalıştır.
-6. Uygulamayı kapat-aç; geçmişte boş kayıt birikimi yok mu kontrol et.
+2. `Settings` → dili Türkçe'ye çevir, etiketleri kontrol et.
+3. `Settings` → dili Japonca'ya çevir, font boyutunu 18 yap.
+4. `Layout` ile iki yönü test et.
+5. Terminalden uzun bir komut çalıştırıp `Stop` test et.
+6. Chatten mesaj gönder, geçmişi aç-kapat.
+7. Settings temizleme testini çalıştır.
+8. Uygulamayı kapat-aç; seçilen dil ve font korunuyor mu kontrol et.
+9. Geçmişte boş kayıt birikimi yok mu kontrol et.
