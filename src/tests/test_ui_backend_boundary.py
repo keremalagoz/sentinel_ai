@@ -94,3 +94,24 @@ class TestParseCommandSecurity:
         for allowed in ["ping", "nmap", "nslookup", "gobuster", "curl"]:
             cmd, args, root = BackendGateway.parse_command(f"{allowed} 127.0.0.1")
             assert cmd == allowed, f"{allowed} should be allowed"
+
+    def test_parse_command_with_risk_levels(self) -> None:
+        cmd, args, root, risk = BackendGateway.parse_command_with_risk("ping 1.1.1.1")
+        assert cmd == "ping"
+        assert root is False
+        assert risk == "low"
+
+        cmd, args, root, risk = BackendGateway.parse_command_with_risk("nmap -sV 1.1.1.1")
+        assert cmd == "nmap"
+        assert root is False
+        assert risk == "medium"
+
+        cmd, args, root, risk = BackendGateway.parse_command_with_risk("nmap -sS 1.1.1.1")
+        assert cmd == "nmap"
+        assert root is True
+        assert risk == "high"
+
+    def test_parse_command_with_risk_rejects_unsafe(self) -> None:
+        cmd, args, root, risk = BackendGateway.parse_command_with_risk("rm -rf /")
+        assert cmd is None
+        assert risk == "high"

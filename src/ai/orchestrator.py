@@ -34,6 +34,7 @@ from src.ai.tool_registry import (
 )
 from src.ai.command_builder import CommandBuilder, get_command_builder
 from src.core.conversation_memory import ConversationMemoryStore
+from src.ui.i18n import t
 
 logger = logging.getLogger(__name__)
 
@@ -200,9 +201,7 @@ class AIOrchestrator:
                 intent.intent_type.value,
             )
             result["message"] = (
-                f"Talebinizi tam olarak anlayamadim "
-                f"(guven: {intent.confidence:.0%}). "
-                f"Lutfen daha acik belirtin."
+                t("ai.low_confidence").format(conf=f"{intent.confidence:.0%}")
             )
             result["needs_clarification"] = True
             result["agent_observation"] = "low_confidence"
@@ -217,7 +216,7 @@ class AIOrchestrator:
 
         # Netlestime gerekli mi?
         if intent.needs_clarification:
-            result["message"] = intent.clarification_reason or "Lutfen talebi netlestirin."
+            result["message"] = intent.clarification_reason or t("ai.clarify")
             result["needs_clarification"] = True
             result["agent_observation"] = "clarification_required"
             if effective_session_id:
@@ -232,7 +231,7 @@ class AIOrchestrator:
         # Bilgi sorusu mu?
         if intent.intent_type == IntentType.INFO_QUERY:
             result["success"] = True
-            result["message"] = "Bu bir bilgi sorusu, komut gerektirmiyor."
+            result["message"] = t("ai.info_query")
             result["agent_observation"] = "info_query"
             if effective_session_id:
                 self._conversation_memory.append_turn(
@@ -245,7 +244,7 @@ class AIOrchestrator:
         
         # Unknown intent
         if intent.intent_type == IntentType.UNKNOWN:
-            result["message"] = "Talebi anlayamadim. Lutfen daha acik belirtin."
+            result["message"] = t("ai.unknown_intent")
             result["needs_clarification"] = True
             result["agent_observation"] = "unknown_intent"
             if effective_session_id:
@@ -275,8 +274,7 @@ class AIOrchestrator:
         # Target validation
         if not final_target:
             result["message"] = (
-                "Hedef belirtilmedi. Lütfen mesajına IP veya domain ekleyerek tekrar dene. "
-                "Örnek: '192.168.1.20 port taraması yap'"
+                t("ai.no_target")
             )
             result["needs_clarification"] = True
             result["agent_observation"] = "missing_target"
@@ -296,7 +294,7 @@ class AIOrchestrator:
         )
         
         if tool_spec is None:
-            result["message"] = f"Bu intent icin tool bulunamadi: {intent.intent_type.value}"
+            result["message"] = t("ai.no_tool").format(intent=intent.intent_type.value)
             result["agent_observation"] = "tool_not_found"
             if effective_session_id:
                 self._conversation_memory.append_turn(
@@ -318,7 +316,7 @@ class AIOrchestrator:
         command, error = self._command_builder.build(tool_spec, explanation)
         
         if error:
-            result["message"] = f"Komut olusturulamadi: {error}"
+            result["message"] = t("ai.cmd_failed").format(error=error)
             result["agent_observation"] = "command_build_failed"
             if effective_session_id:
                 self._conversation_memory.append_turn(
@@ -334,7 +332,7 @@ class AIOrchestrator:
         # =====================================================================
         result["success"] = True
         result["command"] = command
-        result["message"] = f"Komut hazir: {command.to_display_string()}"
+        result["message"] = t("ai.cmd_ready").format(cmd=command.to_display_string())
         result["requires_approval"] = True
         result["agent_observation"] = "action_suggested"
 

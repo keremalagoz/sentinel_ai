@@ -22,6 +22,10 @@ class InputValidator:
     # İzin verilen güvenli argüman karakterleri (Alfanümerik + yaygın semboller)
     # Regex: Sadece harf, sayı, tire, nokta, alt çizgi, slash, iki nokta
     SAFE_ARG_PATTERN = re.compile(r'^[a-zA-Z0-9\-._/:]+$')
+    
+    # Pre-compiled hostname patterns (M6 optimization)
+    _HOSTNAME_RE = re.compile(r'^[a-zA-Z0-9]([a-zA-Z0-9\-]{0,61}[a-zA-Z0-9])?(\.[a-zA-Z]{2,})+$')
+    _INTERNAL_HOSTNAME_RE = re.compile(r'^[a-zA-Z0-9][a-zA-Z0-9\-\.]*$')
 
     @staticmethod
     def validate_ip(ip: str) -> bool:
@@ -52,7 +56,7 @@ class InputValidator:
                 
         # Regex ile domain kontrolü
         # (Basit versiyon: harf/sayı + nokta + tire)
-        pattern = re.compile(r'^[a-zA-Z0-9]([a-zA-Z0-9\-]{0,61}[a-zA-Z0-9])?(\.[a-zA-Z]{2,})+$')
+        pattern = InputValidator._HOSTNAME_RE
         
         # Localhost istisnası
         if hostname == "localhost":
@@ -62,8 +66,7 @@ class InputValidator:
         internal_tlds = (".local", ".lan", ".internal", ".home", ".localdomain")
         if any(hostname.endswith(tld) for tld in internal_tlds):
             # Basit kontrol: sadece guvenli karakterler icersin
-            internal_pattern = re.compile(r'^[a-zA-Z0-9][a-zA-Z0-9\-\.]*$')
-            return bool(internal_pattern.match(hostname))
+            return bool(InputValidator._INTERNAL_HOSTNAME_RE.match(hostname))
             
         # IP adresi ise
         if InputValidator.validate_ip(hostname):

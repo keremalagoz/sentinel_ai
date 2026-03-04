@@ -1,6 +1,6 @@
 # SENTINEL AI - Proje Yapısı (Sadeleştirilmiş)
 
-**Versiyon**: Action Planner v2.1 - Sprint 3.6 (Backend Agent-Chat Foundation)  
+**Versiyon**: Action Planner v2.1 - Sprint 3.4 + 3.6 (UI/i18n + Backend Agent-Chat Foundation)  
 **Tarih**: 4 Mart 2026  
 **Mimari**: Local-Only LLM (Qwen 2.5 3B) + 2-Asamali Intent Resolution + Deterministic Execution + Backend Session Memory
 
@@ -74,13 +74,19 @@ sentinel_root/
 │   │   ├── main_window.py       # Ana pencere (unified header)
 │   │   ├── chat_interface.py    # Chat & CommandCard paneli
 │   │   ├── terminal_view.py     # Multi-session terminal emulator
-│   │   ├── settings_dialog.py   # Ayarlar diyalogu
+│   │   ├── settings_dialog.py   # Ayarlar diyalogu (dil, font, temizlik)
+│   │   ├── i18n.py              # 11 dil ceviri sistemi (78 anahtar)
 │   │   └── styles.py            # UI renk ve font tanimlari
 │   │
 │   ├── plugins/                 # Plugin sistemi (gelecek)
 │   │   └── .gitkeep
 │   │
-│   └── tests/                   # Test Suite (242 test)
+│   └── tests/                   # Test Suite (715 test)
+│       ├── conftest.py          # PyQt6 QApplication fixture + i18n reset
+│       ├── test_i18n.py         # 11 dil ceviri testleri (~156 test)
+│       ├── test_ui_widgets.py   # Widget olusturma ve davranis testleri (~138 test)
+│       ├── test_ui_features.py  # UI ozellikleri testleri (~206 test)
+│       ├── test_optimizations.py # Performans optimizasyon testleri (91 test)
 │       ├── test_sprint1.py      # Sprint 1 main test suite
 │       ├── test_sprint1_week1.py # Week 1 tests (backend + entity ID)
 │       ├── test_sprint1_week2.py # Week 2 tests (parser + tool + integration)
@@ -93,6 +99,8 @@ sentinel_root/
 │       ├── test_registry_consistency.py # Registry drift guard testleri
 │       ├── test_ui_backend_boundary.py # UI-Backend boundary + guvenlik testleri
 │       ├── test_backend_chat_session.py # Sprint 3.6 backend chat/session testleri
+│       ├── test_chat_history_cleanup_regression.py # Gecmis temizlik regresyon
+│       ├── test_backend_chat_session.py # Sprint 3.6 backend chat/session testleri
 │       └── test_hierarchical_resolver.py # 2-asamali resolver testleri (57 test)
 │
 ├── docs/                        # Teknik Dokümantasyon
@@ -100,13 +108,16 @@ sentinel_root/
 │   ├── entity_id_strategy.md   # Entity ID tasarim kararlari
 │   ├── execution_history_model.md # Execution history veri modeli
 │   ├── execution_state_model.md # Execution state management
+│   ├── hierarchical_intent_design.md # 2-asamali intent tasarimi
 │   ├── sprint_roadmap.md       # Sprint plani ve kapsam
 │   ├── sprint_3_2_plan.md      # Sprint 3.2 detayli plan
 │   ├── sprint_3_6_plan.md      # Sprint 3.6 detayli plan
 │   ├── sprint_4_plan.md        # Sprint 4 detayli plan
 │   ├── sprint1_ready.md        # Sprint 1 completion raporu
+│   ├── sprint3_ai_security_kickoff.md # Sprint 3 baslangic
 │   ├── conversation_audit_report.md # Kapsamli audit raporu
-│   └── sqlite_schema.md        # SQLite veritabani semasi
+│   ├── sqlite_schema.md        # SQLite veritabani semasi
+│   └── ui_regression_checklist.md # UI regresyon checklist
 │
 ├── temp/                        # Geçici Dosyalar
 │   └── sentinel_safe/          # Güvenli sandbox klasörü
@@ -224,6 +235,45 @@ python src/tests/test_ui_integration.py
 ```
 
 **Use Case**: UI entegrasyonu test, tool çıktılarını görsel kontrol
+
+---
+
+### **src/tests/test_i18n.py** (Sprint 3.4)
+11 dil çeviri doğruluk testleri
+
+**Test Sayısı**: ~156  
+**Odak**: Her dil için 78 çeviri anahtarının varlığı ve doğruluğu, dil değiştirme, fallback
+
+---
+
+### **src/tests/test_ui_widgets.py** (Sprint 3.4)
+Widget oluşturma ve davranış testleri
+
+**Test Sayısı**: ~138  
+**Odak**: ChatInterface, TerminalView, MainWindow, SettingsDialog widget testleri
+
+---
+
+### **src/tests/test_ui_features.py** (Sprint 3.4)
+UI özellikleri (settings, swap, history) testleri
+
+**Test Sayısı**: ~206  
+**Odak**: Layout swap, sohbet geçmişi, font ayarı, temizlik, risk badge, CommandCard
+
+---
+
+### **src/tests/test_optimizations.py** (Sprint 3.4)
+Performans optimizasyon testleri
+
+**Test Sayısı**: 91  
+**Odak**: Debounce/cache, bubble_refs, font update, regex pre-compile, QFont cache, QSS sabitleri, anti-pattern kaynak taraması, timing benchmarkları
+
+---
+
+### **src/tests/conftest.py** (Sprint 3.4)
+PyQt6 QApplication fixture + i18n reset
+
+**Odak**: Tüm UI testlerinde paylaşılan QApplication instance ve test sonrası i18n temizleme
 
 ---
 
@@ -491,20 +541,92 @@ CommandBuilder - Komut parametreleri oluşturma
 
 ## UI Modülleri
 
+### **src/ui/main_window.py**
+SentinelMainWindow - Ana uygulama penceresi
+
+**Sorumluluklar**:
+- Unified header (Hist, +C, +T, Layout, Settings butonlari)
+- Chat/Terminal splitter yerlesimi (yatay/dikey swap destegi)
+- Status dot + badge (idle/running/root) — on-hesaplanmis stiller
+- i18n entegrasyonu (tum header etiketleri cevriliyor)
+
+**Optimizasyonlar** (Sprint 3.4):
+- `_DOT_STYLES` / `_BADGE_STYLES`: Modul seviyesinde on-hesaplanmis stil dict'leri
+
+---
+
+### **src/ui/chat_interface.py**
+ChatInterface - Chat ve CommandCard paneli
+
+**Sorumluluklar**:
+- Mesaj ekleme (user/AI balonlari)
+- CommandCard (Run / Copy aksiyon kartlari)
+- Chat gecmisi yonetimi (create/delete/switch)
+- Font boyutu ayari (dinamik guncelleme)
+- i18n entegrasyonu
+
+**Optimizasyonlar** (Sprint 3.4):
+- `_history_cache` + `_dirty` flag + debounce timer (500ms) — disk I/O azaltma
+- `_bubble_refs` listesi — findChild yerine dogrudan referans
+- `_font_cache` dict + `_get_cached_font()` — QFont yeniden kullanimi
+- `_BUBBLE_USER_STYLE`, `_BUBBLE_AI_STYLE` vb. — modul QSS sabitleri
+- `set_text_font_size()` mevcut balonlari re-render etmeden gunceller
+
+---
+
 ### **src/ui/terminal_view.py**
 TerminalView - Terminal emülatörü (PyQt6)
 
 **Sorumluluklar**:
 - Command input
 - Output display (colored)
+- Multi-session terminal (tab destegi)
 - Tool integration (coordinator parameter)
 - Process manager integration
 - Mode tracking (idle, busy, tool_running)
+- i18n entegrasyonu
+
+**Optimizasyonlar** (Sprint 3.4):
+- `_PROMPT_STYLE_IDLE/RUNNING/ROOT`: On-hesaplanmis prompt stilleri
+- `_session_tab_map`: Session ID → tab index O(1) lookup
+- `_check_buffer_limit()`: Toplu secim ile buffer temizleme
 
 **API**:
 ```python
 terminal = TerminalView(process_manager, coordinator=coordinator)
 terminal.start_tool("ping", target="8.8.8.8", count=4)
+```
+
+---
+
+### **src/ui/settings_dialog.py**
+SettingsDialog - Ayarlar diyalogu
+
+**Sorumluluklar**:
+- Dil secimi (11 dil dropdown)
+- Font boyutu ayari (slider)
+- Eski oturum temizleme (Clean Old Sessions Now)
+- i18n entegrasyonu (tum etiketler cevriliyor)
+
+---
+
+### **src/ui/i18n.py**
+Internationalization (i18n) — 11 Dil Ceviri Sistemi
+
+**Sorumluluklar**:
+- 78 ceviri anahtari x 11 dil
+- `set_language(code)` / `get_language()` / `t(key)` API
+- `get_available_languages()` — dil listesi (tuple)
+- Fallback: Eksik ceviri → Ingilizce
+
+**Desteklenen Diller**:
+EN, TR, ES, ZH, JA, AR, DE, RU, FR, PT, HI
+
+**API**:
+```python
+from src.ui.i18n import set_language, t
+set_language("tr")
+print(t("chat.input_placeholder"))  # "Mesajınızı yazın..."
 ```
 
 ---
@@ -676,7 +798,15 @@ python main.py
 - Model degisimi: WhiteRabbitNeo 7B -> Qwen 2.5 3B
 - Keyword override: LLM sadece NER, intent keyword'den gelir
 - Benchmark: %100 dogruluk (30/30), hierarchical mod
-- 242 test toplam
+
+**Sprint 3.4 - UI/i18n/Performans Optimizasyonu** (Yigit):
+- 5 Sprint 3 font hatasi duzeltmesi
+- 11 dil destegi (i18n sistemi): EN, TR, ES, ZH, JA, AR, DE, RU, FR, PT, HI
+- Ayarlar diyalogu (dil, font boyutu, oturum temizleme)
+- Chat/Terminal pozisyon degistirme (Layout Swap)
+- 12 performans optimizasyonu (debounce, cache, pre-compile, QSS sabitleri)
+- 500 UI testi + 91 optimizasyon testi
+- Toplam: 715 test
 
 **Sprint 3.6 - Backend Agent-Chat Foundation** (6/6 gorev):
 - UI degisimi olmadan backend session-memory chat eklendi

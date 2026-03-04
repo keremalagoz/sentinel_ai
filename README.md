@@ -25,11 +25,16 @@ SENTINEL AI, siber güvenlik testlerini yapay zeka destekli komutlarla otomatikl
 - **Local AI Motoru** - Qwen 2.5 3B / Ollama tabanlı intent çözümleme (1.9 GB, 29+ dil)
 - **2 Aşamalı Intent Resolution** - Keyword pre-filter → Kategori → Alt-intent pipeline
 - **Modern PyQt6 Arayüzü** - Donmayan, responsive terminal ve sonuç görüntüleme
+- **11 Dil Desteği (i18n)** - EN, TR, ES, ZH, JA, AR, DE, RU, FR, PT, HI — 78 çeviri anahtarı
+- **Ayarlar Diyalogu** - Dil seçimi, font boyutu, oturum temizleme
+- **Esnek Yerleşim (Layout Swap)** - Chat/Terminal pozisyon değiştirme (yatay/dikey)
+- **Performans Optimizasyonları** - Debounce I/O, in-memory cache, QFont cache, regex pre-compile, QSS sabitleri
 - **Docker Altyapısı** - İzole ve taşınabilir servis mimarisi
 - **Güvenli Yetki Yönetimi** - Pkexec ile şifresiz root işlemleri
 - **Deterministik Çalıştırma** - Intent → Tool → Command zinciri
 - **Çalışma Zamanı Sertleştirme** - Queue/backpressure, per-tool limit, timeout/retry
 - **Sprint 3.6 Backend Chat Hafızası** - Session/turn tabanlı multi-turn context (UI değişikliği olmadan)
+- **Kapsamlı Test Altyapısı** - 715 test (UI, i18n, optimizasyon, backend)
 
 ### Planlanan Özellikler
 
@@ -98,7 +103,8 @@ sentinel_root/
 │   ├── sprint_roadmap.md
 │   ├── sprint_3_6_plan.md
 │   ├── sprint1_ready.md
-│   └── sqlite_schema.md
+│   ├── sqlite_schema.md
+│   └── ui_regression_checklist.md
 ├── models/                   # Model dosyaları ve modelfile'lar
 │   ├── qwen2.5-3b-instruct-q4.gguf  # Primary (1.84 GB)
 │   ├── Modelfile.qwen2.5            # SENTINEL system prompt
@@ -108,9 +114,11 @@ sentinel_root/
 │   ├── ai/                   # Yapay zeka modülleri
 │   ├── application/          # Uygulama katmanı (API dahil)
 │   ├── core/                 # Backend mantığı
-│   ├── ui/                   # PyQt6 arayüz dosyaları
+│   ├── ui/                   # PyQt6 arayüz + i18n + settings
+│   │   ├── i18n.py           # 11 dil çeviri sistemi
+│   │   └── settings_dialog.py # Ayarlar diyalogu
 │   ├── plugins/              # Harici araç eklentileri
-│   └── tests/                # Unit testler
+│   └── tests/                # 715 test (UI, i18n, optimizasyon)
 ├── scripts/                  # Yardımcı scriptler
 │   └── validate_ui.py
 ├── temp/                     # Geçici dosyalar
@@ -259,15 +267,28 @@ Mevcut sürümde sistem local-only çalışır ve varsayılan akışta veri dı�
 ## Test
 
 ```bash
-# Tüm testleri çalıştır (242 test)
+# Tüm testleri çalıştır (715 test)
 pytest src/tests/ -q
 
 # Belirli bir modülü test et
 pytest src/tests/test_sprint1.py -v
 
+# UI + i18n + optimizasyon testleri
+pytest src/tests/test_i18n.py src/tests/test_ui_widgets.py src/tests/test_ui_features.py src/tests/test_optimizations.py -q
+
 # Coverage raporu
 pytest --cov=src src/tests/
 ```
+
+### Test Dağılımı
+
+| Test Dosyası | Test Sayısı | Kapsam |
+|---|---|---|
+| test_i18n.py | ~156 | 11 dil çeviri doğruluğu |
+| test_ui_widgets.py | ~138 | Widget oluşturma ve davranış |
+| test_ui_features.py | ~206 | UI özellikleri (settings, swap, history) |
+| test_optimizations.py | 91 | Performans ve anti-pattern taraması |
+| Diğer test dosyaları | ~124 | Backend, parser, AI, entegrasyon |
 
 ---
 

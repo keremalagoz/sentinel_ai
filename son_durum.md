@@ -24,7 +24,10 @@
 - Kararlılık: Queue/backpressure, per-tool limit, retry/backoff aktif
 - Güvenilirlik: Registry drift guard (startup + test) aktif
 - Gözlemlenebilirlik: Runtime telemetry (`queue_wait_ms`, `tool_run_ms`) mevcut
-- Test: En son full suite **242 passed**, Sprint 3.6 hedefli doğrulama **21 passed**
+- **i18n**: 11 dil desteği (EN, TR, ES, ZH, JA, AR, DE, RU, FR, PT, HI) — 78 çeviri anahtarı
+- **Ayarlar Diyalogu**: Dil seçimi, font boyutu, oturum temizleme
+- **Performans**: 12 optimizasyon uygulandı (debounce, cache, pre-compile, QSS sabitleri)
+- **Test**: Full suite **715 passed** + Sprint 3.6 hedefli doğrulama **21 passed**
 
 ---
 
@@ -84,8 +87,19 @@
 
 ### Test Durumu (Güncel)
 
-- Full test suite: **242 passed** (Sprint 3.3 sonrası: +57 yeni test)
+- Full test suite: **715 passed** (Sprint 3.4 sonrası)
+- UI testleri: ~500 test (i18n, widget, özellik testleri)
+- Optimizasyon testleri: 91 test (performans + anti-pattern taraması)
+- Backend/AI testleri: ~124 test
 - P0 doğrulama: `scripts/p0_validation.py --with-pytest` başarılı
+
+| Test Dosyası | Test Sayısı | Kapsam |
+|---|---|---|
+| test_i18n.py | ~156 | 11 dil çeviri doğruluğu |
+| test_ui_widgets.py | ~138 | Widget oluşturma ve davranış |
+| test_ui_features.py | ~206 | UI özellikleri (settings, swap, history) |
+| test_optimizations.py | 91 | Performans ve anti-pattern taraması |
+| Diğer (backend, AI, parser) | ~124 | Backend, resolver, entegrasyon |
 
 ---
 
@@ -159,6 +173,47 @@
 2. **Sprint 3 backlog** — UI Security Indicators, Settings Menu (Yiğit, paralel)
 3. **Sprint 5** — Öneri Motoru
 4. **Runtime telemetry UI** — Tool kuyruk/süre gösterimi (backlog)
+
+---
+
+## Tamamlanan Sprint: Sprint 3.4 (UI / i18n / Performans Optimizasyonu) [OK]
+
+> Sorumlu: Yiğit  
+> Tarih: 1–4 Mart 2026
+
+### Sprint 3.4 Özet
+
+| # | Görev | Sorumlu | Durum | Açıklama |
+|---|-------|---------|-------|----------|
+| 3.4.1 | Sprint 3 font hataları (5 bug) | Yiğit | [OK] | Chat/terminal font tutarlılığı, bold, miras |
+| 3.4.2 | Layout Swap (Chat/Terminal pozisyon) | Yiğit | [OK] | Yatay/dikey düzen değiştirme |
+| 3.4.3 | i18n sistemi (11 dil) | Yiğit | [OK] | `src/ui/i18n.py` — 78 anahtar × 11 dil |
+| 3.4.4 | Ayarlar Diyalogu | Yiğit | [OK] | `settings_dialog.py` — dil, font, temizlik |
+| 3.4.5 | Orchestrator i18n entegrasyonu | Yiğit | [OK] | "Komut hazır" çevirisi + badge fallback |
+| 3.4.6 | UI test altyapısı (conftest.py) | Yiğit | [OK] | QApplication fixture + i18n reset |
+| 3.4.7 | i18n testleri (~156 test) | Yiğit | [OK] | 8 sınıf, her dil için 78 anahtar doğrulama |
+| 3.4.8 | Widget testleri (~138 test) | Yiğit | [OK] | 11 sınıf, tüm widget oluşturma/davranış |
+| 3.4.9 | Özellik testleri (~206 test) | Yiğit | [OK] | 11 sınıf, layout swap, history, font, risk |
+| 3.4.10 | Performans audit (12 sorun tespit) | Yiğit | [OK] | 5 HIGH + 7 MEDIUM seviye optimizasyon |
+| 3.4.11 | 12 optimizasyon uygulaması | Yiğit | [OK] | Debounce, cache, pre-compile, QSS sabitleri |
+| 3.4.12 | Optimizasyon testleri (91 test) | Yiğit | [OK] | 13 sınıf, timing benchmark + anti-pattern |
+
+### Uygulanan Performans Optimizasyonları
+
+| # | Seviye | Optimizasyon | Dosya |
+|---|--------|-------------|-------|
+| H1+H3 | HIGH | Chat History debounce + in-memory cache | chat_interface.py |
+| H2 | HIGH | findChild → `_bubble_refs` cache | chat_interface.py |
+| H4 | HIGH | Font update re-render yerine şeritsiz | chat_interface.py |
+| H5 | HIGH | Regex pre-compile (`_JSON_BLOCK_RE`) | intent_resolver.py, hierarchical_resolver.py |
+| M1 | MEDIUM | `get_available_languages()` no-copy | i18n.py |
+| M2 | MEDIUM | QFont cache (`_font_cache` dict) | chat_interface.py |
+| M3 | MEDIUM | QSS string sabitleri (8+ modul const) | chat_interface.py |
+| M4+M11 | MEDIUM | Status badge on-hesaplanmış stiller | terminal_view.py, main_window.py |
+| M5 | MEDIUM | Tab-session lookup dictionary | terminal_view.py |
+| M6 | MEDIUM | validators.py regex pre-compile | validators.py |
+| M7 | MEDIUM | parser_framework regex pre-compile | parser_framework.py |
+| M9+M10 | MEDIUM | Terminal buffer toplu temizlik | terminal_view.py |
 
 ---
 
