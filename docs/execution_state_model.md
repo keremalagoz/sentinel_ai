@@ -15,6 +15,27 @@ Tool Output (text) → Parser → State Update → Knowledge Graph
 
 ---
 
+## Sprint 3.6 Eklentisi — Conversation Session State (Backend-Only)
+
+Sprint 3.6 ile execution state modeline ek olarak **konuşma oturumu state'i**
+backend katmanında kalıcı hale getirildi.
+
+Amaç:
+- Çok turlu diyaloglarda son bağlamı korumak
+- UI'dan bağımsız şekilde API/chat akışlarını desteklemek
+- Komut önerisi öncesi önceki user/assistant turlarını LLM bağlamına katmak
+
+Kapsam (UI değişikliği yok):
+- `conversation_sessions`
+- `conversation_turns`
+- Orchestrator `process_v2(..., session_id=...)` akışında context enrichment
+
+Not:
+- Bu katman **Knowledge Graph entity state'inin alternatifi değil**, tamamlayıcısıdır.
+- Entity state ve execution history deterministikliği korunur.
+
+---
+
 ## 1. ENTITY TYPES (Knowledge Model)
 
 ### Core Entities

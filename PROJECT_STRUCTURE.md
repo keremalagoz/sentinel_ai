@@ -1,8 +1,8 @@
 # SENTINEL AI - Proje Yapısı (Sadeleştirilmiş)
 
-**Versiyon**: Action Planner v2.1 - Sprint 3.3 (Hybrid LLM Motoru + Qwen 2.5 3B)  
-**Tarih**: 28 Subat 2026  
-**Mimari**: Local-Only LLM (Qwen 2.5 3B) + 2-Asamali Intent Resolution + Deterministic Execution
+**Versiyon**: Action Planner v2.1 - Sprint 3.6 (Backend Agent-Chat Foundation)  
+**Tarih**: 4 Mart 2026  
+**Mimari**: Local-Only LLM (Qwen 2.5 3B) + 2-Asamali Intent Resolution + Deterministic Execution + Backend Session Memory
 
 > Not: Bu doküman sadeleştirme sürecindedir. Öncelik, mevcut çalışma mimarisi ve aktif modüllerin net gösterimidir.
 
@@ -13,6 +13,10 @@
 Ana akış:
 
 `User Input -> Keyword Pre-Filter -> [Stage 1: Category] -> [Stage 2: Sub-Intent] -> Tool Registry -> Command Builder -> ToolManager -> Parser -> SQLite`
+
+Sprint 3.6 backend chat akışı:
+
+`Session -> Turn History -> Context Enrichment -> Intent Resolution -> Safe Command Suggestion`
 
 Sistem garantileri:
 - Queue backpressure
@@ -48,6 +52,7 @@ sentinel_root/
 │   │
 │   ├── core/                    # Core Sistemler
 │   │   ├── sqlite_backend.py    # SQLite Backend (Hybrid JSON+FK schema)
+│   │   ├── conversation_memory.py # Session/turn bazli chat hafizasi (Sprint 3.6)
 │   │   ├── entity_id_generator.py # Canonical Entity ID generator
 │   │   ├── parser_framework.py  # Parser framework + 10 parser
 │   │   ├── tool_base.py         # BaseTool + 10 tool implementation
@@ -63,7 +68,7 @@ sentinel_root/
 │   ├── application/             # Application facade katmani
 │   │   ├── __init__.py
 │   │   ├── backend_gateway.py   # UI-Backend facade (guvenlik katmanli)
-│   │   └── api_server.py        # API modunda komut üretimi
+│   │   └── api_server.py        # API modu (deterministic execute + chat/session endpointleri)
 │   │
 │   ├── ui/                      # UI Bilesenleri
 │   │   ├── main_window.py       # Ana pencere (unified header)
@@ -87,6 +92,7 @@ sentinel_root/
 │       ├── test_advanced_parsers.py # Genis parser senaryolari
 │       ├── test_registry_consistency.py # Registry drift guard testleri
 │       ├── test_ui_backend_boundary.py # UI-Backend boundary + guvenlik testleri
+│       ├── test_backend_chat_session.py # Sprint 3.6 backend chat/session testleri
 │       └── test_hierarchical_resolver.py # 2-asamali resolver testleri (57 test)
 │
 ├── docs/                        # Teknik Dokümantasyon
@@ -96,6 +102,7 @@ sentinel_root/
 │   ├── execution_state_model.md # Execution state management
 │   ├── sprint_roadmap.md       # Sprint plani ve kapsam
 │   ├── sprint_3_2_plan.md      # Sprint 3.2 detayli plan
+│   ├── sprint_3_6_plan.md      # Sprint 3.6 detayli plan
 │   ├── sprint_4_plan.md        # Sprint 4 detayli plan
 │   ├── sprint1_ready.md        # Sprint 1 completion raporu
 │   ├── conversation_audit_report.md # Kapsamli audit raporu
@@ -642,7 +649,7 @@ python main.py
 
 ---
 
-## Proje Durumu (28 Şubat 2026)
+## Proje Durumu (4 Mart 2026)
 
 ### Tamamlanan Sprintler
 
@@ -670,6 +677,13 @@ python main.py
 - Keyword override: LLM sadece NER, intent keyword'den gelir
 - Benchmark: %100 dogruluk (30/30), hierarchical mod
 - 242 test toplam
+
+**Sprint 3.6 - Backend Agent-Chat Foundation** (6/6 gorev):
+- UI degisimi olmadan backend session-memory chat eklendi
+- `conversation_memory.py` ile kalici session/turn tablolari devreye alindi
+- `api_server.py` chat endpointleri eklendi (`/api/chat/session`, `/api/chat/turn`, `/api/chat/history/{session_id}`)
+- Orchestrator `process_v2` session-aware hale getirildi
+- Hedefli backend dogrulama: 21 test yesil (2 yeni + 19 boundary regresyon)
 
 ---
 
@@ -714,6 +728,6 @@ nmap --version
 
 ---
 
-**Son Güncelleme**: 28 Şubat 2026  
-**Versiyon**: Sprint 3.3 Complete + Qwen 2.5 3B  
+**Son Güncelleme**: 4 Mart 2026  
+**Versiyon**: Sprint 3.6 Complete + Backend Session-Memory Chat  
 **Sonraki Hedef**: Sprint 4 - Veri Adaptasyonu ve Parsing

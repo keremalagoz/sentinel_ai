@@ -18,7 +18,7 @@
 
 ## Proje Hakkında
 
-SENTINEL AI, siber güvenlik testlerini yapay zeka destekli komutlarla otomatikleştiren bir masaüstü uygulamasıdır. Local AI motoru olarak Qwen 2.5 3B (Ollama) kullanır ve 2 aşamalı hierarchical intent resolution pipeline ile %100 doğruluk sağlar.
+SENTINEL AI, siber güvenlik testlerini yapay zeka destekli komutlarla otomatikleştiren bir masaüstü uygulamasıdır. Local AI motoru olarak Qwen 2.5 3B (Ollama) kullanır ve 2 aşamalı hierarchical intent resolution pipeline ile yüksek doğruluk sağlar.
 
 ### Özellikler
 
@@ -29,6 +29,7 @@ SENTINEL AI, siber güvenlik testlerini yapay zeka destekli komutlarla otomatikl
 - **Güvenli Yetki Yönetimi** - Pkexec ile şifresiz root işlemleri
 - **Deterministik Çalıştırma** - Intent → Tool → Command zinciri
 - **Çalışma Zamanı Sertleştirme** - Queue/backpressure, per-tool limit, timeout/retry
+- **Sprint 3.6 Backend Chat Hafızası** - Session/turn tabanlı multi-turn context (UI değişikliği olmadan)
 
 ### Planlanan Özellikler
 
@@ -60,6 +61,9 @@ SENTINEL AI, siber güvenlik testlerini yapay zeka destekli komutlarla otomatikl
 
 Intent Pipeline:
   User Input → KeywordPreFilter → [Stage 1: Category] → [Stage 2: Sub-Intent] → Tool
+
+Backend Chat Pipeline (Sprint 3.6):
+  Session Create → Chat Turn → Context Enrichment → Intent Resolution → Safe Command Suggestion
 ```
 
 ---
@@ -92,6 +96,7 @@ sentinel_root/
 │   ├── execution_history_model.md
 │   ├── execution_state_model.md
 │   ├── sprint_roadmap.md
+│   ├── sprint_3_6_plan.md
 │   ├── sprint1_ready.md
 │   └── sqlite_schema.md
 ├── models/                   # Model dosyaları ve modelfile'lar
@@ -174,6 +179,14 @@ python main.py
 | `ollama-service` | 11434 | Qwen 2.5 3B LLM API (Ollama) |
 | `api-service` | 8000 | Backend API (Orchestrator) |
 | `tools-service` | - | Security tools (nmap, gobuster, nikto, hydra) |
+
+### Backend Chat API (Sprint 3.6)
+
+| Endpoint | Method | Açıklama |
+|----------|--------|----------|
+| `/api/chat/session` | POST | Session oluşturur veya var olanı döndürür |
+| `/api/chat/turn` | POST | Session-aware tek chat turunu işler |
+| `/api/chat/history/{session_id}` | GET | Session geçmişini döndürür |
 
 ### Docker Komutları
 

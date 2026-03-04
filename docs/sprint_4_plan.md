@@ -1,8 +1,8 @@
 # Sprint 4 — Veri Adaptasyonu ve Sonuç Modelleri
 
-**Başlangıç:** Sprint 3.3 tamamlandıktan sonra  
+**Başlangıç:** Sprint 3.6 tamamlandıktan sonra  
 **Tahmini Süre:** 1-2 hafta  
-**Ön Koşul:** Sprint 3.3 (Hybrid LLM + Qwen 2.5 3B) tamamlandı ✅
+**Ön Koşul:** Sprint 3.6 (Backend Agent-Chat Foundation) tamamlandı ✅
 
 ---
 
@@ -134,16 +134,20 @@ Tool çalışır → raw output → Adapter (varsa) → ScanResult → UI'a gön
 
 ---
 
-## 6. Sprint 3.3 → Sprint 4 Geçiş Koşulları
+## 6. Sprint 3.6 → Sprint 4 Geçiş Koşulları
 
 | Koşul | Durum |
 |-------|-------|
-| Sprint 3.3 tamamlandı | ✅ |
+| Sprint 3.6 tamamlandı | ✅ |
 | 242 test geçiyor | ✅ |
 | Docker container'lar sağlıklı | ✅ |
 | Qwen 2.5 3B inference çalışıyor | ✅ |
 | dev_kerem → develop merge planı hazır | ✅ |
 
+Ek not (Sprint 3.6):
+- Backend chat endpointleri hazır (`/api/chat/session`, `/api/chat/turn`, `/api/chat/history/{session_id}`)
+- Session memory altyapısı hazır (`conversation_sessions`, `conversation_turns`)
+
 ---
 
-*Son Güncelleme: 28 Şubat 2026*
+*Son Güncelleme: 4 Mart 2026*

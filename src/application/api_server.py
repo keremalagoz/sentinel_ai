@@ -10,6 +10,7 @@ from typing import Optional, Dict, Any, List
 import uvicorn
 
 from src.ai.schemas import IntentType
+from src.ai.orchestrator import AIOrchestrator
 from src.ai.tool_registry import build_tool_spec, get_supported_intents, get_tool_for_intent
 from src.ai.command_builder import get_command_builder
 
@@ -21,6 +22,7 @@ app = FastAPI(
 )
 
 _command_builder = get_command_builder()
+_orchestrator = AIOrchestrator()
 
 
 class ExecuteIntentRequest(BaseModel):
@@ -41,6 +43,34 @@ class ExecuteIntentResponse(BaseModel):
     tool_started: bool
     message: str
     command: Optional[Dict[str, Any]] = None
+
+
+class CreateSessionRequest(BaseModel):
+    session_id: Optional[str] = None
+
+
+class CreateSessionResponse(BaseModel):
+    success: bool
+    session_id: str
+
+
+class ChatTurnRequest(BaseModel):
+    session_id: str
+    message: str
+    target: Optional[str] = None
+    memory_turn_limit: int = 6
+
+
+class ChatTurnResponse(BaseModel):
+    success: bool
+    session_id: str
+    message: str
+    needs_clarification: bool
+    requires_approval: bool
+    intent_type: Optional[str] = None
+    confidence: Optional[float] = None
+    command: Optional[Dict[str, Any]] = None
+    agent_observation: Optional[str] = None
 
 
 @app.get("/health")
@@ -102,6 +132,64 @@ async def execute_intent(request: ExecuteIntentRequest):
 
     except HTTPException:
         raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/api/chat/session", response_model=CreateSessionResponse)
+async def create_chat_session(request: CreateSessionRequest):
+    """Create or ensure a backend chat session."""
+    try:
+        session_id = _orchestrator.create_session(request.session_id)
+        return CreateSessionResponse(success=True, session_id=session_id)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/api/chat/turn", response_model=ChatTurnResponse)
+async def chat_turn(request: ChatTurnRequest):
+    """Process one multi-turn chat request and return safe action suggestion."""
+    if not request.message or not request.message.strip():
+        raise HTTPException(status_code=400, detail="message cannot be empty")
+
+    try:
+        result = _orchestrator.process_v2(
+            user_input=request.message,
+            target=request.target,
+            session_id=request.session_id,
+            memory_turn_limit=max(1, request.memory_turn_limit),
+        )
+
+        intent = result.get("intent")
+        command = result.get("command")
+        return ChatTurnResponse(
+            success=bool(result.get("success")),
+            session_id=result.get("session_id") or request.session_id,
+            message=result.get("message") or "",
+            needs_clarification=bool(result.get("needs_clarification")),
+            requires_approval=bool(result.get("requires_approval")),
+            intent_type=intent.intent_type.value if intent else None,
+            confidence=float(intent.confidence) if intent else None,
+            command=command.model_dump() if command else None,
+            agent_observation=result.get("agent_observation"),
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/chat/history/{session_id}")
+async def get_chat_history(session_id: str, limit: int = 20):
+    """Return recent turns for an existing chat session."""
+    try:
+        turns = _orchestrator.get_session_turns(session_id=session_id, limit=max(1, limit))
+        return {
+            "success": True,
+            "session_id": session_id,
+            "count": len(turns),
+            "turns": turns,
+        }
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 

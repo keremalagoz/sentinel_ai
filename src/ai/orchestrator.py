@@ -33,6 +33,7 @@ from src.ai.tool_registry import (
     build_execution_kwargs
 )
 from src.ai.command_builder import CommandBuilder, get_command_builder
+from src.core.conversation_memory import ConversationMemoryStore
 
 logger = logging.getLogger(__name__)
 
@@ -88,6 +89,15 @@ class AIOrchestrator:
         # Cache
         self._last_intent: Optional[Intent] = None
         self._last_tool_spec: Optional[ToolSpec] = None
+        self._conversation_memory = ConversationMemoryStore()
+
+    def create_session(self, session_id: Optional[str] = None) -> str:
+        """Create (or ensure) backend conversation session and return session id."""
+        return self._conversation_memory.create_session(session_id=session_id)
+
+    def get_session_turns(self, session_id: str, limit: int = 20) -> list[dict[str, Any]]:
+        """Read session turns for API/debug use."""
+        return self._conversation_memory.get_recent_turns(session_id=session_id, limit=limit)
     
     # =========================================================================
     # V2 API - Yeni Katmanli Mimari
@@ -96,7 +106,9 @@ class AIOrchestrator:
     def process_v2(
         self,
         user_input: str,
-        target: Optional[str] = None
+        target: Optional[str] = None,
+        session_id: Optional[str] = None,
+        memory_turn_limit: int = 6,
     ) -> Dict[str, Any]:
         """
         Kullanici girdisini isle (V2 - Katmanli Mimari).
@@ -119,8 +131,33 @@ class AIOrchestrator:
             "command": None,
             "message": "",
             "intent": None,
-            "needs_clarification": False
+            "needs_clarification": False,
+            "session_id": session_id,
+            "requires_approval": False,
+            "agent_observation": None,
         }
+
+        effective_session_id: Optional[str] = None
+        enriched_input = user_input
+        if session_id:
+            effective_session_id = self.create_session(session_id)
+            result["session_id"] = effective_session_id
+            self._conversation_memory.append_turn(
+                session_id=effective_session_id,
+                role="user",
+                content=user_input,
+                metadata={"target": target} if target else None,
+            )
+            context_text = self._conversation_memory.render_context(
+                effective_session_id,
+                limit=memory_turn_limit,
+            )
+            if context_text:
+                enriched_input = (
+                    "Sohbet baglami (son turlar):\n"
+                    f"{context_text}\n\n"
+                    f"Guncel kullanici talebi:\n{user_input}"
+                )
         
         # =====================================================================
         # 1. INTENT RESOLVER - LLM sadece niyet belirler
@@ -131,9 +168,9 @@ class AIOrchestrator:
 
         # Sprint 3.3: Hierarchical (2-asamali) veya flat resolver
         if self._hierarchical_resolver is not None:
-            intent = self._hierarchical_resolver.resolve(user_input, target)
+            intent = self._hierarchical_resolver.resolve(enriched_input, target)
         else:
-            intent = self._intent_resolver.resolve(user_input, target)
+            intent = self._intent_resolver.resolve(enriched_input, target)
 
         elapsed_ms = (time.monotonic() - t0) * 1000
 
@@ -168,24 +205,56 @@ class AIOrchestrator:
                 f"Lutfen daha acik belirtin."
             )
             result["needs_clarification"] = True
+            result["agent_observation"] = "low_confidence"
+            if effective_session_id:
+                self._conversation_memory.append_turn(
+                    session_id=effective_session_id,
+                    role="assistant",
+                    content=result["message"],
+                    metadata={"intent": intent.intent_type.value, "confidence": intent.confidence},
+                )
             return result
 
         # Netlestime gerekli mi?
         if intent.needs_clarification:
             result["message"] = intent.clarification_reason or "Lutfen talebi netlestirin."
             result["needs_clarification"] = True
+            result["agent_observation"] = "clarification_required"
+            if effective_session_id:
+                self._conversation_memory.append_turn(
+                    session_id=effective_session_id,
+                    role="assistant",
+                    content=result["message"],
+                    metadata={"intent": intent.intent_type.value, "confidence": intent.confidence},
+                )
             return result
         
         # Bilgi sorusu mu?
         if intent.intent_type == IntentType.INFO_QUERY:
             result["success"] = True
             result["message"] = "Bu bir bilgi sorusu, komut gerektirmiyor."
+            result["agent_observation"] = "info_query"
+            if effective_session_id:
+                self._conversation_memory.append_turn(
+                    session_id=effective_session_id,
+                    role="assistant",
+                    content=result["message"],
+                    metadata={"intent": intent.intent_type.value, "confidence": intent.confidence},
+                )
             return result
         
         # Unknown intent
         if intent.intent_type == IntentType.UNKNOWN:
             result["message"] = "Talebi anlayamadim. Lutfen daha acik belirtin."
             result["needs_clarification"] = True
+            result["agent_observation"] = "unknown_intent"
+            if effective_session_id:
+                self._conversation_memory.append_turn(
+                    session_id=effective_session_id,
+                    role="assistant",
+                    content=result["message"],
+                    metadata={"intent": intent.intent_type.value, "confidence": intent.confidence},
+                )
             return result
         
         # =====================================================================
@@ -210,6 +279,14 @@ class AIOrchestrator:
                 "Örnek: '192.168.1.20 port taraması yap'"
             )
             result["needs_clarification"] = True
+            result["agent_observation"] = "missing_target"
+            if effective_session_id:
+                self._conversation_memory.append_turn(
+                    session_id=effective_session_id,
+                    role="assistant",
+                    content=result["message"],
+                    metadata={"intent": intent.intent_type.value, "confidence": intent.confidence},
+                )
             return result
         
         tool_spec = build_tool_spec(
@@ -220,6 +297,14 @@ class AIOrchestrator:
         
         if tool_spec is None:
             result["message"] = f"Bu intent icin tool bulunamadi: {intent.intent_type.value}"
+            result["agent_observation"] = "tool_not_found"
+            if effective_session_id:
+                self._conversation_memory.append_turn(
+                    session_id=effective_session_id,
+                    role="assistant",
+                    content=result["message"],
+                    metadata={"intent": intent.intent_type.value, "confidence": intent.confidence},
+                )
             return result
         
         self._last_tool_spec = tool_spec
@@ -234,6 +319,14 @@ class AIOrchestrator:
         
         if error:
             result["message"] = f"Komut olusturulamadi: {error}"
+            result["agent_observation"] = "command_build_failed"
+            if effective_session_id:
+                self._conversation_memory.append_turn(
+                    session_id=effective_session_id,
+                    role="assistant",
+                    content=result["message"],
+                    metadata={"intent": intent.intent_type.value, "confidence": intent.confidence},
+                )
             return result
         
         # =====================================================================
@@ -242,6 +335,21 @@ class AIOrchestrator:
         result["success"] = True
         result["command"] = command
         result["message"] = f"Komut hazir: {command.to_display_string()}"
+        result["requires_approval"] = True
+        result["agent_observation"] = "action_suggested"
+
+        if effective_session_id:
+            self._conversation_memory.append_turn(
+                session_id=effective_session_id,
+                role="assistant",
+                content=result["message"],
+                metadata={
+                    "intent": intent.intent_type.value,
+                    "confidence": intent.confidence,
+                    "requires_approval": True,
+                    "risk_level": command.risk_level.value,
+                },
+            )
         
         return result
     

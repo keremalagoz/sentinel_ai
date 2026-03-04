@@ -1,7 +1,7 @@
 # SENTINEL AI - Sprint Roadmap (Güncel)
 
-**Güncelleme Tarihi:** 28 Şubat 2026  
-**Mimari:** Action Planner v2.1 (Local-Only LLM + Deterministic Command Builder)
+**Güncelleme Tarihi:** 4 Mart 2026  
+**Mimari:** Action Planner v2.1 + Backend Session-Memory Chat (Local-Only LLM + Deterministic Command Builder)
 
 ---
 
@@ -175,14 +175,32 @@ Temel akış:
 
 ---
 
+### Sprint 3.6 — Backend Agent-Chat Foundation (UI Değişikliği Yok) ✅
+
+> Detaylı plan: [sprint_3_6_plan.md](sprint_3_6_plan.md)  
+> Kapsam: Sadece backend güncellemeleri (UI tasarımına dokunulmadı)
+
+| # | Görev | Sorumlu | Durum | Açıklama |
+|---|-------|---------|-------|----------|
+| 3.6.1 | Conversation memory store | Kerem | ✅ | `conversation_sessions` + `conversation_turns` kalıcı hafıza tabanı |
+| 3.6.2 | Orchestrator multi-turn context | Kerem | ✅ | `process_v2` session-aware hale getirildi, son turlar bağlama eklendi |
+| 3.6.3 | Yarı-otomatik agent çıktısı | Kerem | ✅ | `requires_approval` + `agent_observation` alanları eklendi |
+| 3.6.4 | REST chat endpointleri | Kerem | ✅ | `/api/chat/session`, `/api/chat/turn`, `/api/chat/history/{session_id}` |
+| 3.6.5 | Gateway session API | Kerem | ✅ | `ask_ai_with_session()` eklendi (mevcut `ask_ai` korunarak) |
+| 3.6.6 | Backend test kapsamı | Kerem | ✅ | Yeni testler + boundary regresyonu (`2 + 19` test yeşil) |
+
+**Sprint 3.6 Toplam: 6/6 görev ✅**
+
+---
+
 ## 3.1) Hızlı Durum Özeti
 
-- Mimari: Local-only LLM + deterministic execution
-- Test sağlığı: full suite yeşil (**242 passed**)
-- Tamamlanan: Sprint 0 → 3.3 (toplam **55 görev** tamamlandı)
-- Aktif sprint: **Sprint 3.3 tamamlandı** — sonraki: Sprint 4
+- Mimari: Local-only LLM + deterministic execution + backend session-memory chat
+- Test sağlığı: en son bilinen full suite **242 passed**, Sprint 3.6 hedefli doğrulama **21 passed**
+- Tamamlanan: Sprint 0 → 3.6 (toplam **61 görev** tamamlandı)
+- Aktif sprint: **Sprint 3.6 tamamlandı** — sonraki: Sprint 4
 - Backlog: 2 görev (Sprint 3'ten kalan UI görevleri — Yiğit)
-- Sonraki hedef: Sprint 3.3 → Sprint 4 (Veri Adaptasyonu)
+- Sonraki hedef: Sprint 3.6 → Sprint 4 (Veri Adaptasyonu)
 
 ---
 
@@ -251,11 +269,11 @@ Bir sprint maddesi tamamlandı sayılması için:
 
 | Metrik | Değer |
 |--------|-------|
-| Tamamlanan görev | **55** |
-| Aktif (Sprint 3.3) | **10** |
+| Tamamlanan görev | **61** |
+| Aktif (Sprint 3.6) | **6** |
 | Backlog (yerleştirilmemiş) | **3** |
 | Bekleyen (Sprint 4-6) | **9** |
-| Toplam test | **242 passed** |
+| Toplam test | **242 passed (en son full) + Sprint 3.6 hedefli 21 passed** |
 | Son merge | develop `02e352c` |
 
 

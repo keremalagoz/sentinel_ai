@@ -1,6 +1,6 @@
 # SENTINEL AI - Proje Durum Raporu
 
-**Tarih:** 28 Şubat 2026  
+**Tarih:** 4 Mart 2026  
 **Ekip:** Kerem (AI/Data/Backend) & Yiğit (System/UI/Security)
 
 ---
@@ -24,7 +24,7 @@
 - Kararlılık: Queue/backpressure, per-tool limit, retry/backoff aktif
 - Güvenilirlik: Registry drift guard (startup + test) aktif
 - Gözlemlenebilirlik: Runtime telemetry (`queue_wait_ms`, `tool_run_ms`) mevcut
-- Test: Full suite **242 passed**
+- Test: En son full suite **242 passed**, Sprint 3.6 hedefli doğrulama **21 passed**
 
 ---
 
@@ -138,6 +138,21 @@
 
 ---
 
+## Tamamlanan Sprint: Sprint 3.6 (Backend Agent-Chat Foundation) [OK]
+
+> Kapsam: UI tarafında değişiklik yapılmadan sadece backend geliştirmesi.
+
+| # | Görev | Sorumlu | Durum |
+|---|-------|---------|-------|
+| 3.6.1 | Conversation memory store (`conversation_memory.py`) | Kerem | [OK] |
+| 3.6.2 | Orchestrator multi-turn context (`process_v2` session-aware) | Kerem | [OK] |
+| 3.6.3 | Yarı-otomatik agent çıktısı (`requires_approval`, `agent_observation`) | Kerem | [OK] |
+| 3.6.4 | REST chat endpointleri (`/api/chat/session`, `/api/chat/turn`, `/api/chat/history`) | Kerem | [OK] |
+| 3.6.5 | Backend gateway session çağrısı (`ask_ai_with_session`) | Kerem | [OK] |
+| 3.6.6 | Backend testleri (`test_backend_chat_session.py`) + regresyon | Kerem | [OK] |
+
+---
+
 ## Sıradaki Adımlar
 
 1. **Sprint 4** — Veri Adaptasyonu (`models.py` + `nmap_adapter.py`)
@@ -153,9 +168,9 @@
 |--------|-----------|
 | main | Sprint 0 + 1 |
 | develop | Sprint 0 → 3.2 dahil (merge commit 02e352c) |
-| dev_kerem | Sprint 0 → 3.3 dahil |
+| dev_kerem | Sprint 0 → 3.6 dahil |
 | dev_yigit | Sprint 0 + 1 + 2 + 3 (core) |
 
 ---
 
-*Son Güncelleme: 28 Şubat 2026*
+*Son Güncelleme: 4 Mart 2026*

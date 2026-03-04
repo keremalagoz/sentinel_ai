@@ -47,6 +47,26 @@ ExecutionState persistence için SQLite backend schema tanımı.
 │  - completed_at         │
 │  - entities_created     │
 └─────────────────────────┘
+
+┌─────────────────────────┐
+│ conversation_sessions   │  ← Backend chat session state (Sprint 3.6)
+│ - session_id (PK)       │
+│ - created_at            │
+│ - updated_at            │
+│ - metadata (JSON)       │
+└─────────────────────────┘
+            │
+            │ FK
+            ▼
+┌─────────────────────────┐
+│   conversation_turns    │  ← Multi-turn chat history (Sprint 3.6)
+│ - turn_id (PK)          │
+│ - session_id (FK)       │
+│ - role                  │
+│ - content               │
+│ - created_at            │
+│ - metadata (JSON)       │
+└─────────────────────────┘
 ```
 
 ---
@@ -280,6 +300,50 @@ SELECT * FROM tool_executions
 WHERE status = 'failed'
 ORDER BY started_at DESC;
 ```
+
+---
+
+## Table: `conversation_sessions` (Sprint 3.6)
+
+**Purpose:** Backend-only chat session lifecycle takibi.
+
+**Schema:**
+
+```sql
+CREATE TABLE conversation_sessions (
+  session_id TEXT PRIMARY KEY,
+  created_at REAL NOT NULL,
+  updated_at REAL NOT NULL,
+  metadata JSON
+);
+```
+
+---
+
+## Table: `conversation_turns` (Sprint 3.6)
+
+**Purpose:** Çok turlu diyalog geçmişini tutmak (user/assistant/tool/system).
+
+**Schema:**
+
+```sql
+CREATE TABLE conversation_turns (
+  turn_id TEXT PRIMARY KEY,
+  session_id TEXT NOT NULL,
+  role TEXT NOT NULL,
+  content TEXT NOT NULL,
+  created_at REAL NOT NULL,
+  metadata JSON,
+  FOREIGN KEY (session_id) REFERENCES conversation_sessions(session_id) ON DELETE CASCADE
+);
+
+CREATE INDEX idx_conversation_turns_session_created
+ON conversation_turns(session_id, created_at);
+```
+
+**Not:**
+- `conversation_turns`, `tool_executions` tablosunun yerine geçmez.
+- `conversation_turns` diyalog bağlamı içindir; `tool_executions` yürütüm gerçeği içindir.
 
 ---
 

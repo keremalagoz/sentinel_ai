@@ -35,6 +35,18 @@ class BackendGateway:
     def ask_ai(self, user_text: str) -> object:
         return self._orchestrator.process(user_text)
 
+    def ask_ai_with_session(
+        self,
+        user_text: str,
+        session_id: Optional[str],
+        target: Optional[str] = None,
+    ) -> dict:
+        return self._orchestrator.process_v2(
+            user_input=user_text,
+            target=target,
+            session_id=session_id,
+        )
+
     @staticmethod
     def parse_command(command: str) -> Tuple[Optional[str], List[str], bool]:
         """Komutu parse et ve guvenlik kontrollerinden gecir.

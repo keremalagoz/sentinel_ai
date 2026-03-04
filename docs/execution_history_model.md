@@ -32,6 +32,19 @@ Execution State **iki ayrı katmandan oluşur**:
 
 Bu iki katman **asla karıştırılmaz**.
 
+Sprint 3.6 ile buna ek olarak üçüncü bir kayıt alanı eklendi:
+
+3. **Conversation Session History (Backend-Only)**
+
+    * Session + turn bazlı chat hafızası
+    * Multi-turn intent çözümleme bağlamı
+    * Komut önerisi öncesi geçmiş diyaloğun taşınması
+
+Execution history ile relation:
+- `tool_executions` -> tool run gerçeği
+- `conversation_turns` -> diyalog bağlamı
+- İki tablo ayrı sorumluluk taşır, aynı şeyin kopyası değildir
+
 ---
 
 ## Core Data Model
@@ -234,5 +247,17 @@ Bu doküman:
 için **tek referans**tır.
 
 Bu kurallar Sprint 1 boyunca **değiştirilemez**.
+
+---
+
+## Sprint 3.6 Notu (Geriye Uyumlu Genişleme)
+
+Yeni backend endpointleri:
+- `POST /api/chat/session`
+- `POST /api/chat/turn`
+- `GET /api/chat/history/{session_id}`
+
+Bu endpointler execution history modelini bozmaz; yalnızca
+session tabanlı çok turlu bağlam taşıma ekler.
 
 ---
