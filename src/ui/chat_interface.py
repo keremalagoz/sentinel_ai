@@ -662,6 +662,11 @@ class ChatInterface(QWidget):
         self._current_chat_id = datetime.now().strftime("%Y%m%d_%H%M%S")
         self._messages = []
         self.clear_chat()
+
+    def get_current_chat_id(self) -> str:
+        if not self._current_chat_id:
+            self._current_chat_id = datetime.now().strftime("%Y%m%d_%H%M%S")
+        return self._current_chat_id
     
     def _save_current_chat(self):
         if not self._current_chat_id:
