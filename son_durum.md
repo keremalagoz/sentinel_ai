@@ -27,7 +27,7 @@
 - **i18n**: 11 dil desteği (EN, TR, ES, ZH, JA, AR, DE, RU, FR, PT, HI) — 78 çeviri anahtarı
 - **Ayarlar Diyalogu**: Dil seçimi, font boyutu, oturum temizleme
 - **Performans**: 12 optimizasyon uygulandı (debounce, cache, pre-compile, QSS sabitleri)
-- **Test**: Full suite **715 passed**
+- **Test**: Full suite **715 passed** + Sprint 3.6 hedefli doğrulama **21 passed**
 
 ---
 
@@ -152,6 +152,21 @@
 
 ---
 
+## Tamamlanan Sprint: Sprint 3.6 (Backend Agent-Chat Foundation) [OK]
+
+> Kapsam: UI tarafında değişiklik yapılmadan sadece backend geliştirmesi.
+
+| # | Görev | Sorumlu | Durum |
+|---|-------|---------|-------|
+| 3.6.1 | Conversation memory store (`conversation_memory.py`) | Kerem | [OK] |
+| 3.6.2 | Orchestrator multi-turn context (`process_v2` session-aware) | Kerem | [OK] |
+| 3.6.3 | Yarı-otomatik agent çıktısı (`requires_approval`, `agent_observation`) | Kerem | [OK] |
+| 3.6.4 | REST chat endpointleri (`/api/chat/session`, `/api/chat/turn`, `/api/chat/history`) | Kerem | [OK] |
+| 3.6.5 | Backend gateway session çağrısı (`ask_ai_with_session`) | Kerem | [OK] |
+| 3.6.6 | Backend testleri (`test_backend_chat_session.py`) + regresyon | Kerem | [OK] |
+
+---
+
 ## Sıradaki Adımlar
 
 1. **Sprint 4** — Veri Adaptasyonu (`models.py` + `nmap_adapter.py`)
@@ -208,7 +223,7 @@
 |--------|-----------|
 | main | Sprint 0 + 1 |
 | develop | Sprint 0 → 3.2 dahil (merge commit 02e352c) |
-| dev_kerem | Sprint 0 → 3.3 dahil |
+| dev_kerem | Sprint 0 → 3.6 dahil |
 | dev_yigit | Sprint 0 + 1 + 2 + 3 (core) |
 
 ---

@@ -18,7 +18,7 @@
 
 ## Proje Hakkında
 
-SENTINEL AI, siber güvenlik testlerini yapay zeka destekli komutlarla otomatikleştiren bir masaüstü uygulamasıdır. Local AI motoru olarak Qwen 2.5 3B (Ollama) kullanır ve 2 aşamalı hierarchical intent resolution pipeline ile %100 doğruluk sağlar.
+SENTINEL AI, siber güvenlik testlerini yapay zeka destekli komutlarla otomatikleştiren bir masaüstü uygulamasıdır. Local AI motoru olarak Qwen 2.5 3B (Ollama) kullanır ve 2 aşamalı hierarchical intent resolution pipeline ile yüksek doğruluk sağlar.
 
 ### Özellikler
 
@@ -33,6 +33,7 @@ SENTINEL AI, siber güvenlik testlerini yapay zeka destekli komutlarla otomatikl
 - **Güvenli Yetki Yönetimi** - Pkexec ile şifresiz root işlemleri
 - **Deterministik Çalıştırma** - Intent → Tool → Command zinciri
 - **Çalışma Zamanı Sertleştirme** - Queue/backpressure, per-tool limit, timeout/retry
+- **Sprint 3.6 Backend Chat Hafızası** - Session/turn tabanlı multi-turn context (UI değişikliği olmadan)
 - **Kapsamlı Test Altyapısı** - 715 test (UI, i18n, optimizasyon, backend)
 
 ### Planlanan Özellikler
@@ -65,6 +66,9 @@ SENTINEL AI, siber güvenlik testlerini yapay zeka destekli komutlarla otomatikl
 
 Intent Pipeline:
   User Input → KeywordPreFilter → [Stage 1: Category] → [Stage 2: Sub-Intent] → Tool
+
+Backend Chat Pipeline (Sprint 3.6):
+  Session Create → Chat Turn → Context Enrichment → Intent Resolution → Safe Command Suggestion
 ```
 
 ---
@@ -74,15 +78,13 @@ Intent Pipeline:
 ```
 sentinel_root/
 ├── main.py                   # Production giriş noktası
-├── api_server.py             # API modunda komut üretimi
 ├── requirements.txt          # Python bağımlılıkları
 ├── docker-compose.yml        # Docker servis tanımları
-├── .env                      # Çevre değişkenleri
-├── .env.example              # .env şablonu
 ├── PROJECT_STRUCTURE.md      # Proje yapısı rehberi
 ├── README.md                 # Bu dosya
 ├── son_durum.md              # Durum raporu
 ├── data/                     # Veri klasörü
+│   └── databases/            # SQLite veritabanı dosyaları
 ├── docker/                   # Docker yapılandırmaları
 │   ├── api/                  # API servisi
 │   │   └── Dockerfile
@@ -99,6 +101,7 @@ sentinel_root/
 │   ├── execution_history_model.md
 │   ├── execution_state_model.md
 │   ├── sprint_roadmap.md
+│   ├── sprint_3_6_plan.md
 │   ├── sprint1_ready.md
 │   ├── sqlite_schema.md
 │   └── ui_regression_checklist.md
@@ -109,17 +112,18 @@ sentinel_root/
 │   └── whiterabbitneo-7b-q4.gguf     # Legacy model (4.47 GB)
 ├── src/                      # Kaynak kodlar
 │   ├── ai/                   # Yapay zeka modülleri
+│   ├── application/          # Uygulama katmanı (API dahil)
 │   ├── core/                 # Backend mantığı
 │   ├── ui/                   # PyQt6 arayüz + i18n + settings
 │   │   ├── i18n.py           # 11 dil çeviri sistemi
 │   │   └── settings_dialog.py # Ayarlar diyalogu
 │   ├── plugins/              # Harici araç eklentileri
 │   └── tests/                # 715 test (UI, i18n, optimizasyon)
+├── scripts/                  # Yardımcı scriptler
+│   └── validate_ui.py
 ├── temp/                     # Geçici dosyalar
 │  └── sentinel_safe/
-├── sentinel_production.db    # Production veritabanı
-├── sentinel_dev.db           # Developer mode veritabanı
-└── sentinel_state.db         # Test/default veritabanı
+└── ...
 ```
 
 ---
@@ -156,17 +160,7 @@ source venv/bin/activate
 pip install -r requirements.txt
 ```
 
-### 3. Ortam Değişkenlerini Ayarlayın
-
-```bash
-# .env dosyasını oluştur
-cp .env.example .env
-
-# API anahtarını düzenle
-nano .env
-```
-
-### 4. Docker Servislerini Başlatın
+### 3. Docker Servislerini Başlatın
 
 ```bash
 # Servisleri arka planda başlat
@@ -177,7 +171,7 @@ docker-compose up -d
 docker-compose logs -f ollama-service
 ```
 
-### 5. Uygulamayı Başlatın
+### 4. Uygulamayı Başlatın
 
 **Çalıştırma:**
 ```bash
@@ -193,6 +187,14 @@ python main.py
 | `ollama-service` | 11434 | Qwen 2.5 3B LLM API (Ollama) |
 | `api-service` | 8000 | Backend API (Orchestrator) |
 | `tools-service` | - | Security tools (nmap, gobuster, nikto, hydra) |
+
+### Backend Chat API (Sprint 3.6)
+
+| Endpoint | Method | Açıklama |
+|----------|--------|----------|
+| `/api/chat/session` | POST | Session oluşturur veya var olanı döndürür |
+| `/api/chat/turn` | POST | Session-aware tek chat turunu işler |
+| `/api/chat/history/{session_id}` | GET | Session geçmişini döndürür |
 
 ### Docker Komutları
 
