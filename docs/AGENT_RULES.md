@@ -1,5 +1,7 @@
 # SENTINEL AI - PROTOCOL & COMPLIANCE HANDBOOK
 
+> Senkronizasyon Notu: 4 Mart 2026 itibarıyla aktif sprint gerçekliğiyle birlikte kullanılmalıdır (`docs/sprint_roadmap.md`, `son_durum.md`).
+
 **Classification:** INTERNAL/RESTRICTED  
 **Version:** 2.2-STRICT (Corporate Standard)  
 **Enforcement:** MANDATORY  

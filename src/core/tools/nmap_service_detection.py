@@ -23,7 +23,7 @@ class NmapServiceDetectionTool(BaseTool):
 
     def estimate_timeout(self, **kwargs) -> int:
         ports = kwargs.get("ports")
-        intensity = int(kwargs.get("intensity", 5))
+        intensity = int(kwargs.get("intensity", kwargs.get("version_intensity", 5)))
         port_count = NmapPortScanTool._estimate_port_count(ports) if ports else 1000
 
         estimate = int(30 + port_count * 0.18 + intensity * 8)
@@ -34,6 +34,9 @@ class NmapServiceDetectionTool(BaseTool):
         target: str,
         ports: Optional[str] = None,
         intensity: int = 5,
+        version_intensity: Optional[int] = None,
+        timing: Optional[int] = None,
+        version_mode: str = "default",
         **kwargs
     ) -> List[str]:
         """
@@ -47,10 +50,29 @@ class NmapServiceDetectionTool(BaseTool):
         Returns:
             Command: ["nmap", "-sV", "--version-intensity", "5", "-p", "80,443", "192.168.1.10"]
         """
-        cmd = ["nmap", "-sV", "--version-intensity", str(intensity)]
+        safe_target = self.validate_target(target)
+        safe_intensity = self.validate_range(
+            version_intensity if version_intensity is not None else intensity,
+            0,
+            9,
+            "version_intensity",
+        )
+
+        cmd: List[str] = ["nmap", "-sV", "--version-intensity", str(safe_intensity)]
+
+        safe_mode = self.validate_enum(version_mode, {"default", "light", "all"}, "version_mode")
+        if safe_mode == "light":
+            cmd.append("--version-light")
+        elif safe_mode == "all":
+            cmd.append("--version-all")
+
+        if timing is not None:
+            safe_timing = self.validate_range(timing, 0, 5, "timing")
+            cmd.append(f"-T{safe_timing}")
 
         if ports:
-            cmd.extend(["-p", ports])
+            safe_ports = self.validate_ports(ports)
+            cmd.extend(["-p", safe_ports])
 
-        cmd.append(target)
+        cmd.append(safe_target)
         return cmd

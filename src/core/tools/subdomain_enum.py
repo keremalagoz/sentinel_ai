@@ -3,7 +3,6 @@
 from typing import Optional, List
 
 from src.core.tools.base import BaseTool, ToolExecutionSignals
-from src.core.platform_utils import is_windows
 
 
 class SubdomainEnumTool(BaseTool):
@@ -31,36 +30,20 @@ class SubdomainEnumTool(BaseTool):
         Returns:
             Platform-uyumlu shell komutu
         """
-        common_subs = "www mail ftp admin api blog shop dev test staging"
+        safe_domain = self.validate_target(domain, "domain")
+        safe_wordlist = self.validate_target(wordlist, "wordlist")
 
-        if is_windows():
-            ps_script = (
-                f"$domain='{domain}'; $wl='{wordlist}'; "
-                f"$common=@({','.join(repr(s) for s in common_subs.split())}); "
-                "$subs = if (Test-Path $wl) { Get-Content $wl } else { $common }; "
-                "foreach ($s in $subs) { "
-                "  $fqdn=\"$s.$domain\"; "
-                "  try { $r = nslookup $fqdn 2>&1; "
-                "    if ($r -match '\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}') "
-                "    { Write-Output \"FOUND: $fqdn\" } "
-                "  } catch {} "
-                "}"
-            )
-            return ["powershell.exe", "-NoProfile", "-ExecutionPolicy", "Bypass",
-                    "-Command", ps_script]
-
-        # Linux / macOS — bash + nslookup
         bash_script = (
-            f'DOMAIN="{domain}"; WORDLIST="{wordlist}"; '
-            f'COMMON="{common_subs}"; '
-            'if [ -f "$WORDLIST" ]; then SUBS=$(cat "$WORDLIST"); '
-            'else SUBS="$COMMON"; fi; '
-            'for SUB in $SUBS; do '
-            '  FQDN="$SUB.$DOMAIN"; '
-            '  RESULT=$(nslookup "$FQDN" 2>&1); '
-            '  if echo "$RESULT" | grep -qE "[0-9]+\\.[0-9]+\\.[0-9]+\\.[0-9]+"; then '
-            '    echo "FOUND: $FQDN"; '
-            '  fi; '
-            'done'
+            "DOMAIN=\"$1\"; "
+            "WORDLIST=\"$2\"; "
+            "COMMON='www mail ftp admin api blog shop dev test staging'; "
+            "if [ -f \"$WORDLIST\" ]; then SUBS=$(cat \"$WORDLIST\"); else SUBS=\"$COMMON\"; fi; "
+            "for SUB in $SUBS; do "
+            "  FQDN=\"$SUB.$DOMAIN\"; "
+            "  RESULT=$(nslookup \"$FQDN\" 2>&1); "
+            "  if echo \"$RESULT\" | grep -qE '[0-9]+\\.[0-9]+\\.[0-9]+\\.[0-9]+'; then "
+            "    echo \"FOUND: $FQDN\"; "
+            "  fi; "
+            "done"
         )
-        return ["bash", "-c", bash_script]
+        return ["bash", "-c", bash_script, "--", safe_domain, safe_wordlist]

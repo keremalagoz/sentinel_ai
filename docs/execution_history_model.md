@@ -1,5 +1,7 @@
 # `execution_history_model.md`
 
+> Durum Notu (4 Mart 2026): Bu belge model referansıdır; güncel sprint ilerleyişi için `son_durum.md` ve `docs/sprint_roadmap.md` esas alınır.
+
 ## Purpose
 
 Bu dokümanın amacı:

@@ -1,5 +1,7 @@
 # UI Regression Checklist (Sprint 3.4 Sonu)
 
+> Durum Notu (4 Mart 2026): Bu liste Sprint 3.4 tabanlı hızlı kontrol setidir; Sprint 3.5 sonrası telemetry/secure-delete akışları da manuel kontrol kapsamına dahil edilmelidir.
+
 Bu liste, `develop` öncesi 3-5 dakikalık hızlı doğrulama için hazırlanmıştır.
 
 ## 1) Header ve Yerleşim

@@ -88,7 +88,7 @@ def _run_tool_registry() -> bool:
     # Test 2: build_tool_spec calisiyor mu?
     def check_build_tool_spec():
         spec = build_tool_spec(IntentType.PORT_SCAN, "192.168.1.1", {"ports": "22,80"})
-        return spec is not None and spec.tool == "nmap" and "-p" in spec.arguments
+        return spec is not None and spec.tool == "nmap" and spec.arguments == []
     
     if run_test("build_tool_spec() calisiyor", check_build_tool_spec):
         passed += 1
@@ -97,9 +97,9 @@ def _run_tool_registry() -> bool:
     
     # Test 3: requires_root dogru mu?
     def check_requires_root():
-        # PORT_SCAN root gerektirmeli
+        # PORT_SCAN varsayilan -sT, root gerektirmemeli
         tool_def = get_tool_for_intent(IntentType.PORT_SCAN)
-        if not tool_def.requires_root:
+        if tool_def.requires_root:
             return False
         # DNS_LOOKUP root gerektirmemeli
         tool_def = get_tool_for_intent(IntentType.DNS_LOOKUP)

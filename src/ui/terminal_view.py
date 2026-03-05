@@ -20,6 +20,25 @@ _PROMPT_STYLE_IDLE = f"color: {Colors.SUCCESS}; background: transparent; border:
 _PROMPT_STYLE_RUNNING = f"color: {Colors.WARNING}; background: transparent; border: none;"
 _PROMPT_STYLE_ROOT = f"color: {Colors.DANGER}; background: transparent; border: none;"
 
+# Risk banner HTML templates (BL-1)
+_RISK_BANNER = {
+    "high": (
+        f'<div style="background: rgba(239,68,68,0.12); border: 1px solid rgba(239,68,68,0.35); '
+        f'border-radius: 4px; padding: 4px 8px; margin: 2px 0; color: {Colors.DANGER}; '
+        f'font-size: 11px;">{{text}}</div>'
+    ),
+    "medium": (
+        f'<div style="background: rgba(234,179,8,0.10); border: 1px solid rgba(234,179,8,0.30); '
+        f'border-radius: 4px; padding: 4px 8px; margin: 2px 0; color: {Colors.WARNING}; '
+        f'font-size: 11px;">{{text}}</div>'
+    ),
+    "low": (
+        f'<div style="background: rgba(34,197,94,0.08); border: 1px solid rgba(34,197,94,0.25); '
+        f'border-radius: 4px; padding: 4px 8px; margin: 2px 0; color: {Colors.SUCCESS}; '
+        f'font-size: 11px;">{{text}}</div>'
+    ),
+}
+
 # Pre-built HTML escape table (M10 optimization)
 _ESCAPE_TABLE = str.maketrans({
     '&': '&amp;',
@@ -392,11 +411,20 @@ class TerminalView(QWidget):
         self._update_status()
         if correlation_id:
             self._log(f"[CID:{correlation_id}]", Colors.TEXT_DIM)
-        if risk_label:
-            self._log(f"[RISK] {risk_label.upper()}", Colors.WARNING if risk_label.lower() != "safe" else Colors.SUCCESS)
-        self._log(f"$ {command} {' '.join(args)}", Colors.TEXT_SECONDARY)
+
+        # ── BL-1: Risk security banner ──
+        risk_key = risk_label.lower() if risk_label else ""
+        if risk_key in ("high", "yüksek risk", "root-required"):
+            self._log_banner("high", t("terminal.risk_high"))
+        elif risk_key in ("medium", "dikkat", "caution"):
+            self._log_banner("medium", t("terminal.risk_medium"))
+        elif risk_key:
+            self._log_banner("low", t("terminal.risk_low"))
+
         if requires_root:
-            self._log(t("terminal.root_running"), Colors.WARNING)
+            self._log_banner("high", t("terminal.root_banner"))
+
+        self._log(f"$ {command} {' '.join(args)}", Colors.TEXT_SECONDARY)
         self._manager.start_process(command, args, requires_root, correlation_id=correlation_id)
     
     def stop_command(self):
@@ -450,6 +478,20 @@ class TerminalView(QWidget):
             cursor.insertHtml("<br>")
         escaped = self._escape(text)
         cursor.insertHtml(f"<span style='color: {color};'>{escaped}</span>")
+        output.setTextCursor(cursor)
+        output.ensureCursorVisible()
+
+    def _log_banner(self, level: str, text: str):
+        """Insert a styled risk/root banner into the terminal output."""
+        if not self._active_session:
+            return
+        template = _RISK_BANNER.get(level)
+        if not template:
+            return
+        output = self._active_session.output
+        cursor = output.textCursor()
+        cursor.movePosition(QTextCursor.MoveOperation.End)
+        cursor.insertHtml(template.format(text=self._escape(text)))
         output.setTextCursor(cursor)
         output.ensureCursorVisible()
     

@@ -2,7 +2,7 @@
 Shared test fixtures for Sentinel AI test suite.
 
 Provides:
-- QApplication singleton (session-scoped)
+- QApplication singleton (session-scoped, autouse)
 - i18n language reset (autouse per-test)
 """
 
@@ -11,13 +11,15 @@ import pytest
 
 # ---------------------------------------------------------------------------
 # QApplication — must be created once per process for PyQt6 widget tests.
+# session + autouse ensures it's created before ANY test runs, so that
+# QProcess / QTimer objects in non-UI tests also have a valid event loop.
 # ---------------------------------------------------------------------------
 _qapp = None
 
 
-@pytest.fixture(scope="session")
+@pytest.fixture(scope="session", autouse=True)
 def qapp():
-    """Session-scoped QApplication instance for widget tests."""
+    """Session-scoped QApplication instance — created before all tests."""
     global _qapp
     if _qapp is None:
         from PyQt6.QtWidgets import QApplication

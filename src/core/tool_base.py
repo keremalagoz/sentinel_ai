@@ -22,6 +22,11 @@ from src.core.tools import (  # noqa: F401
     SubdomainEnumTool,
     DnsLookupTool,
     WebAppScanTool,
+    NmapOsDetectionTool,
+    WhoisLookupTool,
+    HydraSshTool,
+    HydraHttpTool,
+    SqlmapScanTool,
 )
 
 __all__ = [
@@ -39,4 +44,29 @@ __all__ = [
     "SubdomainEnumTool",
     "DnsLookupTool",
     "WebAppScanTool",
+    "NmapOsDetectionTool",
+    "WhoisLookupTool",
+    "HydraSshTool",
+    "HydraHttpTool",
+    "SqlmapScanTool",
+    "TOOL_CLASS_MAP",
 ]
+
+# tool_id -> Tool class mapping (execution registry ile eslesir)
+TOOL_CLASS_MAP = {
+    "ping": PingTool,
+    "nmap_ping_sweep": NmapPingSweepTool,
+    "nmap_port_scan": NmapPortScanTool,
+    "nmap_service_detection": NmapServiceDetectionTool,
+    "nmap_vuln_scan": NmapVulnScanTool,
+    "dns_lookup": DnsLookupTool,
+    "ssl_scan": SslScanTool,
+    "gobuster_dir": GobusterDirTool,
+    "subdomain_enum": SubdomainEnumTool,
+    "web_app_scan": WebAppScanTool,
+    "nmap_os_detection": NmapOsDetectionTool,
+    "whois_lookup": WhoisLookupTool,
+    "hydra_ssh": HydraSshTool,
+    "hydra_http": HydraHttpTool,
+    "sqlmap_scan": SqlmapScanTool,
+}

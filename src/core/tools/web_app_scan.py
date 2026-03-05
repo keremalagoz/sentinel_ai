@@ -29,6 +29,8 @@ class WebAppScanTool(BaseTool):
         Returns:
             Platform-uyumlu shell komutu (curl tabanli)
         """
+        safe_url = self.validate_target(url, "url")
+
         # Technology detection patterns
         tech_patterns = [
             ("WordPress|wp-content|wp-includes", "WordPress"),
@@ -47,7 +49,7 @@ class WebAppScanTool(BaseTool):
         )
 
         bash_script = (
-            f'URL="{url}"; '
+            'URL="$1"; '
             'HEADERS=$(curl -sI -m 30 "$URL" 2>&1); '
             'echo "$HEADERS" | grep -i "^Server:" | sed "s/^/SERVER: /"; '
             'echo "$HEADERS" | grep -i "^X-Powered-By:" | sed "s/^/POWERED-BY: /"; '
@@ -58,4 +60,4 @@ class WebAppScanTool(BaseTool):
             f'{grep_checks}'
         )
 
-        return [get_shell(), get_shell_exec_flag(), bash_script]
+        return [get_shell(), get_shell_exec_flag(), bash_script, "--", safe_url]

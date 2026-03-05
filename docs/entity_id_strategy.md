@@ -1,5 +1,7 @@
 # Entity ID Generation Strategy
 
+> Durum Notu (4 Mart 2026): Bu belge geçerli teknik referans dokümanıdır; sprint ve ürün durumu için `son_durum.md` ve `docs/sprint_roadmap.md` takip edilir.
+
 ## Purpose
 
 Merkezi, canonical ve deterministik entity ID üretim stratejisi. Parser'lar bu stratejiye uymak zorundadır.

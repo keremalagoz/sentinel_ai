@@ -3,7 +3,6 @@
 from typing import Optional, List
 
 from src.core.tools.base import BaseTool, ToolExecutionSignals
-from src.core.platform_utils import build_echo_pipe_command
 
 
 class SslScanTool(BaseTool):
@@ -19,6 +18,9 @@ class SslScanTool(BaseTool):
         self,
         target: str,
         port: int = 443,
+        servername: Optional[str] = None,
+        tls_version: Optional[str] = None,
+        starttls: Optional[str] = None,
         **kwargs
     ) -> List[str]:
         """
@@ -31,5 +33,30 @@ class SslScanTool(BaseTool):
         Returns:
             Command: ["openssl", "s_client", "-connect", "example.com:443", "-showcerts"]
         """
-        payload = f"openssl s_client -connect {target}:{port} -showcerts 2>&1"
-        return build_echo_pipe_command(payload)
+        safe_target = self.validate_target(target)
+        safe_port = self.validate_port(port)
+
+        cmd: List[str] = [
+            "openssl",
+            "s_client",
+            "-connect",
+            f"{safe_target}:{safe_port}",
+            "-showcerts",
+        ]
+
+        if servername:
+            cmd.extend(["-servername", self.validate_target(servername, "servername")])
+
+        if tls_version:
+            tls_value = self.validate_enum(tls_version, {"1.2", "1.3"}, "tls_version")
+            cmd.append("-tls1_2" if tls_value == "1.2" else "-tls1_3")
+
+        if starttls:
+            starttls_value = self.validate_enum(
+                str(starttls).lower(),
+                {"smtp", "imap", "pop3", "ftp", "xmpp", "postgres", "mysql"},
+                "starttls",
+            )
+            cmd.extend(["-starttls", starttls_value])
+
+        return cmd

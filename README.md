@@ -1,5 +1,7 @@
 # SENTINEL AI
 
+> Son Senkronizasyon: 5 Mart 2026 (Sprint 3.5 hotfix güncellemeleri dahil)
+
 <div align="center">
 
 ![Python](https://img.shields.io/badge/Python-3.11+-3776AB?style=for-the-badge&logo=python&logoColor=white)
@@ -25,16 +27,20 @@ SENTINEL AI, siber güvenlik testlerini yapay zeka destekli komutlarla otomatikl
 - **Local AI Motoru** - Qwen 2.5 3B / Ollama tabanlı intent çözümleme (1.9 GB, 29+ dil)
 - **2 Aşamalı Intent Resolution** - Keyword pre-filter → Kategori → Alt-intent pipeline
 - **Modern PyQt6 Arayüzü** - Donmayan, responsive terminal ve sonuç görüntüleme
-- **11 Dil Desteği (i18n)** - EN, TR, ES, ZH, JA, AR, DE, RU, FR, PT, HI — 78 çeviri anahtarı
-- **Ayarlar Diyalogu** - Dil seçimi, font boyutu, oturum temizleme
+- **11 Dil Desteği (i18n)** - EN, TR, ES, ZH, JA, AR, DE, RU, FR, PT, HI — 97 çeviri anahtarı
+- **Ayarlar Diyalogu** - Dil seçimi, font boyutu, oturum temizleme, güvenlik politikası
 - **Esnek Yerleşim (Layout Swap)** - Chat/Terminal pozisyon değiştirme (yatay/dikey)
 - **Performans Optimizasyonları** - Debounce I/O, in-memory cache, QFont cache, regex pre-compile, QSS sabitleri
 - **Docker Altyapısı** - İzole ve taşınabilir servis mimarisi
 - **Güvenli Yetki Yönetimi** - Pkexec ile şifresiz root işlemleri
 - **Deterministik Çalıştırma** - Intent → Tool → Command zinciri
+- **Tek Kaynak Komut Üretimi** - Çalıştırmada `BaseTool.build_command()` öncelikli, legacy fallback kontrollü
+- **Tool Registry Metadata-Only** - Registry UI/planlama metadatası taşır, yürütme argümanları execution katmanında üretilir
 - **Çalışma Zamanı Sertleştirme** - Queue/backpressure, per-tool limit, timeout/retry
+- **Telemetry Görünürlüğü** - Status bar üzerinde kuyruk/bekleme/çalıştırma metrikleri
+- **Güvenli Temizlik Akışı** - Ayarlardaki `secure_delete` bayrağı backend cleaner katmanına iletilir
 - **Sprint 3.6 Backend Chat Hafızası** - Session/turn tabanlı multi-turn context (UI değişikliği olmadan)
-- **Kapsamlı Test Altyapısı** - 715 test (UI, i18n, optimizasyon, backend)
+- **Kapsamlı Test Altyapısı** - 1451 test (UI, i18n, optimizasyon, backend, accuracy benchmark) + Sprint 3.5 hedefli doğrulama setleri
 
 ### Planlanan Özellikler
 
@@ -66,6 +72,9 @@ SENTINEL AI, siber güvenlik testlerini yapay zeka destekli komutlarla otomatikl
 
 Intent Pipeline:
   User Input → KeywordPreFilter → [Stage 1: Category] → [Stage 2: Sub-Intent] → Tool
+
+Benchmark Politikası:
+  Intent benchmark raporlaması hierarchical (2 aşamalı) mod üzerinden sürdürülür.
 
 Backend Chat Pipeline (Sprint 3.6):
   Session Create → Chat Turn → Context Enrichment → Intent Resolution → Safe Command Suggestion
@@ -104,7 +113,9 @@ sentinel_root/
 │   ├── sprint_3_6_plan.md
 │   ├── sprint1_ready.md
 │   ├── sqlite_schema.md
-│   └── ui_regression_checklist.md
+│   ├── ui_regression_checklist.md
+│   ├── sprint_3_5_plan.md
+│   └── changelog_sprint35_hotfix.md
 ├── models/                   # Model dosyaları ve modelfile'lar
 │   ├── qwen2.5-3b-instruct-q4.gguf  # Primary (1.84 GB)
 │   ├── Modelfile.qwen2.5            # SENTINEL system prompt
@@ -118,7 +129,7 @@ sentinel_root/
 │   │   ├── i18n.py           # 11 dil çeviri sistemi
 │   │   └── settings_dialog.py # Ayarlar diyalogu
 │   ├── plugins/              # Harici araç eklentileri
-│   └── tests/                # 715 test (UI, i18n, optimizasyon)
+│   └── tests/                # 1451 test (UI, i18n, optimizasyon, accuracy)
 ├── scripts/                  # Yardımcı scriptler
 │   └── validate_ui.py
 ├── temp/                     # Geçici dosyalar
@@ -267,7 +278,7 @@ Mevcut sürümde sistem local-only çalışır ve varsayılan akışta veri dı�
 ## Test
 
 ```bash
-# Tüm testleri çalıştır (715 test)
+# Tüm testleri çalıştır (1451 test)
 pytest src/tests/ -q
 
 # Belirli bir modülü test et
@@ -284,11 +295,15 @@ pytest --cov=src src/tests/
 
 | Test Dosyası | Test Sayısı | Kapsam |
 |---|---|---|
-| test_i18n.py | ~156 | 11 dil çeviri doğruluğu |
-| test_ui_widgets.py | ~138 | Widget oluşturma ve davranış |
-| test_ui_features.py | ~206 | UI özellikleri (settings, swap, history) |
+| test_i18n.py | 156 | 11 dil çeviri doğruluğu |
+| test_ui_widgets.py | 138 | Widget oluşturma ve davranış |
+| test_ui_features.py | 245 | UI özellikleri (settings, swap, history) |
 | test_optimizations.py | 91 | Performans ve anti-pattern taraması |
-| Diğer test dosyaları | ~124 | Backend, parser, AI, entegrasyon |
+| test_sprint35_audit.py | 296 | Sprint 3.5 E2E audit testleri |
+| test_tool_commands.py | 108 | Tool komut üretim testleri |
+| test_pipeline_integration.py | 79 | Pipeline entegrasyon testleri |
+| test_command_accuracy.py | 76 | Komut üretim doğruluk benchmarkı |
+| Diğer test dosyaları | 262 | Backend, parser, AI, resolver, entegrasyon |
 
 ---
 

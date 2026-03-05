@@ -1,5 +1,7 @@
 # SQLite Backend Schema
 
+> Durum Notu (4 Mart 2026): Bu belge şema referansıdır. Ürün/sprint ilerlemesi için `son_durum.md` ve `docs/sprint_roadmap.md` izlenmelidir.
+
 ## Purpose
 
 ExecutionState persistence için SQLite backend schema tanımı.

@@ -1,5 +1,7 @@
 # SENTINEL AI — Sprint 3.2: Optimizasyon ve Platform Hazırlığı
 
+> Durum Notu (4 Mart 2026): Bu belge tarihsel sprint planı/kapanış referansıdır. Güncel ilerleme için `docs/sprint_roadmap.md` ve `son_durum.md` bakınız.
+
 **Başlangıç:** 26 Şubat 2026  
 **Hedef Bitiş:** ~7 Mart 2026 (1.5 hafta)  
 **Odak:** Audit sonuçları doğrultusunda kritik bugfix, Linux platform uyumluluğu, AI ölçeklenme altyapısı  

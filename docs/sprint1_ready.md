@@ -1,5 +1,7 @@
 # Sprint 1 Pre-Implementation Checklist
 
+> Durum Notu (4 Mart 2026): Bu doküman Sprint 1 başlangıç checklist arşividir; güncel proje durumu için `son_durum.md` ve `docs/sprint_roadmap.md` takip edilir.
+
 **Date:** 20 Ocak 2026  
 **Status:** [OK] READY TO START
 

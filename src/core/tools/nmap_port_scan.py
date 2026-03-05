@@ -43,7 +43,7 @@ class NmapPortScanTool(BaseTool):
         scan_type = str(kwargs.get("scan_type", "sT"))
 
         port_count = self._estimate_port_count(ports)
-        factor = {"sT": 1.0, "sS": 0.8, "sU": 1.6}.get(scan_type, 1.1)
+        factor = {"sT": 1.0, "sS": 0.8, "sU": 2.2, "sA": 1.1}.get(scan_type, 1.2)
         estimate = int((20 + port_count * 0.12) * factor)
 
         return max(20, min(900, estimate))
@@ -53,6 +53,11 @@ class NmapPortScanTool(BaseTool):
         target: str,
         ports: str = "1-1000",
         scan_type: str = "sT",
+        timing: Optional[int] = None,
+        top_ports: Optional[int] = None,
+        no_dns: bool = False,
+        verbose: bool = False,
+        service_detection: bool = False,
         **kwargs
     ) -> List[str]:
         """
@@ -62,8 +67,35 @@ class NmapPortScanTool(BaseTool):
             target: Target IP
             ports: Port range (1-1000, 80,443, etc.)
             scan_type: Scan type (sT, sS, sU)
+            service_detection: Enable version detection (-sV)
 
         Returns:
             Command: ["nmap", "-sT", "-p", "1-1000", "192.168.1.10"]
         """
-        return ["nmap", f"-{scan_type}", "-p", ports, target]
+        safe_target = self.validate_target(target)
+        safe_scan_type = self.validate_enum(scan_type, {"sS", "sT", "sU", "sA"}, "scan_type")
+
+        cmd: List[str] = ["nmap", f"-{safe_scan_type}"]
+
+        if service_detection:
+            cmd.append("-sV")
+
+        if top_ports is not None:
+            safe_top_ports = self.validate_range(top_ports, 1, 65535, "top_ports")
+            cmd.extend(["--top-ports", str(safe_top_ports)])
+        else:
+            safe_ports = self.validate_ports(ports)
+            cmd.extend(["-p", safe_ports])
+
+        if timing is not None:
+            safe_timing = self.validate_range(timing, 0, 5, "timing")
+            cmd.append(f"-T{safe_timing}")
+
+        if no_dns:
+            cmd.append("-n")
+
+        if verbose:
+            cmd.append("-v")
+
+        cmd.append(safe_target)
+        return cmd

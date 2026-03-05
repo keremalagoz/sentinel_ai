@@ -1,5 +1,7 @@
 # Hierarchical Intent Design — Hiyerarsik Niyet Cozumleme
 
+> Guncel Not (4 Mart 2026): Hiyerarsik intent cozumleme aktif kullanimdadir. Benchmark raporlama politikasi hierarchical-only olarak surdurulur.
+
 > **Durum**: Forward-Reference (Tasarim belgesi, uygulama Sprint 4+)
 > **Sprint**: 3.6 Track C6
 > **Yazar**: SENTINEL AI Dev Team
@@ -181,5 +183,5 @@ JSON ciktisi: { "intent": "...", "target": "...", "options": {...}, "confidence"
 
 ---
 
-> **Not**: Bu belge bir tasarim referansidir. Kod uygulamasi Sprint 4+ icinde planlanmistir.
-> Mevcut `IntentResolver` ve `KeywordPreFilter` bu tasarima zemin hazirlar.
+> **Not**: Bu belge tasarim + tarihsel gecis referansi olarak korunur.
+> Mevcut kod tabaninda hiyerarsik akis aktif, `IntentResolver` kontrollu fallback rolunde kullanilabilir.

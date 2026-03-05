@@ -11,12 +11,14 @@ from src.core.tool_integration import ToolManager, IntegratedToolResult
 from src.core.tool_base import (
     PingTool, NmapPingSweepTool, NmapPortScanTool,
     NmapServiceDetectionTool, NmapVulnScanTool, DnsLookupTool,
-    SslScanTool, GobusterDirTool, SubdomainEnumTool, WebAppScanTool
+    SslScanTool, GobusterDirTool, SubdomainEnumTool, WebAppScanTool,
+    NmapOsDetectionTool, WhoisLookupTool, HydraSshTool, HydraHttpTool, SqlmapScanTool,
 )
 from src.core.parser_framework import (
     PingParser, NmapPingSweepParser, NmapPortScanParser,
     NmapServiceDetectionParser, NmapVulnScanParser, DnsLookupParser,
-    SslScanParser, GobusterDirParser, SubdomainEnumParser, WebAppScanParser
+    SslScanParser, GobusterDirParser, SubdomainEnumParser, WebAppScanParser,
+    NmapOsDetectionParser, WhoisLookupParser, HydraSshParser, HydraHttpParser, SqlmapScanParser,
 )
 from src.core.sqlite_backend import SQLiteBackend
 from src.ai.tool_registry import validate_execution_registry
@@ -33,6 +35,11 @@ DEFAULT_TOOL_CATALOG = [
     (GobusterDirTool, GobusterDirParser, 300, 1),
     (SubdomainEnumTool, SubdomainEnumParser, 120, 1),
     (WebAppScanTool, WebAppScanParser, 60, 2),
+    (NmapOsDetectionTool, NmapOsDetectionParser, 240, 1),
+    (WhoisLookupTool, WhoisLookupParser, 60, 2),
+    (HydraSshTool, HydraSshParser, 600, 1),
+    (HydraHttpTool, HydraHttpParser, 600, 1),
+    (SqlmapScanTool, SqlmapScanParser, 900, 1),
 ]
 
 
@@ -305,6 +312,83 @@ class SentinelCoordinator(QObject):
             "web_app_scan",
             callback=None,
             url=url
+        )
+
+    def execute_os_detection(self, target: str, ports: Optional[str] = None, timing: Optional[int] = None) -> bool:
+        kwargs = {"target": target}
+        if ports:
+            kwargs["ports"] = ports
+        if timing is not None:
+            kwargs["timing"] = timing
+        return self.manager.execute_tool("nmap_os_detection", callback=None, **kwargs)
+
+    def execute_whois_lookup(self, target: str) -> bool:
+        return self.manager.execute_tool("whois_lookup", callback=None, target=target)
+
+    def execute_hydra_ssh(
+        self,
+        target: str,
+        username: str,
+        wordlist: str,
+        port: int = 22,
+        threads: int = 4,
+    ) -> bool:
+        return self.manager.execute_tool(
+            "hydra_ssh",
+            callback=None,
+            target=target,
+            username=username,
+            wordlist=wordlist,
+            port=port,
+            threads=threads,
+        )
+
+    def execute_hydra_http(
+        self,
+        target: str,
+        username: str,
+        wordlist: str,
+        form_path: str,
+        form_params: str,
+        fail_string: str,
+        port: int = 80,
+        threads: int = 4,
+        method: str = "http-form-post",
+    ) -> bool:
+        return self.manager.execute_tool(
+            "hydra_http",
+            callback=None,
+            target=target,
+            username=username,
+            wordlist=wordlist,
+            form_path=form_path,
+            form_params=form_params,
+            fail_string=fail_string,
+            port=port,
+            threads=threads,
+            method=method,
+        )
+
+    def execute_sqlmap_scan(
+        self,
+        url: str,
+        level: int = 1,
+        risk: int = 1,
+        batch: bool = True,
+        forms: bool = False,
+        dbs: bool = False,
+        threads: int = 1,
+    ) -> bool:
+        return self.manager.execute_tool(
+            "sqlmap_scan",
+            callback=None,
+            url=url,
+            level=level,
+            risk=risk,
+            batch=batch,
+            forms=forms,
+            dbs=dbs,
+            threads=threads,
         )
     
     def cancel_tool(self, tool_id: str) -> bool:

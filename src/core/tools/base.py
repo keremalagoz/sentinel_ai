@@ -7,12 +7,16 @@ Re-structured in Sprint 3.2 Track D1: Moved from monolithic tool_base.py
 """
 
 from abc import ABC, abstractmethod
-from typing import Optional, Dict, Any, List, Callable
+from typing import Optional, Dict, Any, List, Callable, Iterable
 from dataclasses import dataclass
 from enum import Enum
+import re
 import time
 
 from PyQt6.QtCore import QProcess, QTimer, pyqtSignal, QObject
+
+
+_SHELL_METACHAR_RE = re.compile(r'(?:;|\|\||&&|\||`|\$\(|\$\{|\)|\{|\}|!|<|>|\n|\r|\x00)')
 
 
 class ToolStatus(str, Enum):
@@ -308,3 +312,136 @@ class BaseTool(ABC):
 
         if self._result_callback:
             self._result_callback(result)
+
+    def validate_target(self, target: str, field_name: str = "target") -> str:
+        """Validate target-like string input and reject shell metacharacters."""
+        if not isinstance(target, str) or not target.strip():
+            raise ValueError(f"[{self.tool_id}] {field_name} bos olamaz")
+
+        normalized = target.strip()
+        if _SHELL_METACHAR_RE.search(normalized):
+            raise ValueError(
+                f"[{self.tool_id}] {field_name} icinde tehlikeli karakter bulundu: {normalized!r}"
+            )
+
+        return normalized
+
+    def validate_port(self, port: Any, min_val: int = 1, max_val: int = 65535, name: str = "port") -> int:
+        """Validate a single port value."""
+        try:
+            parsed = int(port)
+        except Exception as exc:
+            raise ValueError(f"[{self.tool_id}] {name} sayisal olmali: {port!r}") from exc
+
+        if not (min_val <= parsed <= max_val):
+            raise ValueError(f"[{self.tool_id}] {name} {min_val}-{max_val} araliginda olmali: {parsed}")
+
+        return parsed
+
+    def validate_range(self, value: Any, min_val: int, max_val: int, name: str) -> int:
+        """Validate an integer range value."""
+        try:
+            parsed = int(value)
+        except Exception as exc:
+            raise ValueError(f"[{self.tool_id}] {name} sayisal olmali: {value!r}") from exc
+
+        if not (min_val <= parsed <= max_val):
+            raise ValueError(f"[{self.tool_id}] {name} {min_val}-{max_val} araliginda olmali: {parsed}")
+
+        return parsed
+
+    def validate_enum(self, value: str, allowed: Iterable[str], name: str) -> str:
+        """Validate a string against allowed values."""
+        allowed_set = {str(item) for item in allowed}
+        normalized = str(value)
+        if normalized not in allowed_set:
+            allowed_text = ", ".join(sorted(allowed_set))
+            raise ValueError(f"[{self.tool_id}] {name} gecersiz: {normalized!r}. Izin verilen: {allowed_text}")
+        return normalized
+
+    # ------------------------------------------------------------------
+    # Relaxed validators for non-target parameters
+    # ------------------------------------------------------------------
+
+    _STRICT_SHELL_RE = re.compile(r'[`\x00\n\r]|\$\(|\$\{')
+
+    def validate_string(self, value: str, field_name: str, max_length: int = 512) -> str:
+        """Validate a free-form string parameter.
+
+        Less restrictive than validate_target: allows characters like !, =, &,
+        {, } which appear in legitimate tool arguments (hydra form_params,
+        nmap script_args, fail strings, etc.).
+
+        Blocks only the most dangerous shell expansion sequences:
+        backticks, null bytes, newlines, $() and ${}.
+        """
+        if not isinstance(value, str) or not value.strip():
+            raise ValueError(f"[{self.tool_id}] {field_name} bos olamaz")
+
+        normalized = value.strip()
+        if len(normalized) > max_length:
+            raise ValueError(
+                f"[{self.tool_id}] {field_name} cok uzun (max {max_length})"
+            )
+        if self._STRICT_SHELL_RE.search(normalized):
+            raise ValueError(
+                f"[{self.tool_id}] {field_name} icinde tehlikeli karakter bulundu: {normalized!r}"
+            )
+        return normalized
+
+    _PORT_RANGE_RE = re.compile(r'^(\d{1,5}(-\d{1,5})?)(,\s*\d{1,5}(-\d{1,5})?)*$')
+
+    def validate_ports(self, ports: str, field_name: str = "ports") -> str:
+        """Validate a port range string (e.g. '1-1000', '80,443', '22')."""
+        if not isinstance(ports, str) or not ports.strip():
+            raise ValueError(f"[{self.tool_id}] {field_name} bos olamaz")
+
+        normalized = ports.strip().replace(" ", "")
+        if not self._PORT_RANGE_RE.match(normalized):
+            raise ValueError(
+                f"[{self.tool_id}] {field_name} gecersiz format: {normalized!r}. "
+                "Beklenen: '80', '1-1000', '80,443'"
+            )
+
+        for part in normalized.split(","):
+            if "-" in part:
+                start_s, end_s = part.split("-", 1)
+                start_val, end_val = int(start_s), int(end_s)
+                if not (1 <= start_val <= 65535) or not (1 <= end_val <= 65535):
+                    raise ValueError(
+                        f"[{self.tool_id}] {field_name} port degeri 1-65535 araliginda olmali: {part}"
+                    )
+                if start_val > end_val:
+                    raise ValueError(
+                        f"[{self.tool_id}] {field_name} baslangic bitis'ten buyuk olamaz: {part}"
+                    )
+            else:
+                val = int(part)
+                if not (1 <= val <= 65535):
+                    raise ValueError(
+                        f"[{self.tool_id}] {field_name} port degeri 1-65535 araliginda olmali: {part}"
+                    )
+
+        return normalized
+
+    _NSE_SCRIPT_RE = re.compile(r'^[a-zA-Z0-9_][a-zA-Z0-9_.\-*?]*$')
+
+    def validate_nse_scripts(self, scripts: str) -> str:
+        """Validate comma-separated NSE script names.
+
+        Only allows alphanumeric, underscore, dot, hyphen — the characters
+        that can legally appear in NSE script names.
+        """
+        if not isinstance(scripts, str) or not scripts.strip():
+            raise ValueError(f"[{self.tool_id}] scripts bos olamaz")
+
+        items = [s.strip() for s in scripts.split(",") if s.strip()]
+        if not items:
+            raise ValueError(f"[{self.tool_id}] scripts bos olamaz")
+
+        for name in items:
+            if not self._NSE_SCRIPT_RE.match(name):
+                raise ValueError(
+                    f"[{self.tool_id}] Gecersiz NSE script adi: {name!r}"
+                )
+        return ",".join(items)

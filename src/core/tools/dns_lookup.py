@@ -23,6 +23,7 @@ class DnsLookupTool(BaseTool):
         self,
         domain: str,
         record_type: str = "A",
+        dns_server: Optional[str] = None,
         **kwargs
     ) -> List[str]:
         """
@@ -35,4 +36,15 @@ class DnsLookupTool(BaseTool):
         Returns:
             Command: ["nslookup", "-type=A", "example.com"]
         """
-        return ["nslookup", f"-type={record_type.upper()}", domain]
+        safe_domain = self.validate_target(domain, "domain")
+        safe_record_type = self.validate_enum(
+            str(record_type).upper(),
+            {"A", "AAAA", "MX", "NS", "TXT", "CNAME", "SOA", "PTR", "SRV"},
+            "record_type",
+        )
+
+        cmd: List[str] = ["nslookup", f"-type={safe_record_type}", safe_domain]
+        if dns_server:
+            cmd.append(self.validate_target(dns_server, "dns_server"))
+
+        return cmd

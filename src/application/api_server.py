@@ -11,8 +11,16 @@ import uvicorn
 
 from src.ai.schemas import IntentType
 from src.ai.orchestrator import AIOrchestrator
-from src.ai.tool_registry import build_tool_spec, get_supported_intents, get_tool_for_intent
+from src.ai.tool_registry import (
+    build_tool_spec,
+    get_supported_intents,
+    get_tool_for_intent,
+    get_execution_tool_id,
+    build_execution_kwargs,
+)
 from src.ai.command_builder import get_command_builder
+from src.ai.schemas import FinalCommand
+from src.core.sentinel_coordinator import SentinelCoordinator
 
 # Initialize FastAPI app
 app = FastAPI(
@@ -22,7 +30,8 @@ app = FastAPI(
 )
 
 _command_builder = get_command_builder()
-_orchestrator = AIOrchestrator()
+_api_coordinator = SentinelCoordinator(db_path=":memory:")
+_orchestrator = AIOrchestrator(coordinator=_api_coordinator)
 
 
 class ExecuteIntentRequest(BaseModel):
@@ -113,7 +122,29 @@ async def execute_intent(request: ExecuteIntentRequest):
         tool_def = get_tool_for_intent(intent_type)
         explanation = tool_def.description if tool_def else ""
 
-        command, error = _command_builder.build(tool_spec, explanation)
+        command = None
+        error = None
+
+        try:
+            exec_tool_id = get_execution_tool_id(intent_type)
+            exec_kwargs = build_execution_kwargs(intent_type, request.target, request.params)
+            if exec_tool_id and exec_kwargs:
+                integrated_tool = _api_coordinator.manager.get_tool(exec_tool_id)
+                if integrated_tool is not None:
+                    cmd_list = integrated_tool.tool.build_command(**exec_kwargs)
+                    if cmd_list:
+                        command = FinalCommand(
+                            executable=cmd_list[0],
+                            arguments=cmd_list[1:],
+                            requires_root=tool_spec.requires_root,
+                            risk_level=tool_spec.risk_level,
+                            explanation=explanation,
+                        )
+        except Exception as exc:
+            error = f"Execution-tool build failed: {exc}"
+
+        if command is None:
+            command, error = _command_builder.build(tool_spec, explanation)
 
         if error or not command:
             raise HTTPException(

@@ -121,13 +121,24 @@ CIKTI FORMATI (STRICT JSON):
     "intent_type": "...",
     "target": "hedef IP/domain veya null",
     "params": {{
-        "ports": "port araligi (varsa)",
-        "wordlist": "wordlist tercihi (varsa)"
+        "ports": "port araligi (varsa, ornek: '80,443' veya '1-1000')",
+        "top_ports": "en populer N port (varsa, ornek: 100)",
+        "scan_type": "tarama tipi (varsa: 'sT','sS','sU')",
+        "timing": "hiz seviyesi 0-5 (varsa, ornek: 4)",
+        "service_detection": "versiyon tespiti (true/false)",
+        "no_dns": "DNS cozumleme kapatma (true/false)",
+        "wordlist": "wordlist tercihi (varsa)",
+        "record_type": "DNS kayit tipi (varsa: 'A','AAAA','MX','NS','TXT')",
+        "extensions": "dosya uzantilari (varsa, ornek: 'php,html,txt')",
+        "username": "kullanici adi (varsa)"
     }},
     "needs_clarification": false,
     "clarification_reason": null,
     "confidence": 0.95
 }}
+
+NOT: params icinde sadece kullanicinin BELIRTTIGI parametreleri ekle.
+Belirtilmeyen parametreleri EKLEME, bos birak.
 
 CONFIDENCE KURALLARI:
 - 0.9-1.0: Niyet cok net

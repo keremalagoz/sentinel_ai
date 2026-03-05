@@ -30,10 +30,10 @@ TOOL_REGISTRY: Dict[IntentType, ToolDef] = {
     
     IntentType.PORT_SCAN: ToolDef(
         tool="nmap",
-        base_args=["-sS", "-sV"],
-        requires_root=True,  # SYN scan root gerektirir
+        base_args=["-sT"],
+        requires_root=False,  # TCP Connect scan root gerektirmez
         risk_level=RiskLevel.MEDIUM,
-        description="TCP SYN port taramasi ve servis tespiti",
+        description="TCP port taramasi (varsayilan: TCP Connect)",
         arg_templates={
             "ports": "-p {value}",  # -p 1-1000 veya -p 22,80,443
         }
@@ -52,11 +52,14 @@ TOOL_REGISTRY: Dict[IntentType, ToolDef] = {
     
     IntentType.OS_DETECTION: ToolDef(
         tool="nmap",
-        base_args=["-O", "-sV"],
+        base_args=["-O"],
         requires_root=True,  # OS detection root gerektirir
         risk_level=RiskLevel.MEDIUM,
         description="Isletim sistemi ve servis tespiti",
-        arg_templates={}
+        arg_templates={
+            "ports": "-p {value}",
+            "timing": "-T{value}",
+        }
     ),
     
     IntentType.VULN_SCAN: ToolDef(
@@ -145,27 +148,27 @@ TOOL_REGISTRY: Dict[IntentType, ToolDef] = {
     
     IntentType.BRUTE_FORCE_SSH: ToolDef(
         tool="hydra",
-        base_args=["-t", "4"],  # 4 thread
+        base_args=[],
         requires_root=False,
         risk_level=RiskLevel.HIGH,
         description="SSH brute force saldirisi",
         arg_templates={
             "username": "-l {value}",
-            "userlist": "-L {value}",
-            "password": "-p {value}",
-            "passlist": "-P {value}",
+            "wordlist": "-P {value}",
+            "threads": "-t {value}",
         }
     ),
     
     IntentType.BRUTE_FORCE_HTTP: ToolDef(
         tool="hydra",
-        base_args=["-t", "4"],
+        base_args=[],
         requires_root=False,
         risk_level=RiskLevel.HIGH,
         description="HTTP form brute force",
         arg_templates={
             "username": "-l {value}",
-            "passlist": "-P {value}",
+            "wordlist": "-P {value}",
+            "threads": "-t {value}",
         }
     ),
     
@@ -175,13 +178,14 @@ TOOL_REGISTRY: Dict[IntentType, ToolDef] = {
     
     IntentType.SQL_INJECTION: ToolDef(
         tool="sqlmap",
-        base_args=["--batch", "--level", "3"],  # Non-interactive, level 3
+        base_args=["--batch"],
         requires_root=False,
         risk_level=RiskLevel.HIGH,
         description="SQL injection testi",
         arg_templates={
             "url": "-u {value}",
-            "data": "--data {value}",
+            "level": "--level {value}",
+            "risk": "--risk {value}",
         }
     ),
     
@@ -217,14 +221,23 @@ _EXECUTION_REGISTRY: Dict[IntentType, Dict[str, Any]] = {
     IntentType.HOST_DISCOVERY: {
         "tool_id": "nmap_ping_sweep",
         "target_arg": "target",
-        "param_map": {}
+        "param_map": {
+            "timing": "timing",
+            "exclude": "exclude",
+            "no_dns": "no_dns",
+        }
     },
     IntentType.PORT_SCAN: {
         "tool_id": "nmap_port_scan",
         "target_arg": "target",
         "param_map": {
             "ports": "ports",
-            "scan_type": "scan_type"
+            "scan_type": "scan_type",
+            "timing": "timing",
+            "top_ports": "top_ports",
+            "no_dns": "no_dns",
+            "verbose": "verbose",
+            "service_detection": "service_detection",
         }
     },
     IntentType.SERVICE_DETECTION: {
@@ -232,7 +245,20 @@ _EXECUTION_REGISTRY: Dict[IntentType, Dict[str, Any]] = {
         "target_arg": "target",
         "param_map": {
             "ports": "ports",
-            "intensity": "intensity"
+            "intensity": "intensity",
+            "version_intensity": "version_intensity",
+            "timing": "timing",
+            "version_mode": "version_mode",
+        }
+    },
+    IntentType.OS_DETECTION: {
+        "tool_id": "nmap_os_detection",
+        "target_arg": "target",
+        "param_map": {
+            "ports": "ports",
+            "timing": "timing",
+            "osscan_guess": "osscan_guess",
+            "service_detection": "service_detection",
         }
     },
     IntentType.VULN_SCAN: {
@@ -240,21 +266,27 @@ _EXECUTION_REGISTRY: Dict[IntentType, Dict[str, Any]] = {
         "target_arg": "target",
         "param_map": {
             "ports": "ports",
-            "scripts": "scripts"
+            "scripts": "scripts",
+            "script_args": "script_args",
+            "timing": "timing",
         }
     },
     IntentType.DNS_LOOKUP: {
         "tool_id": "dns_lookup",
         "target_arg": "domain",
         "param_map": {
-            "record_type": "record_type"
+            "record_type": "record_type",
+            "dns_server": "dns_server",
         }
     },
     IntentType.SSL_SCAN: {
         "tool_id": "ssl_scan",
         "target_arg": "target",
         "param_map": {
-            "port": "port"
+            "port": "port",
+            "servername": "servername",
+            "tls_version": "tls_version",
+            "starttls": "starttls",
         }
     },
     IntentType.WEB_DIR_ENUM: {
@@ -262,7 +294,11 @@ _EXECUTION_REGISTRY: Dict[IntentType, Dict[str, Any]] = {
         "target_arg": "url",
         "param_map": {
             "wordlist": "wordlist",
-            "extensions": "extensions"
+            "extensions": "extensions",
+            "threads": "threads",
+            "status_codes": "status_codes",
+            "no_tls_validation": "no_tls_validation",
+            "follow_redirect": "follow_redirect",
         }
     },
     IntentType.SUBDOMAIN_ENUM: {
@@ -276,6 +312,48 @@ _EXECUTION_REGISTRY: Dict[IntentType, Dict[str, Any]] = {
         "tool_id": "web_app_scan",
         "target_arg": "url",
         "param_map": {}
+    },
+    IntentType.WHOIS_LOOKUP: {
+        "tool_id": "whois_lookup",
+        "target_arg": "target",
+        "param_map": {}
+    },
+    IntentType.BRUTE_FORCE_SSH: {
+        "tool_id": "hydra_ssh",
+        "target_arg": "target",
+        "param_map": {
+            "username": "username",
+            "wordlist": "wordlist",
+            "port": "port",
+            "threads": "threads",
+            "verbose": "verbose",
+        }
+    },
+    IntentType.BRUTE_FORCE_HTTP: {
+        "tool_id": "hydra_http",
+        "target_arg": "target",
+        "param_map": {
+            "username": "username",
+            "wordlist": "wordlist",
+            "form_path": "form_path",
+            "form_params": "form_params",
+            "fail_string": "fail_string",
+            "port": "port",
+            "threads": "threads",
+            "method": "method",
+        }
+    },
+    IntentType.SQL_INJECTION: {
+        "tool_id": "sqlmap_scan",
+        "target_arg": "url",
+        "param_map": {
+            "level": "level",
+            "risk": "risk",
+            "batch": "batch",
+            "forms": "forms",
+            "dbs": "dbs",
+            "threads": "threads",
+        }
     },
 }
 
@@ -358,17 +436,10 @@ def build_tool_spec(
     if tool_def is None or not tool_def.tool:
         return None
     
-    # Base argumanlarla baslat
-    arguments = list(tool_def.base_args)
-    
-    # Parametreleri ekle
-    if params:
-        for param_key, param_value in params.items():
-            if param_key in tool_def.arg_templates:
-                template = tool_def.arg_templates[param_key]
-                # Template'i parse et: "-p {value}" -> ["-p", value]
-                formatted = template.replace("{value}", str(param_value))
-                arguments.extend(formatted.split())
+    # Sprint 3.5+ Track E: Registry metadata-only.
+    # Komut argumanlari execution tool build_command() tarafindan uretilir.
+    # Buradaki ToolSpec sadece UI/metadata tasimasi icindir.
+    arguments: List[str] = []
     
     return ToolSpec(
         tool=tool_def.tool,

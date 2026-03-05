@@ -14,21 +14,31 @@ from src.core.sqlite_backend import SQLiteBackend
 from src.core.tool_base import (
     DnsLookupTool,
     GobusterDirTool,
+    HydraHttpTool,
+    HydraSshTool,
+    NmapOsDetectionTool,
     NmapPortScanTool,
     NmapServiceDetectionTool,
     NmapVulnScanTool,
+    SqlmapScanTool,
     SslScanTool,
     SubdomainEnumTool,
     WebAppScanTool,
+    WhoisLookupTool,
 )
 from src.core.parser_framework import (
     DnsLookupParser,
     GobusterDirParser,
+    HydraHttpParser,
+    HydraSshParser,
+    NmapOsDetectionParser,
     NmapServiceDetectionParser,
     NmapVulnScanParser,
+    SqlmapScanParser,
     SslScanParser,
     SubdomainEnumParser,
     WebAppScanParser,
+    WhoisLookupParser,
 )
 
 
@@ -43,6 +53,11 @@ EXPECTED_TOOLS = {
     "gobuster_dir",
     "subdomain_enum",
     "web_app_scan",
+    "nmap_os_detection",
+    "whois_lookup",
+    "hydra_ssh",
+    "hydra_http",
+    "sqlmap_scan",
 }
 
 
@@ -69,6 +84,11 @@ def test_registered_tools_exact_set(coordinator):
         "execute_web_dir_enum",
         "execute_subdomain_enum",
         "execute_web_app_scan",
+        "execute_os_detection",
+        "execute_whois_lookup",
+        "execute_hydra_ssh",
+        "execute_hydra_http",
+        "execute_sqlmap_scan",
     ],
 )
 def test_coordinator_has_execute_methods(coordinator, method_name):
@@ -80,6 +100,12 @@ def test_coordinator_has_execute_methods(coordinator, method_name):
     "tool,kwargs,expected_prefix,required_tokens",
     [
         (
+            NmapOsDetectionTool(),
+            {"target": "192.168.1.10", "ports": "22,80", "timing": 4, "osscan_guess": True},
+            ["nmap", "-O"],
+            ["--osscan-guess", "-p", "22,80", "-T4", "192.168.1.10"],
+        ),
+        (
             NmapServiceDetectionTool(),
             {"target": "192.168.1.10", "ports": "80,443", "intensity": 7},
             ["nmap", "-sV", "--version-intensity", "7"],
@@ -90,6 +116,37 @@ def test_coordinator_has_execute_methods(coordinator, method_name):
             {"target": "192.168.1.10", "ports": "443", "scripts": "vuln"},
             ["nmap", "--script", "vuln"],
             ["-p", "443", "192.168.1.10"],
+        ),
+        (
+            WhoisLookupTool(),
+            {"target": "example.com"},
+            ["whois", "example.com"],
+            [],
+        ),
+        (
+            HydraSshTool(),
+            {"target": "10.0.0.5", "username": "admin", "wordlist": "/tmp/wordlist.txt", "threads": 8},
+            ["hydra", "-l", "admin", "-P", "/tmp/wordlist.txt", "-t", "8"],
+            ["ssh://10.0.0.5"],
+        ),
+        (
+            HydraHttpTool(),
+            {
+                "target": "10.0.0.6",
+                "username": "admin",
+                "wordlist": "/tmp/wordlist.txt",
+                "form_path": "/login",
+                "form_params": "user=^USER^&pass=^PASS^",
+                "fail_string": "invalid",
+            },
+            ["hydra", "-l", "admin", "-P", "/tmp/wordlist.txt", "-t", "4"],
+            ["10.0.0.6", "http-form-post", "/login:user=^USER^&pass=^PASS^:invalid"],
+        ),
+        (
+            SqlmapScanTool(),
+            {"url": "http://example.com/item.php?id=1", "batch": True, "level": 3, "risk": 2},
+            ["sqlmap", "-u", "http://example.com/item.php?id=1", "--batch"],
+            ["--level", "3", "--risk", "2"],
         ),
         (
             DnsLookupTool(),
@@ -139,11 +196,16 @@ def test_new_tool_command_building_is_specific(tool, kwargs, expected_prefix, re
     [
         NmapServiceDetectionParser,
         NmapVulnScanParser,
+        NmapOsDetectionParser,
         DnsLookupParser,
         SslScanParser,
         GobusterDirParser,
         SubdomainEnumParser,
         WebAppScanParser,
+        WhoisLookupParser,
+        HydraSshParser,
+        HydraHttpParser,
+        SqlmapScanParser,
     ],
 )
 def test_parser_classes_are_instantiable(parser_cls):

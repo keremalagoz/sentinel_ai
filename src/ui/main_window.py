@@ -91,8 +91,14 @@ class MainWindow(QMainWindow):
         self._risk_level = "low"
         self._ai_state = "checking"   # checking | online | offline
         self._ai_model_name = ""
+        # Backend conversation session — multi-turn context enrichment icin
+        self._chat_session_id: str = self.backend._orchestrator.create_session()
         set_language(self._security_settings.get("language", "en"))
-        self.backend.cleanup_old_sessions(self._security_settings.get("cleanup_days", 7))
+        self.backend.set_secure_delete(self._security_settings.get("secure_delete", True))
+        self.backend.cleanup_old_sessions(
+            self._security_settings.get("cleanup_days", 7),
+            secure_delete=self._security_settings.get("secure_delete", True),
+        )
         
         self.setStyleSheet(GLOBAL_STYLE)
         self._setup_ui()
@@ -244,6 +250,9 @@ class MainWindow(QMainWindow):
         
         self._session_label = QLabel(t("status.session_default"))
         status_layout.addWidget(self._session_label)
+
+        self._telemetry_label = QLabel("Q:0 | Wait:0ms | Run:0ms")
+        status_layout.addWidget(self._telemetry_label)
         
         status_layout.addStretch()
         
@@ -254,6 +263,12 @@ class MainWindow(QMainWindow):
         
         # Check AI connectivity after UI is ready
         QTimer.singleShot(500, self._check_ai_status)
+
+        self._telemetry_timer = QTimer(self)
+        self._telemetry_timer.setInterval(2000)
+        self._telemetry_timer.timeout.connect(self._refresh_runtime_metrics)
+        self._telemetry_timer.start()
+        self._refresh_runtime_metrics()
     
     def _make_header_btn(self, text: str, tooltip: str = "", bold: bool = False) -> QPushButton:
         """Create a consistent header button (auto-width for i18n)."""
@@ -304,6 +319,8 @@ class MainWindow(QMainWindow):
     
     def _new_chat(self):
         self.chat_interface._new_chat()
+        # Yeni sohbet basladiginda yeni backend session olustur
+        self._chat_session_id = self.backend._orchestrator.create_session()
     
     def _add_terminal(self):
         self.terminal_view._add_terminal()
@@ -418,19 +435,28 @@ class MainWindow(QMainWindow):
         if self._awaiting_terminal_yesno:
             self.terminal_view.send_input(value)
     
+    def _needs_confirmation(self, requires_root: bool, risk_level: str) -> bool:
+        """Check if current security settings require user confirmation."""
+        if requires_root:
+            return bool(self._security_settings.get("confirm_root", True))
+        normalized = self._normalize_risk(risk_level)
+        if normalized in ("high", "medium") and self._security_settings.get("warn_high_risk", True):
+            return True
+        return False
+
     def _execute_command(self, command: str):
         cmd, args, requires_root, risk_level = self.backend.parse_command_with_risk(command)
         if not cmd:
             return
         correlation_id = self._next_correlation_id()
         self._update_risk_indicator(risk_level)
-        if requires_root:
+        if self._needs_confirmation(requires_root, risk_level):
             self._request_root_confirmation(cmd, args, risk_level, correlation_id)
             return
         self.terminal_view.start_command(
             cmd,
             args,
-            False,
+            requires_root,
             correlation_id=correlation_id,
             risk_label=self._risk_to_ui(risk_level),
         )
@@ -446,13 +472,13 @@ class MainWindow(QMainWindow):
             return
         correlation_id = self._next_correlation_id()
         self._update_risk_indicator(risk_level)
-        if requires_root:
+        if self._needs_confirmation(requires_root, risk_level):
             self._request_root_confirmation(cmd, args, risk_level, correlation_id)
             return
         self.terminal_view.start_command(
             cmd,
             args,
-            False,
+            requires_root,
             correlation_id=correlation_id,
             risk_label=self._risk_to_ui(risk_level),
         )
@@ -577,19 +603,31 @@ class MainWindow(QMainWindow):
         dialog.exec()
 
     def _load_security_settings(self) -> dict:
+        defaults = {
+            "cleanup_days": 7,
+            "secure_delete": True,
+            "font_size": 13,
+            "language": "en",
+            "confirm_root": True,
+            "warn_high_risk": True,
+            "auto_cleanup": "off",
+        }
         try:
             if os.path.exists(SECURITY_SETTINGS_FILE):
                 with open(SECURITY_SETTINGS_FILE, "r", encoding="utf-8") as f:
                     data = json.load(f)
                     return {
-                        "cleanup_days": int(data.get("cleanup_days", 7)),
-                        "secure_delete": bool(data.get("secure_delete", True)),
-                        "font_size": int(data.get("font_size", 13)),
-                        "language": str(data.get("language", "en")),
+                        "cleanup_days": int(data.get("cleanup_days", defaults["cleanup_days"])),
+                        "secure_delete": bool(data.get("secure_delete", defaults["secure_delete"])),
+                        "font_size": int(data.get("font_size", defaults["font_size"])),
+                        "language": str(data.get("language", defaults["language"])),
+                        "confirm_root": bool(data.get("confirm_root", defaults["confirm_root"])),
+                        "warn_high_risk": bool(data.get("warn_high_risk", defaults["warn_high_risk"])),
+                        "auto_cleanup": str(data.get("auto_cleanup", defaults["auto_cleanup"])),
                     }
         except Exception:
             pass
-        return {"cleanup_days": 7, "secure_delete": True, "font_size": 13, "language": "en"}
+        return defaults
 
     def _save_security_settings(self) -> None:
         try:
@@ -605,7 +643,11 @@ class MainWindow(QMainWindow):
             "secure_delete": bool(settings.get("secure_delete", True)),
             "font_size": int(settings.get("font_size", 13)),
             "language": str(settings.get("language", "en")),
+            "confirm_root": bool(settings.get("confirm_root", True)),
+            "warn_high_risk": bool(settings.get("warn_high_risk", True)),
+            "auto_cleanup": str(settings.get("auto_cleanup", "off")),
         }
+        self.backend.set_secure_delete(self._security_settings["secure_delete"])
         set_language(self._security_settings["language"])
         self._apply_text_settings(self._security_settings)
         self._refresh_ui_texts()
@@ -640,6 +682,7 @@ class MainWindow(QMainWindow):
         self._mode_label.setText(f"{t('status.mode')}: {exec_mode}")
         self._update_ai_label()
         self._update_risk_indicator(self._risk_level)
+        self._refresh_runtime_metrics()
 
         self.chat_interface.refresh_texts()
         self.terminal_view.refresh_texts()
@@ -671,6 +714,19 @@ class MainWindow(QMainWindow):
             self._ai_state = "offline"
             self._ai_model_name = ""
         self._update_ai_label()
+
+    def _refresh_runtime_metrics(self) -> None:
+        """Render minimal runtime telemetry in status bar."""
+        try:
+            metrics = self.backend.get_runtime_metrics()
+            queued = int(metrics.get("queued_executions", 0) or 0)
+            avg_queue_wait = float(metrics.get("avg_queue_wait_ms", 0.0) or 0.0)
+            avg_tool_run = float(metrics.get("avg_tool_run_ms", 0.0) or 0.0)
+            self._telemetry_label.setText(
+                f"Q:{queued} | Wait:{avg_queue_wait:.0f}ms | Run:{avg_tool_run:.0f}ms"
+            )
+        except Exception:
+            self._telemetry_label.setText("Q:0 | Wait:0ms | Run:0ms")
 
 
 class _OllamaChecker(QThread):

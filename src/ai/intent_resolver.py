@@ -60,13 +60,24 @@ CIKTI FORMATI (STRICT JSON):
     "intent_type": "...",
     "target": "hedef IP/domain veya null",
     "params": {
-        "ports": "port araligi (varsa)",
-        "wordlist": "wordlist tercihi (varsa)"
+        "ports": "port araligi (varsa, ornek: '80,443' veya '1-1000')",
+        "top_ports": "en populer N port (varsa, ornek: 100)",
+        "scan_type": "tarama tipi (varsa: 'sT','sS','sU')",
+        "timing": "hiz seviyesi 0-5 (varsa, ornek: 4)",
+        "service_detection": "versiyon tespiti (true/false)",
+        "no_dns": "DNS cozumleme kapatma (true/false)",
+        "wordlist": "wordlist tercihi (varsa)",
+        "record_type": "DNS kayit tipi (varsa: 'A','AAAA','MX','NS','TXT')",
+        "extensions": "dosya uzantilari (varsa, ornek: 'php,html,txt')",
+        "username": "kullanici adi (varsa)"
     },
     "needs_clarification": false,
     "clarification_reason": null,
     "confidence": 0.95
 }
+
+NOT: params icinde sadece kullanicinin BELIRTTIGI parametreleri ekle.
+Belirtilmeyen parametreleri EKLEME, bos birak.
 
 CONFIDENCE KURALLARI:
 - 0.9-1.0: Niyet cok net, kesin esleme
@@ -82,6 +93,9 @@ Cikti: {"intent_type": "host_discovery", "target": "192.168.1.0/24", "params": {
 Girdi: "example.com portlarini tara"
 Cikti: {"intent_type": "port_scan", "target": "example.com", "params": {}, "needs_clarification": false, "clarification_reason": null, "confidence": 0.95}
 
+Girdi: "192.168.0.8 bu ip adresinin ilk 100 portunu tara ve versiyon bilgilerini tara"
+Cikti: {"intent_type": "port_scan", "target": "192.168.0.8", "params": {"top_ports": 100, "service_detection": true}, "needs_clarification": false, "clarification_reason": null, "confidence": 0.95}
+
 Girdi: "hedef ağda tam tarama yap"
 Cikti: {"intent_type": "port_scan", "target": null, "params": {}, "needs_clarification": false, "clarification_reason": null, "confidence": 0.8}
 
@@ -91,8 +105,14 @@ Cikti: {"intent_type": "port_scan", "target": null, "params": {}, "needs_clarifi
 Girdi: "80 ve 443 portlarini kontrol et 10.0.0.1 de"
 Cikti: {"intent_type": "port_scan", "target": "10.0.0.1", "params": {"ports": "80,443"}, "needs_clarification": false, "clarification_reason": null, "confidence": 0.95}
 
-Girdi: "web sitesinde dizin ara"
-Cikti: {"intent_type": "web_dir_enum", "target": null, "params": {}, "needs_clarification": false, "clarification_reason": null, "confidence": 0.85}
+Girdi: "10.0.0.5 hizli port scan yap T4 ile DNS cozumleme yapma"
+Cikti: {"intent_type": "port_scan", "target": "10.0.0.5", "params": {"timing": 4, "no_dns": true}, "needs_clarification": false, "clarification_reason": null, "confidence": 0.95}
+
+Girdi: "web sitesinde dizin ara php ve html dosyalarini bul"
+Cikti: {"intent_type": "web_dir_enum", "target": null, "params": {"extensions": "php,html"}, "needs_clarification": false, "clarification_reason": null, "confidence": 0.85}
+
+Girdi: "example.com MX kayitlarini sorgula"
+Cikti: {"intent_type": "dns_lookup", "target": "example.com", "params": {"record_type": "MX"}, "needs_clarification": false, "clarification_reason": null, "confidence": 0.95}
 
 Girdi: "nmap nedir?"
 Cikti: {"intent_type": "info_query", "target": null, "params": {}, "needs_clarification": false, "clarification_reason": null, "confidence": 0.95}
