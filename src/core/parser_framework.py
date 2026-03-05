@@ -1575,3 +1575,125 @@ class WebAppScanParser(BaseParser):
             },
             relationships=[]
         )
+
+
+class NmapOsDetectionParser(BaseParser):
+    """Parser for nmap OS detection output."""
+
+    def parse(self, output: str) -> List[BaseEntity]:
+        lines = [line.strip() for line in output.splitlines() if line.strip()]
+        os_hints: List[str] = []
+        for line in lines:
+            if line.startswith("Running:") or line.startswith("OS details:"):
+                os_hints.append(line)
+
+        if not os_hints:
+            raise ParserException("No OS detection data found")
+
+        entity_id = self.id_generator.generate_id(entity_type="os_detection", key="|".join(os_hints))
+        return [
+            BaseEntity(
+                id=entity_id,
+                type="os_detection",
+                properties={"details": " | ".join(os_hints)},
+                relationships=[],
+            )
+        ]
+
+
+class WhoisLookupParser(BaseParser):
+    """Parser for whois output."""
+
+    def parse(self, output: str) -> List[BaseEntity]:
+        lines = [line.strip() for line in output.splitlines() if line.strip()]
+        key_values: Dict[str, str] = {}
+        for line in lines:
+            if ":" in line:
+                key, value = line.split(":", 1)
+                if key and value:
+                    key_values[key.strip().lower()] = value.strip()
+
+        if not key_values:
+            raise ParserException("No whois data found")
+
+        domain_key = key_values.get("domain name") or key_values.get("domain") or "unknown"
+        entity_id = self.id_generator.generate_id(entity_type="whois", key=domain_key)
+        return [
+            BaseEntity(
+                id=entity_id,
+                type="whois",
+                properties=key_values,
+                relationships=[],
+            )
+        ]
+
+
+class HydraSshParser(BaseParser):
+    """Parser for hydra ssh output."""
+
+    def parse(self, output: str) -> List[BaseEntity]:
+        lines = [line.strip() for line in output.splitlines() if line.strip()]
+        findings: List[BaseEntity] = []
+
+        for line in lines:
+            if "login:" in line.lower() and "password:" in line.lower():
+                entity_id = self.id_generator.generate_id(entity_type="credential", key=line)
+                findings.append(
+                    BaseEntity(
+                        id=entity_id,
+                        type="credential",
+                        properties={"raw": line, "protocol": "ssh"},
+                        relationships=[],
+                    )
+                )
+
+        if not findings:
+            raise ParserException("No hydra ssh credentials found")
+
+        return findings
+
+
+class HydraHttpParser(BaseParser):
+    """Parser for hydra http output."""
+
+    def parse(self, output: str) -> List[BaseEntity]:
+        lines = [line.strip() for line in output.splitlines() if line.strip()]
+        findings: List[BaseEntity] = []
+
+        for line in lines:
+            if "login:" in line.lower() and "password:" in line.lower():
+                entity_id = self.id_generator.generate_id(entity_type="credential", key=line)
+                findings.append(
+                    BaseEntity(
+                        id=entity_id,
+                        type="credential",
+                        properties={"raw": line, "protocol": "http"},
+                        relationships=[],
+                    )
+                )
+
+        if not findings:
+            raise ParserException("No hydra http credentials found")
+
+        return findings
+
+
+class SqlmapScanParser(BaseParser):
+    """Parser for sqlmap output."""
+
+    def parse(self, output: str) -> List[BaseEntity]:
+        lines = [line.strip() for line in output.splitlines() if line.strip()]
+        vuln_lines = [line for line in lines if "inject" in line.lower() or "vulnerable" in line.lower()]
+
+        if not vuln_lines:
+            raise ParserException("No sqlmap findings found")
+
+        entity_id = self.id_generator.generate_id(entity_type="sql_injection", key="|".join(vuln_lines))
+        return [
+            BaseEntity(
+                id=entity_id,
+                type="sql_injection",
+                properties={"evidence": " | ".join(vuln_lines)},
+                relationships=[],
+            )
+        ]

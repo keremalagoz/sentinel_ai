@@ -1,5 +1,7 @@
 # Sprint 3 AI + Güvenlik Entegrasyonu Kickoff
 
+> Durum Notu (4 Mart 2026): Bu doküman kickoff hedeflerini içerir. Uygulanan/güncel durum için `son_durum.md`, `docs/sprint_roadmap.md` ve `docs/sprint_3_5_plan.md` referans alınmalıdır.
+
 ## Hedef
 AI tarafının ürettiği komutların güvenlik katmanından geçip Terminal akışına kontrollü şekilde aktarılması.
 

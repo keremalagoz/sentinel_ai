@@ -24,6 +24,34 @@ logger = logging.getLogger(__name__)
 
 
 # =============================================================================
+# TURKISH UNICODE NORMALIZATION
+# =============================================================================
+_TR_CHAR_MAP = str.maketrans({
+    "\u011f": "g",   # ğ -> g
+    "\u011e": "G",   # Ğ -> G
+    "\u015f": "s",   # ş -> s
+    "\u015e": "S",   # Ş -> S
+    "\u00e7": "c",   # ç -> c
+    "\u00c7": "C",   # Ç -> C
+    "\u00f6": "o",   # ö -> o
+    "\u00d6": "O",   # Ö -> O
+    "\u00fc": "u",   # ü -> u
+    "\u00dc": "U",   # Ü -> U
+    "\u0131": "i",   # ı -> i (dotless i)
+    "\u0130": "I",   # İ -> I (dotted I)
+})
+
+
+def _normalize_turkish(text: str) -> str:
+    """Turkce ozel karakterleri ASCII karsiliklarına donusturur.
+
+    Bu normalizasyon keyword pattern eslesmesini kolaylastirir:
+    "ağını tara" -> "agini tara" (pattern "ag[i]n[i]\\s+tara" ile eslesir).
+    """
+    return text.translate(_TR_CHAR_MAP)
+
+
+# =============================================================================
 # KEYWORD PATTERNS
 # =============================================================================
 # Her pattern bir (regex, IntentType) ciftidir.
@@ -165,8 +193,9 @@ class KeywordPreFilter:
         Ilk eslesen pattern'in IntentType'ini doner.
         Hicbir pattern eslesmediyse None doner.
         """
+        normalized = _normalize_turkish(user_input)
         for pattern, intent_type in self._patterns:
-            if pattern.search(user_input):
+            if pattern.search(normalized):
                 return intent_type
         return None
 
@@ -182,7 +211,7 @@ class KeywordPreFilter:
             - is_consistent=True: LLM sonucu keyword ile uyumlu (veya keyword eslesme yok)
             - is_consistent=False: LLM ve keyword uyumsuz -> warning + clarification onerilir
         """
-        keyword_suggestion = self.suggest(user_input)
+        keyword_suggestion = self.suggest(user_input)  # Already normalizes internally
 
         # Keyword eslesmesi yoksa LLM'e guveniyoruz
         if keyword_suggestion is None:

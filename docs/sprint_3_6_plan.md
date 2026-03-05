@@ -78,7 +78,7 @@ Toplam hedefli doğrulama: **21 passed**
 ## 5) Risk / Notlar
 
 - FastAPI `on_event` deprecation warning'i mevcut (işlevsel blokaj değil).
-- Full suite bu sprintte uçtan uca yeniden koşturulmadı; en son bilinen full sonuç 242 passed.
+- Full suite sonuçları sonraki sprintlerde genişletildi; güncel sağlık özeti için `son_durum.md` ve `docs/sprint_roadmap.md` takip edilir.
 
 ---
 

@@ -662,3 +662,185 @@ class TestCleanupRegression:
         assert "{n}" in raw
         result = t("settings.deleted_sessions").format(n=7)
         assert "7" in result
+
+
+# =========================================================================
+# L. Terminal Risk Banners (BL-1)
+# =========================================================================
+class TestTerminalRiskBanners:
+    """BL-1: Verify risk banner rendering in terminal view."""
+
+    def test_risk_banner_templates_exist(self):
+        from src.ui.terminal_view import _RISK_BANNER
+        assert "high" in _RISK_BANNER
+        assert "medium" in _RISK_BANNER
+        assert "low" in _RISK_BANNER
+
+    def test_risk_banner_contains_color_coding(self):
+        from src.ui.terminal_view import _RISK_BANNER
+        from src.ui.styles import Colors
+        assert Colors.DANGER in _RISK_BANNER["high"]
+        assert Colors.WARNING in _RISK_BANNER["medium"]
+        assert Colors.SUCCESS in _RISK_BANNER["low"]
+
+    @pytest.mark.parametrize("lang", [c for c, _ in LANGUAGES])
+    def test_risk_i18n_keys_all_langs(self, lang):
+        set_language(lang)
+        for key in ("terminal.risk_high", "terminal.risk_medium",
+                     "terminal.risk_low", "terminal.root_banner"):
+            val = t(key)
+            assert val and len(val) > 5, f"{lang}:{key} is empty or too short"
+
+    def test_terminal_log_banner_method_exists(self, app):
+        from src.ui.terminal_view import TerminalView
+        tv = TerminalView(process_manager=None)
+        assert hasattr(tv, "_log_banner")
+        assert callable(tv._log_banner)
+
+    def test_terminal_start_command_high_risk(self, app):
+        """High risk label should insert risk banner HTML into output."""
+        from src.ui.terminal_view import TerminalView
+        tv = TerminalView(process_manager=None)
+        # Inject a mock manager so start_command proceeds to banner logic
+        mock_mgr = MagicMock()
+        tv._manager = mock_mgr
+        tv.start_command("nmap", ["-sS", "10.0.0.1"], risk_label="high")
+        output_html = tv._active_session.output.toHtml()
+        assert "risk" in output_html.lower() or "rgba(239" in output_html
+
+    def test_terminal_start_command_root_banner(self, app):
+        """Root command should insert root privilege banner."""
+        from src.ui.terminal_view import TerminalView
+        tv = TerminalView(process_manager=None)
+        mock_mgr = MagicMock()
+        tv._manager = mock_mgr
+        set_language("en")
+        tv.start_command("nmap", ["-sS", "10.0.0.1"], requires_root=True, risk_label="high")
+        output_html = tv._active_session.output.toHtml()
+        assert "ROOT" in output_html or "root" in output_html.lower()
+
+    def test_terminal_start_command_low_risk(self, app):
+        """Low/safe risk should insert green banner."""
+        from src.ui.terminal_view import TerminalView
+        tv = TerminalView(process_manager=None)
+        mock_mgr = MagicMock()
+        tv._manager = mock_mgr
+        tv.start_command("ping", ["-c", "4", "10.0.0.1"], risk_label="safe")
+        output_html = tv._active_session.output.toHtml()
+        # Low risk banner or the command itself should be present
+        assert "10.0.0.1" in output_html
+
+
+# =========================================================================
+# M. Settings Security Policy (BL-2)
+# =========================================================================
+class TestSettingsSecurityPolicy:
+    """BL-2: Verify security policy settings in dialog."""
+
+    def test_dialog_has_security_widgets(self, app):
+        from src.ui.settings_dialog import SecuritySettingsDialog
+        dialog = SecuritySettingsDialog()
+        assert hasattr(dialog, "_confirm_root")
+        assert hasattr(dialog, "_warn_high_risk")
+        assert hasattr(dialog, "_auto_cleanup_combo")
+
+    def test_security_defaults(self, app):
+        from src.ui.settings_dialog import SecuritySettingsDialog
+        dialog = SecuritySettingsDialog()
+        settings = dialog.get_settings()
+        assert settings["confirm_root"] is True
+        assert settings["warn_high_risk"] is True
+        assert settings["auto_cleanup"] == "off"
+
+    def test_security_settings_roundtrip(self, app):
+        from src.ui.settings_dialog import SecuritySettingsDialog
+        dialog = SecuritySettingsDialog()
+        dialog.set_settings({
+            "confirm_root": False,
+            "warn_high_risk": False,
+            "auto_cleanup": "weekly",
+        })
+        result = dialog.get_settings()
+        assert result["confirm_root"] is False
+        assert result["warn_high_risk"] is False
+        assert result["auto_cleanup"] == "weekly"
+
+    def test_security_settings_daily_option(self, app):
+        from src.ui.settings_dialog import SecuritySettingsDialog
+        dialog = SecuritySettingsDialog()
+        dialog.set_settings({"auto_cleanup": "daily"})
+        assert dialog.get_settings()["auto_cleanup"] == "daily"
+
+    @pytest.mark.parametrize("lang", [c for c, _ in LANGUAGES])
+    def test_security_i18n_keys_all_langs(self, lang):
+        set_language(lang)
+        for key in ("settings.security_policy", "settings.confirm_root",
+                     "settings.warn_high_risk", "settings.auto_cleanup",
+                     "settings.auto_cleanup_off", "settings.auto_cleanup_daily",
+                     "settings.auto_cleanup_weekly"):
+            val = t(key)
+            assert val and len(val) >= 1, f"{lang}:{key} is empty"
+
+    def test_settings_changed_signal_includes_security(self, app):
+        from src.ui.settings_dialog import SecuritySettingsDialog
+        dialog = SecuritySettingsDialog()
+        received = {}
+        dialog.settings_changed.connect(lambda s: received.update(s))
+        dialog._on_save()
+        assert "confirm_root" in received
+        assert "warn_high_risk" in received
+        assert "auto_cleanup" in received
+
+
+# =========================================================================
+# N. Security Policy Confirmation Logic
+# =========================================================================
+class TestNeedsConfirmationLogic:
+    """Verify _needs_confirmation honours confirm_root / warn_high_risk independently."""
+
+    @staticmethod
+    def _make_stub(confirm_root: bool, warn_high_risk: bool):
+        """Lightweight stub that reuses MainWindow's methods without full init."""
+        from src.ui.main_window import MainWindow
+
+        class _Stub:
+            _security_settings = {
+                "confirm_root": confirm_root,
+                "warn_high_risk": warn_high_risk,
+            }
+            _needs_confirmation = MainWindow._needs_confirmation
+            _normalize_risk = staticmethod(MainWindow._normalize_risk)
+
+        return _Stub()
+
+    # -- confirm_root ON -----------------------------------------------
+    def test_root_confirmed_when_setting_on(self, app):
+        stub = self._make_stub(confirm_root=True, warn_high_risk=False)
+        assert stub._needs_confirmation(requires_root=True, risk_level="high") is True
+
+    # -- confirm_root OFF → root commands skip confirmation ------------
+    def test_root_skipped_when_setting_off(self, app):
+        stub = self._make_stub(confirm_root=False, warn_high_risk=True)
+        assert stub._needs_confirmation(requires_root=True, risk_level="high") is False
+
+    # -- warn_high_risk ON → medium-risk non-root warns ----------------
+    def test_medium_risk_warned_when_setting_on(self, app):
+        stub = self._make_stub(confirm_root=False, warn_high_risk=True)
+        assert stub._needs_confirmation(requires_root=False, risk_level="medium") is True
+
+    # -- warn_high_risk OFF → medium-risk non-root passes silently -----
+    def test_medium_risk_skipped_when_setting_off(self, app):
+        stub = self._make_stub(confirm_root=False, warn_high_risk=False)
+        assert stub._needs_confirmation(requires_root=False, risk_level="medium") is False
+
+    # -- low risk never triggers confirmation --------------------------
+    def test_low_risk_never_confirms(self, app):
+        stub = self._make_stub(confirm_root=True, warn_high_risk=True)
+        assert stub._needs_confirmation(requires_root=False, risk_level="low") is False
+
+    # -- both OFF → nothing triggers -----------------------------------
+    def test_both_off_no_confirmation(self, app):
+        stub = self._make_stub(confirm_root=False, warn_high_risk=False)
+        assert stub._needs_confirmation(requires_root=True, risk_level="high") is False
+        assert stub._needs_confirmation(requires_root=False, risk_level="medium") is False
+        assert stub._needs_confirmation(requires_root=False, risk_level="low") is False

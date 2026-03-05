@@ -136,6 +136,21 @@ _EN: dict[str, str] = {
     "ai.unknown_intent":        "Could not understand the request. Please be more specific.",
     "ai.no_target":             "No target specified. Please include an IP or domain in your message. Example: '192.168.1.20 port scan'",
     "ai.no_tool":               "No tool found for this intent: {intent}",
+
+    # Terminal Risk Banners
+    "terminal.risk_high":       "[!] HIGH RISK — This command may alter the target system",
+    "terminal.risk_medium":     "[!] CAUTION — Active scan, may be detected",
+    "terminal.risk_low":        "[OK] Low risk — Passive reconnaissance",
+    "terminal.root_banner":     "⚠ ROOT PRIVILEGES — Command will run with elevated access",
+
+    # Security Policy Settings
+    "settings.security_policy": "Security Policy",
+    "settings.confirm_root":    "Require confirmation for root commands",
+    "settings.warn_high_risk":  "Show warning for high-risk commands",
+    "settings.auto_cleanup":    "Automatic periodic cleanup",
+    "settings.auto_cleanup_off": "Off",
+    "settings.auto_cleanup_daily": "Daily",
+    "settings.auto_cleanup_weekly": "Weekly",
 }
 
 # ---------------------------------------------------------------------------
@@ -230,6 +245,19 @@ _TR: dict[str, str] = {
     "ai.unknown_intent":        "Talebi anlayamadım. Lütfen daha açık belirtin.",
     "ai.no_target":             "Hedef belirtilmedi. Lütfen mesajına IP veya domain ekleyerek tekrar dene. Örnek: '192.168.1.20 port taraması yap'",
     "ai.no_tool":               "Bu intent için tool bulunamadı: {intent}",
+
+    "terminal.risk_high":       "[!] YÜKSEK RİSK — Bu komut hedef sistemi değiştirebilir",
+    "terminal.risk_medium":     "[!] DİKKAT — Aktif tarama, tespit edilebilir",
+    "terminal.risk_low":        "[OK] Düşük risk — Pasif keşif",
+    "terminal.root_banner":     "⚠ ROOT YETKİSİ — Komut yüksek erişimle çalışacak",
+
+    "settings.security_policy": "Güvenlik Politikası",
+    "settings.confirm_root":    "Root komutlar için onay iste",
+    "settings.warn_high_risk":  "Yüksek riskli komutlarda uyarı göster",
+    "settings.auto_cleanup":    "Otomatik periyodik temizlik",
+    "settings.auto_cleanup_off": "Kapalı",
+    "settings.auto_cleanup_daily": "Günlük",
+    "settings.auto_cleanup_weekly": "Haftalık",
 }
 
 # ---------------------------------------------------------------------------
@@ -323,6 +351,19 @@ _ES: dict[str, str] = {
     "ai.unknown_intent":        "No se pudo entender la solicitud. Por favor sea más específico.",
     "ai.no_target":             "No se especificó un objetivo. Incluya una IP o dominio. Ejemplo: '192.168.1.20 escaneo de puertos'",
     "ai.no_tool":               "No se encontró herramienta para este intent: {intent}",
+
+    "terminal.risk_high":       "[!] ALTO RIESGO — Este comando puede alterar el sistema objetivo",
+    "terminal.risk_medium":     "[!] PRECAUCIÓN — Escaneo activo, puede ser detectado",
+    "terminal.risk_low":        "[OK] Bajo riesgo — Reconocimiento pasivo",
+    "terminal.root_banner":     "⚠ PRIVILEGIOS ROOT — El comando se ejecutará con acceso elevado",
+
+    "settings.security_policy": "Política de Seguridad",
+    "settings.confirm_root":    "Requerir confirmación para comandos root",
+    "settings.warn_high_risk":  "Mostrar advertencia para comandos de alto riesgo",
+    "settings.auto_cleanup":    "Limpieza periódica automática",
+    "settings.auto_cleanup_off": "Desactivado",
+    "settings.auto_cleanup_daily": "Diario",
+    "settings.auto_cleanup_weekly": "Semanal",
 }
 
 # ---------------------------------------------------------------------------
@@ -416,6 +457,19 @@ _ZH: dict[str, str] = {
     "ai.unknown_intent":        "无法理解请求。请更具体地说明。",
     "ai.no_target":             "未指定目标。请在消息中包含 IP 或域名。示例：'192.168.1.20 端口扫描'",
     "ai.no_tool":               "未找到此意图的工具：{intent}",
+
+    "terminal.risk_high":       "[!] 高风险 — 此命令可能更改目标系统",
+    "terminal.risk_medium":     "[!] 注意 — 主动扫描，可能被检测",
+    "terminal.risk_low":        "[OK] 低风险 — 被动侦察",
+    "terminal.root_banner":     "⚠ ROOT权限 — 命令将以提升的权限运行",
+
+    "settings.security_policy": "安全策略",
+    "settings.confirm_root":    "Root命令需要确认",
+    "settings.warn_high_risk":  "高风险命令显示警告",
+    "settings.auto_cleanup":    "自动定期清理",
+    "settings.auto_cleanup_off": "关闭",
+    "settings.auto_cleanup_daily": "每天",
+    "settings.auto_cleanup_weekly": "每周",
 }
 
 # ---------------------------------------------------------------------------
@@ -509,6 +563,19 @@ _JA: dict[str, str] = {
     "ai.unknown_intent":        "リクエストを理解できませんでした。より具体的にお願いします。",
     "ai.no_target":             "ターゲットが指定されていません。IPまたはドメインを含めてください。例：'192.168.1.20 ポートスキャン'",
     "ai.no_tool":               "このインテントのツールが見つかりません：{intent}",
+
+    "terminal.risk_high":       "[!] 高リスク — このコマンドはターゲットシステムを変更する可能性があります",
+    "terminal.risk_medium":     "[!] 注意 — アクティブスキャン、検出される可能性あり",
+    "terminal.risk_low":        "[OK] 低リスク — パッシブ偵察",
+    "terminal.root_banner":     "⚠ ROOT権限 — 昇格されたアクセスで実行されます",
+
+    "settings.security_policy": "セキュリティポリシー",
+    "settings.confirm_root":    "rootコマンドの確認を要求",
+    "settings.warn_high_risk":  "高リスクコマンドで警告を表示",
+    "settings.auto_cleanup":    "自動定期クリーンアップ",
+    "settings.auto_cleanup_off": "オフ",
+    "settings.auto_cleanup_daily": "毎日",
+    "settings.auto_cleanup_weekly": "毎週",
 }
 
 # ---------------------------------------------------------------------------
@@ -602,6 +669,19 @@ _AR: dict[str, str] = {
     "ai.unknown_intent":        "لم نتمكن من فهم الطلب. يرجى التوضيح.",
     "ai.no_target":             "لم يتم تحديد هدف. يرجى تضمين IP أو نطاق. مثال: '192.168.1.20 فحص المنافذ'",
     "ai.no_tool":               "لم يتم العثور على أداة لهذا القصد: {intent}",
+
+    "terminal.risk_high":       "[!] خطر عالي — قد يغير هذا الأمر النظام المستهدف",
+    "terminal.risk_medium":     "[!] تحذير — مسح نشط، قد يتم اكتشافه",
+    "terminal.risk_low":        "[OK] خطر منخفض — استطلاع سلبي",
+    "terminal.root_banner":     "⚠ صلاحيات ROOT — سيتم تشغيل الأمر بصلاحيات مرتفعة",
+
+    "settings.security_policy": "سياسة الأمان",
+    "settings.confirm_root":    "طلب تأكيد لأوامر root",
+    "settings.warn_high_risk":  "عرض تحذير للأوامر عالية الخطورة",
+    "settings.auto_cleanup":    "تنظيف تلقائي دوري",
+    "settings.auto_cleanup_off": "إيقاف",
+    "settings.auto_cleanup_daily": "يومي",
+    "settings.auto_cleanup_weekly": "أسبوعي",
 }
 
 # ---------------------------------------------------------------------------
@@ -695,6 +775,19 @@ _DE: dict[str, str] = {
     "ai.unknown_intent":        "Die Anfrage konnte nicht verstanden werden. Bitte seien Sie genauer.",
     "ai.no_target":             "Kein Ziel angegeben. Bitte fügen Sie eine IP oder Domain hinzu. Beispiel: '192.168.1.20 Portscan'",
     "ai.no_tool":               "Kein Tool für diesen Intent gefunden: {intent}",
+
+    "terminal.risk_high":       "[!] HOHES RISIKO — Dieser Befehl kann das Zielsystem verändern",
+    "terminal.risk_medium":     "[!] VORSICHT — Aktiver Scan, kann erkannt werden",
+    "terminal.risk_low":        "[OK] Niedriges Risiko — Passive Aufklärung",
+    "terminal.root_banner":     "⚠ ROOT-RECHTE — Befehl wird mit erhöhten Rechten ausgeführt",
+
+    "settings.security_policy": "Sicherheitsrichtlinie",
+    "settings.confirm_root":    "Bestätigung für Root-Befehle anfordern",
+    "settings.warn_high_risk":  "Warnung bei Hochrisiko-Befehlen anzeigen",
+    "settings.auto_cleanup":    "Automatische periodische Bereinigung",
+    "settings.auto_cleanup_off": "Aus",
+    "settings.auto_cleanup_daily": "Täglich",
+    "settings.auto_cleanup_weekly": "Wöchentlich",
 }
 
 # ---------------------------------------------------------------------------
@@ -788,6 +881,19 @@ _RU: dict[str, str] = {
     "ai.unknown_intent":        "Не удалось понять запрос. Пожалуйста, уточните.",
     "ai.no_target":             "Цель не указана. Пожалуйста, укажите IP или домен. Пример: '192.168.1.20 сканирование портов'",
     "ai.no_tool":               "Инструмент для этого намерения не найден: {intent}",
+
+    "terminal.risk_high":       "[!] ВЫСОКИЙ РИСК — Эта команда может изменить целевую систему",
+    "terminal.risk_medium":     "[!] ВНИМАНИЕ — Активное сканирование, может быть обнаружено",
+    "terminal.risk_low":        "[OK] Низкий риск — Пассивная разведка",
+    "terminal.root_banner":     "⚠ ROOT ПРАВА — Команда будет выполнена с повышенными правами",
+
+    "settings.security_policy": "Политика безопасности",
+    "settings.confirm_root":    "Требовать подтверждение для root-команд",
+    "settings.warn_high_risk":  "Показывать предупреждение для команд высокого риска",
+    "settings.auto_cleanup":    "Автоматическая периодическая очистка",
+    "settings.auto_cleanup_off": "Выкл.",
+    "settings.auto_cleanup_daily": "Ежедневно",
+    "settings.auto_cleanup_weekly": "Еженедельно",
 }
 
 # ---------------------------------------------------------------------------
@@ -881,6 +987,19 @@ _FR: dict[str, str] = {
     "ai.unknown_intent":        "Impossible de comprendre la demande. Veuillez préciser.",
     "ai.no_target":             "Aucune cible spécifiée. Veuillez inclure une IP ou un domaine. Exemple : '192.168.1.20 scan de ports'",
     "ai.no_tool":               "Aucun outil trouvé pour cette intention : {intent}",
+
+    "terminal.risk_high":       "[!] RISQUE ÉLEVÉ — Cette commande peut modifier le système cible",
+    "terminal.risk_medium":     "[!] ATTENTION — Scan actif, peut être détecté",
+    "terminal.risk_low":        "[OK] Faible risque — Reconnaissance passive",
+    "terminal.root_banner":     "⚠ PRIVILÈGES ROOT — La commande sera exécutée avec un accès élevé",
+
+    "settings.security_policy": "Politique de sécurité",
+    "settings.confirm_root":    "Demander confirmation pour les commandes root",
+    "settings.warn_high_risk":  "Afficher un avertissement pour les commandes à haut risque",
+    "settings.auto_cleanup":    "Nettoyage périodique automatique",
+    "settings.auto_cleanup_off": "Désactivé",
+    "settings.auto_cleanup_daily": "Quotidien",
+    "settings.auto_cleanup_weekly": "Hebdomadaire",
 }
 
 # ---------------------------------------------------------------------------
@@ -974,6 +1093,19 @@ _PT: dict[str, str] = {
     "ai.unknown_intent":        "Não foi possível entender o pedido. Por favor, seja mais específico.",
     "ai.no_target":             "Nenhum alvo especificado. Inclua um IP ou domínio. Exemplo: '192.168.1.20 varredura de portas'",
     "ai.no_tool":               "Nenhuma ferramenta encontrada para esta intenção: {intent}",
+
+    "terminal.risk_high":       "[!] ALTO RISCO — Este comando pode alterar o sistema alvo",
+    "terminal.risk_medium":     "[!] CUIDADO — Varredura ativa, pode ser detectado",
+    "terminal.risk_low":        "[OK] Baixo risco — Reconhecimento passivo",
+    "terminal.root_banner":     "⚠ PRIVILÉGIOS ROOT — O comando será executado com acesso elevado",
+
+    "settings.security_policy": "Política de Segurança",
+    "settings.confirm_root":    "Exigir confirmação para comandos root",
+    "settings.warn_high_risk":  "Mostrar aviso para comandos de alto risco",
+    "settings.auto_cleanup":    "Limpeza periódica automática",
+    "settings.auto_cleanup_off": "Desativado",
+    "settings.auto_cleanup_daily": "Diário",
+    "settings.auto_cleanup_weekly": "Semanal",
 }
 
 # ---------------------------------------------------------------------------
@@ -1067,6 +1199,19 @@ _HI: dict[str, str] = {
     "ai.unknown_intent":        "अनुरोध समझ नहीं आया। कृपया अधिक स्पष्ट करें।",
     "ai.no_target":             "कोई लक्ष्य निर्दिष्ट नहीं। कृपया IP या डोमेन शामिल करें। उदाहरण: '192.168.1.20 पोर्ट स्कैन'",
     "ai.no_tool":               "इस इंटेंट के लिए कोई टूल नहीं मिला: {intent}",
+
+    "terminal.risk_high":       "[!] उच्च जोखिम — यह कमांड लक्ष्य प्रणाली को बदल सकता है",
+    "terminal.risk_medium":     "[!] सावधानी — सक्रिय स्कैन, पता लगाया जा सकता है",
+    "terminal.risk_low":        "[OK] कम जोखिम — निष्क्रिय टोही",
+    "terminal.root_banner":     "⚠ ROOT विशेषाधिकार — कमांड उन्नत पहुंच के साथ चलेगा",
+
+    "settings.security_policy": "सुरक्षा नीति",
+    "settings.confirm_root":    "Root कमांड के लिए पुष्टि आवश्यक",
+    "settings.warn_high_risk":  "उच्च जोखिम कमांड के लिए चेतावनी दिखाएं",
+    "settings.auto_cleanup":    "स्वचालित आवधिक सफाई",
+    "settings.auto_cleanup_off": "बंद",
+    "settings.auto_cleanup_daily": "दैनिक",
+    "settings.auto_cleanup_weekly": "साप्ताहिक",
 }
 
 # ---------------------------------------------------------------------------

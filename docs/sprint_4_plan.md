@@ -129,7 +129,7 @@ Tool çalışır → raw output → Adapter (varsa) → ScanResult → UI'a gön
 - [ ] UI tablo görünümü çalışıyor (en az nmap için)
 - [ ] Adapter pipeline ToolManager'a entegre
 - [ ] Tüm yeni testler geçiyor
-- [ ] Mevcut 242 test hâlâ geçiyor (regresyon yok)
+- [ ] Mevcut test seti regresyonsuz geçiyor (güncel sayı için `son_durum.md` referans alınır)
 - [ ] Dokümanlar güncel (PROJECT_STRUCTURE, sprint_roadmap)
 
 ---
@@ -139,7 +139,7 @@ Tool çalışır → raw output → Adapter (varsa) → ScanResult → UI'a gön
 | Koşul | Durum |
 |-------|-------|
 | Sprint 3.6 tamamlandı | ✅ |
-| 242 test geçiyor | ✅ |
+| Güncel test sağlığı yeşil | ✅ |
 | Docker container'lar sağlıklı | ✅ |
 | Qwen 2.5 3B inference çalışıyor | ✅ |
 | dev_kerem → develop merge planı hazır | ✅ |

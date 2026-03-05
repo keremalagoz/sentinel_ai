@@ -1,6 +1,6 @@
 # SENTINEL AI - Proje Durum Raporu
 
-**Tarih:** 4 Mart 2026  
+**Tarih:** 5 Mart 2026  
 **Ekip:** Kerem (AI/Data/Backend) & Yiğit (System/UI/Security)
 
 ---
@@ -20,14 +20,18 @@
 - Mimari: Local-only LLM (Qwen 2.5 3B / Ollama) + deterministic tool execution
 - Model: Qwen 2.5 3B Instruct Q4_K_M (1.84 GB, 29+ dil, 151K vocab)
 - Intent Pipeline: Keyword Pre-Filter → Stage 1 (5 kategori) → Stage 2 (16 intent)
-- Benchmark: %100 doğruluk (30/30, hierarchical mod)
+- Benchmark: %100 doğruluk (30/30, hierarchical mod), %94.7 deterministik pipeline (75 senaryo)
 - Kararlılık: Queue/backpressure, per-tool limit, retry/backoff aktif
 - Güvenilirlik: Registry drift guard (startup + test) aktif
 - Gözlemlenebilirlik: Runtime telemetry (`queue_wait_ms`, `tool_run_ms`) mevcut
-- **i18n**: 11 dil desteği (EN, TR, ES, ZH, JA, AR, DE, RU, FR, PT, HI) — 78 çeviri anahtarı
+- Gözlemlenebilirlik: Runtime telemetry status bar yüzeyi aktif (`Q`, `Wait`, `Run`)
+- **i18n**: 11 dil desteği (EN, TR, ES, ZH, JA, AR, DE, RU, FR, PT, HI) — 97 çeviri anahtarı
 - **Ayarlar Diyalogu**: Dil seçimi, font boyutu, oturum temizleme
+- **Güvenli Temizlik**: `secure_delete` ayarı backend cleaner akışına bağlı
+- **Komut Kaynağı**: API execute akışında execution tool `build_command` öncelikli
+- **Registry Stratejisi**: `build_tool_spec()` metadata-only (arguments boş)
 - **Performans**: 12 optimizasyon uygulandı (debounce, cache, pre-compile, QSS sabitleri)
-- **Test**: Full suite **715 passed** + Sprint 3.6 hedefli doğrulama **21 passed**
+- **Test**: Full suite **1451 passed** + Sprint 3.6 hedefli doğrulama **21 passed**
 
 ---
 
@@ -68,8 +72,8 @@
 | Secure Cleaner (cleaner.py) | Yiğit | [OK] | Güvenli dosya temizleme, Whitelist, Shredding |
 | Input Validation | Yiğit | [OK] | IP/Domain validasyonu, Shell injection check |
 | ProcessManager Update | Yiğit | [OK] | Yeni core modüllerle entegrasyon |
-| UI Security Indicators | Yiğit | [BACKLOG] | Terminalde root uyarisi — Sprint 3'ten kalan |
-| Settings Menu (Security) | Yiğit | [BACKLOG] | Temizlik sikligi vb. — Sprint 3'ten kalan |
+| UI Security Indicators | Yiğit | [OK] | Terminal risk bannerı (BL-1) — Sprint 3.5 hotfix |
+| Settings Menu (Security) | Yiğit | [OK] | Güvenlik Politikası paneli (BL-2) — Sprint 3.5 hotfix |
 
 ---
 
@@ -87,19 +91,27 @@
 
 ### Test Durumu (Güncel)
 
-- Full test suite: **715 passed** (Sprint 3.4 sonrası)
+- Full test suite: **1451 passed** (Sprint 3.5 hotfix sonrası)
 - UI testleri: ~500 test (i18n, widget, özellik testleri)
 - Optimizasyon testleri: 91 test (performans + anti-pattern taraması)
+- Sprint 3.5 audit testleri: 296 test (E2E tool komut doğrulaması)
+- Tool komut testleri: 108 test
+- Pipeline entegrasyon: 79 test
+- Komut üretim doğruluk benchmarkı: 76 test (%94.7 oran)
 - Backend/AI testleri: ~124 test
 - P0 doğrulama: `scripts/p0_validation.py --with-pytest` başarılı
 
 | Test Dosyası | Test Sayısı | Kapsam |
 |---|---|---|
-| test_i18n.py | ~156 | 11 dil çeviri doğruluğu |
-| test_ui_widgets.py | ~138 | Widget oluşturma ve davranış |
-| test_ui_features.py | ~206 | UI özellikleri (settings, swap, history) |
+| test_i18n.py | 156 | 11 dil çeviri doğruluğu |
+| test_ui_widgets.py | 138 | Widget oluşturma ve davranış |
+| test_ui_features.py | 245 | UI özellikleri (settings, swap, history) |
 | test_optimizations.py | 91 | Performans ve anti-pattern taraması |
-| Diğer (backend, AI, parser) | ~124 | Backend, resolver, entegrasyon |
+| test_sprint35_audit.py | 296 | Sprint 3.5 E2E audit testleri |
+| test_tool_commands.py | 108 | Tool komut üretim testleri |
+| test_pipeline_integration.py | 79 | Pipeline entegrasyon testleri |
+| test_command_accuracy.py | 76 | Komut üretim doğruluk benchmarkı |
+| Diğer (backend, AI, parser) | 262 | Backend, resolver, entegrasyon |
 
 ---
 
@@ -170,10 +182,22 @@
 ## Sıradaki Adımlar
 
 1. **Sprint 4** — Veri Adaptasyonu (`models.py` + `nmap_adapter.py`)
-2. **Sprint 3 backlog** — UI Security Indicators, Settings Menu (Yiğit, paralel)
-3. **Sprint 5** — Öneri Motoru
-4. **Runtime telemetry UI** — Tool kuyruk/süre gösterimi (backlog)
+2. **Sprint 5** — Öneri Motoru
 
+---
+
+## Tamamlanan Sprint: Sprint 3.5 (Tool Komut Doğruluğu + Güvenlik) [OK]
+
+| Başlık | Durum | Not |
+|---|---|---|
+| Shell injection sertleştirme | [OK] | Kritik tool komut yolları güvenli arg-list üretimine çekildi |
+| Tool komut doğruluğu | [OK] | Nmap/web/recon/attack tool komut üretimi normalize edildi |
+| Yeni tool kapsaması | [OK] | OS detection, whois, hydra ssh/http, sqlmap yürütme katmanında eklendi |
+| Registry/execution hizalaması | [OK] | Registry metadata-only; yürütme için execution registry + tool build_command |
+| Telemetry görünürlüğü | [OK] | UI status bar metrikleri aktif |
+| Secure delete uçtan uca | [OK] | Settings → BackendGateway → Cleaner zinciri bağlı || Yüksek riskli komut onay mekanizması | [OK] | `_needs_confirmation()` + güvenlik ayarları entegrasyonu (hotfix) |
+| LLM parse fallback (keyword) | [OK] | LLM başarısız olduğunda keyword filter fallback — orchestrator (hotfix) |
+| Komut üretim doğruluk benchmarkı | [OK] | 75 senaryo, %94.7 doğruluk — `test_command_accuracy.py` (hotfix) |
 ---
 
 ## Tamamlanan Sprint: Sprint 3.4 (UI / i18n / Performans Optimizasyonu) [OK]
@@ -187,7 +211,7 @@
 |---|-------|---------|-------|----------|
 | 3.4.1 | Sprint 3 font hataları (5 bug) | Yiğit | [OK] | Chat/terminal font tutarlılığı, bold, miras |
 | 3.4.2 | Layout Swap (Chat/Terminal pozisyon) | Yiğit | [OK] | Yatay/dikey düzen değiştirme |
-| 3.4.3 | i18n sistemi (11 dil) | Yiğit | [OK] | `src/ui/i18n.py` — 78 anahtar × 11 dil |
+| 3.4.3 | i18n sistemi (11 dil) | Yiğit | [OK] | `src/ui/i18n.py` — 97 anahtar × 11 dil |
 | 3.4.4 | Ayarlar Diyalogu | Yiğit | [OK] | `settings_dialog.py` — dil, font, temizlik |
 | 3.4.5 | Orchestrator i18n entegrasyonu | Yiğit | [OK] | "Komut hazır" çevirisi + badge fallback |
 | 3.4.6 | UI test altyapısı (conftest.py) | Yiğit | [OK] | QApplication fixture + i18n reset |
@@ -228,4 +252,4 @@
 
 ---
 
-*Son Güncelleme: 4 Mart 2026*
+*Son Güncelleme: 5 Mart 2026*

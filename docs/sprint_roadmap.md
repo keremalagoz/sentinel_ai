@@ -197,6 +197,24 @@ Temel akış:
 
 ---
 
+### Sprint 3.5 — Tool Komut Doğruluğu ve Güvenlik Sertleştirme ✅
+
+> Detaylı plan: [sprint_3_5_plan.md](sprint_3_5_plan.md)
+
+| # | Görev Başlığı | Sorumlu | Durum | Açıklama |
+|---|---------------|---------|-------|----------|
+| 3.5.1 | Komut güvenliği sertleştirme | Yiğit | ✅ | Kritik tool komut yollarında shell interpolation kaldırıldı |
+| 3.5.2 | Tool komut doğruluğu normalizasyonu | Yiğit | ✅ | Nmap/web/recon/attack komut üretimleri güncellendi |
+| 3.5.3 | Yeni execution tool'ları | Yiğit | ✅ | OS detection, whois, hydra ssh/http, sqlmap eklendi |
+| 3.5.4 | Registry/execution tek kaynak hizalaması | Yiğit | ✅ | Registry metadata-only, yürütme execution tool `build_command` üzerinden |
+| 3.5.5 | Secure delete uçtan uca bağlama | Yiğit | ✅ | Settings → BackendGateway → Cleaner akışı tamamlandı |
+| 3.5.6 | Runtime telemetry UI yüzeyi | Yiğit | ✅ | Status bar metrik gösterimi aktif edildi |
+| 3.5.7 | Test ve benchmark doğrulaması | Yiğit | ✅ | Sprint 3.5 odaklı test setleri ve hierarchical benchmark tekrar koşuldu |
+
+**Sprint 3.5 Toplam: 7/7 görev ✅**
+
+---
+
 ### Sprint 3.6 — Backend Agent-Chat Foundation (UI Değişikliği Yok) ✅
 
 > Detaylı plan: [sprint_3_6_plan.md](sprint_3_6_plan.md)  
@@ -263,7 +281,7 @@ Temel akış:
 |---|-------|---------|-------|--------|
 | BL-1 | UI Security Indicators | Yiğit | ⬜ | Sprint 3'ten kalan |
 | BL-2 | Settings Menu (Security) | Yiğit | ⬜ | Sprint 3'ten kalan |
-| BL-3 | Runtime Telemetry UI görünürlüğü | Yiğit | ⬜ | Telemetry verisi mevcut, UI'da gösterim eksik |
+| BL-3 | Runtime Telemetry UI görünürlüğü | Yiğit | ✅ | Status bar metrik yüzeyi aktif |
 
 ---
 

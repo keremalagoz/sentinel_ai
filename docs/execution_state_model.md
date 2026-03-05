@@ -1,4 +1,7 @@
 # SENTINEL AI - Execution State Model
+
+> Durum Notu (4 Mart 2026): Bu belge mimari/model referansıdır; canlı ürün ve sprint durumu için `son_durum.md` ile `docs/sprint_roadmap.md` birlikte izlenir.
+
 ## Stateful Multi-Tool Chaining Design
 
 ---

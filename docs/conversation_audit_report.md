@@ -1,7 +1,9 @@
 # SENTINEL AI — Kapsamlı Konuşma ve Analiz Kaydı
 
+> 4 Mart 2026 Durum Notu: Bu rapor tarihsel audit kaydıdır. Sprint 3.4/3.5/3.6 sonrası bazı risk maddeleri kapanmış olup güncel durum için `son_durum.md`, `docs/sprint_roadmap.md` ve `PROJECT_STRUCTURE.md` esas alınmalıdır.
+
 **Tarih:** 26 Şubat 2026  
-**Katılımcılar:** Geliştirici Ekip & GitHub Copilot (Claude Opus 4.6)  
+**Katılımcılar:** Geliştirici Ekip & GitHub Copilot  
 **Kapsam:** Proje durum analizi, Linux build değerlendirmesi, model önerisi, ölçeklenme stratejisi
 
 ---
@@ -27,7 +29,7 @@
 ---
 
 **Rapor Tarihi:** 26 Şubat 2026  
-**Rapor Hazırlayan:** GitHub Copilot (Claude Opus 4.6)  
+**Rapor Hazırlayan:** GitHub Copilot  
 **Kapsam:** Tam kaynak kod analizi, mimari inceleme, sprint durum değerlendirmesi  
 **Kod Tabanı:** ~10.500 satır Python (src/), 112 test (tamamı geçiyor)
 
@@ -183,7 +185,7 @@ Katmanlı mimari doğru uygulanmış. `AGENT_RULES.md`'deki "iş mantığı `src
 
 - **Developer Mode:** ~2-4 GB RAM (Native Ollama + PyQt6)
 - **Production Mode:** ~8-16 GB RAM (Docker + WhiteRabbitNeo + tools)
-- **Runtime telemetry:** `queue_wait_ms`, `tool_run_ms` metrikleri toplanıyor ama UI'da henüz gösterilmiyor
+- **Runtime telemetry (tarihsel not):** Bu rapor yazıldığı tarihte UI görünürlüğü yoktu; güncel durumda status bar yüzeyi aktiftir.
 
 ---
 
@@ -260,6 +262,14 @@ Sprint 3 ve 3.1 hedeflerinin **~90%**'ı tamamlanmış. UI Security Indicators (
 ---
 
 ## Sonuç
+
+### Post-Audit Güncelleme (4 Mart 2026)
+
+- Runtime telemetry UI görünürlüğü status bar üzerinden aktifleştirildi.
+- `secure_delete` ayarı backend cleaner zincirine bağlandı.
+- API execute akışı execution tool `build_command` öncelikli hale getirildi.
+- Registry `build_tool_spec` metadata-only davranışa çekildi.
+- Sprint 3.5 odaklı test/benchmark turlarıyla ilgili kritik regresyonlar kapatıldı.
 
 SENTINEL AI, Sprint 3/3.5 itibarıyla **sağlam bir mimari temele** sahip. Deterministik karar zinciri, queue/backpressure yönetimi ve registry drift guard gibi mekanizmalar, projenin güvenlik-kritik bir domain'de çalıştığının bilincinde tasarlandığını gösteriyor. 112 testin tamamının yeşil olması ve net katman ayrımı, teknik borcun yönetilebilir düzeyde tutulduğunun kanıtıdır.
 

@@ -1,7 +1,7 @@
 # SENTINEL AI - Proje Yapısı (Sadeleştirilmiş)
 
-**Versiyon**: Action Planner v2.1 - Sprint 3.4 + 3.6 (UI/i18n + Backend Agent-Chat Foundation)  
-**Tarih**: 4 Mart 2026  
+**Versiyon**: Action Planner v2.1 - Sprint 3.4 + 3.5 + 3.6 (UI/i18n + Tool Security/Accuracy + Backend Agent-Chat Foundation)  
+**Tarih**: 5 Mart 2026  
 **Mimari**: Local-Only LLM (Qwen 2.5 3B) + 2-Asamali Intent Resolution + Deterministic Execution + Backend Session Memory
 
 > Not: Bu doküman sadeleştirme sürecindedir. Öncelik, mevcut çalışma mimarisi ve aktif modüllerin net gösterimidir.
@@ -24,6 +24,8 @@ Sistem garantileri:
 - Local LLM timeout/retry/backoff
 - Registry drift guard
 - Runtime telemetry (`queue_wait_ms`, `tool_run_ms`)
+- UI telemetry yüzeyi (status bar)
+- Secure delete ayarı için uçtan uca settings->backend->cleaner bağlantısı
 
 ---
 
@@ -54,8 +56,8 @@ sentinel_root/
 │   │   ├── sqlite_backend.py    # SQLite Backend (Hybrid JSON+FK schema)
 │   │   ├── conversation_memory.py # Session/turn bazli chat hafizasi (Sprint 3.6)
 │   │   ├── entity_id_generator.py # Canonical Entity ID generator
-│   │   ├── parser_framework.py  # Parser framework + 10 parser
-│   │   ├── tool_base.py         # BaseTool + 10 tool implementation
+│   │   ├── parser_framework.py  # Parser framework + 15 parser
+│   │   ├── tool_base.py         # BaseTool + 15 tool implementation
 │   │   ├── tool_integration.py  # IntegratedTool + ToolManager (queue/backpressure)
 │   │   ├── sentinel_coordinator.py # UI-ToolManager bridge
 │   │   ├── process_manager.py   # QProcess tabanlı process yonetimi
@@ -74,34 +76,36 @@ sentinel_root/
 │   │   ├── main_window.py       # Ana pencere (unified header)
 │   │   ├── chat_interface.py    # Chat & CommandCard paneli
 │   │   ├── terminal_view.py     # Multi-session terminal emulator
-│   │   ├── settings_dialog.py   # Ayarlar diyalogu (dil, font, temizlik)
-│   │   ├── i18n.py              # 11 dil ceviri sistemi (78 anahtar)
+│   │   ├── settings_dialog.py   # Ayarlar diyalogu (dil, font, temizlik, guvenlik politikasi)
+│   │   ├── i18n.py              # 11 dil ceviri sistemi (97 anahtar)
 │   │   └── styles.py            # UI renk ve font tanimlari
 │   │
 │   ├── plugins/                 # Plugin sistemi (gelecek)
 │   │   └── .gitkeep
 │   │
-│   └── tests/                   # Test Suite (715 test)
+│   └── tests/                   # Test Suite (1451 test)
 │       ├── conftest.py          # PyQt6 QApplication fixture + i18n reset
-│       ├── test_i18n.py         # 11 dil ceviri testleri (~156 test)
-│       ├── test_ui_widgets.py   # Widget olusturma ve davranis testleri (~138 test)
-│       ├── test_ui_features.py  # UI ozellikleri testleri (~206 test)
+│       ├── test_i18n.py         # 11 dil ceviri testleri (156 test)
+│       ├── test_ui_widgets.py   # Widget olusturma ve davranis testleri (138 test)
+│       ├── test_ui_features.py  # UI ozellikleri testleri (245 test)
 │       ├── test_optimizations.py # Performans optimizasyon testleri (91 test)
-│       ├── test_sprint1.py      # Sprint 1 main test suite
-│       ├── test_sprint1_week1.py # Week 1 tests (backend + entity ID)
-│       ├── test_sprint1_week2.py # Week 2 tests (parser + tool + integration)
-│       ├── test_parser_framework.py # Parser isolated tests
-│       ├── test_action_planner_v2.py # Action Planner v2 tests
-│       ├── test_integration.py  # Full integration tests
-│       ├── test_ui_integration.py # UI integration test window
-│       ├── test_new_tools.py    # ToolManager + parser + telemetry + callback safety
-│       ├── test_advanced_parsers.py # Genis parser senaryolari
-│       ├── test_registry_consistency.py # Registry drift guard testleri
-│       ├── test_ui_backend_boundary.py # UI-Backend boundary + guvenlik testleri
-│       ├── test_backend_chat_session.py # Sprint 3.6 backend chat/session testleri
-│       ├── test_chat_history_cleanup_regression.py # Gecmis temizlik regresyon
-│       ├── test_backend_chat_session.py # Sprint 3.6 backend chat/session testleri
-│       └── test_hierarchical_resolver.py # 2-asamali resolver testleri (57 test)
+│       ├── test_sprint1_week1.py # Week 1 tests (backend + entity ID, 29 test)
+│       ├── test_sprint1_week2.py # Week 2 tests (parser + tool + integration, 9 test)
+│       ├── test_parser_framework.py # Parser isolated tests (21 test)
+│       ├── test_action_planner_v2.py # Action Planner v2 tests (5 test)
+│       ├── test_new_tools.py    # ToolManager + parser + telemetry + callback safety (44 test)
+│       ├── test_advanced_parsers.py # Genis parser senaryolari (17 test)
+│       ├── test_registry_consistency.py # Registry drift guard testleri (2 test)
+│       ├── test_ui_backend_boundary.py # UI-Backend boundary + guvenlik testleri (21 test)
+│       ├── test_backend_chat_session.py # Sprint 3.6 backend chat/session testleri (2 test)
+│       ├── test_chat_history_cleanup_regression.py # Gecmis temizlik regresyon (1 test)
+│       ├── test_hierarchical_resolver.py # 2-asamali resolver testleri (57 test)
+│       ├── test_sprint35_audit.py # Sprint 3.5 E2E audit testleri (296 test)
+│       ├── test_tool_commands.py # Tool komut uretim testleri (108 test)
+│       ├── test_pipeline_integration.py # Pipeline entegrasyon testleri (79 test)
+│       ├── test_track_c.py      # Track C testleri (36 test)
+│       ├── test_track_d.py      # Track D testleri (18 test)
+│       └── test_command_accuracy.py # Komut uretim dogruluk benchmark (76 test)
 │
 ├── docs/                        # Teknik Dokümantasyon
 │   ├── AGENT_RULES.md          # AI agent kurallari ve kisitlamalari
@@ -117,7 +121,9 @@ sentinel_root/
 │   ├── sprint3_ai_security_kickoff.md # Sprint 3 baslangic
 │   ├── conversation_audit_report.md # Kapsamli audit raporu
 │   ├── sqlite_schema.md        # SQLite veritabani semasi
-│   └── ui_regression_checklist.md # UI regresyon checklist
+│   ├── ui_regression_checklist.md # UI regresyon checklist
+│   ├── sprint_3_5_plan.md      # Sprint 3.5 detayli plan
+│   └── changelog_sprint35_hotfix.md # Sprint 3.5 hotfix degisiklik raporu
 │
 ├── temp/                        # Geçici Dosyalar
 │   └── sentinel_safe/          # Güvenli sandbox klasörü
@@ -332,7 +338,7 @@ entity_id = EntityIDGenerator.generate("host", "192.168.1.1")
 ---
 
 ### **src/core/parser_framework.py**
-Parser Framework + 10 Parser Implementation
+Parser Framework + 15 Parser Implementation
 
 **Sorumluluklar**:
 - Unified parser interface (BaseParser)
@@ -351,6 +357,11 @@ Parser Framework + 10 Parser Implementation
 8. **SubdomainEnumParser**: Subdomain enumeration
 9. **DnsLookupParser**: DNS record cozumlemesi
 10. **WebAppScanParser**: Web uygulama tarama sonuclari
+11. **NmapOsDetectionParser**: Nmap -O -> OS fingerprint (Sprint 3.5)
+12. **WhoisLookupParser**: Whois domain bilgisi (Sprint 3.5)
+13. **HydraSshParser**: Hydra SSH brute-force sonuclari (Sprint 3.5)
+14. **HydraHttpParser**: Hydra HTTP brute-force sonuclari (Sprint 3.5)
+15. **SqlmapScanParser**: SQLMap injection sonuclari (Sprint 3.5)
 
 **API**:
 ```python
@@ -362,13 +373,13 @@ result = parser.parse(raw_output, target="192.168.1.1")
 ---
 
 ### **src/core/tool_base.py**
-BaseTool + 10 Tool Implementations (QProcess-based)
+BaseTool + 15 Tool Implementations (QProcess-based)
 
 **Sorumluluklar**:
 - Async tool execution (QProcess)
 - Timeout handling + adaptive timeout estimation
 - Signal-based output streaming
-- 10 tool implementation
+- 15 tool implementation
 
 **Tools**:
 1. **PingTool**: System ping
@@ -376,11 +387,16 @@ BaseTool + 10 Tool Implementations (QProcess-based)
 3. **NmapPortScanTool**: Nmap port scan (`-sT -p`)
 4. **NmapServiceDetectionTool**: Nmap service detection (`-sV`)
 5. **NmapVulnScanTool**: Nmap vulnerability scan (`--script vuln`)
-6. **SslScanTool**: SSL/TLS analiz
-7. **GobusterDirTool**: Directory brute-force
-8. **SubdomainEnumTool**: Subdomain enumeration
-9. **DnsLookupTool**: DNS record query
-10. **WebAppScanTool**: Web uygulama tarama
+6. **SslScanTool**: SSL/TLS analiz (`openssl s_client`)
+7. **GobusterDirTool**: Directory brute-force (`gobuster dir`)
+8. **SubdomainEnumTool**: Subdomain enumeration (`bash` + nslookup loop)
+9. **DnsLookupTool**: DNS record query (`nslookup`)
+10. **WebAppScanTool**: Web uygulama tarama (`powershell.exe` curl-based)
+11. **NmapOsDetectionTool**: OS fingerprint (`nmap -O`) (Sprint 3.5)
+12. **WhoisLookupTool**: Domain whois sorgusu (`whois`) (Sprint 3.5)
+13. **HydraSshTool**: SSH brute-force (`hydra ssh://`) (Sprint 3.5)
+14. **HydraHttpTool**: HTTP form brute-force (`hydra http-form-post`) (Sprint 3.5)
+15. **SqlmapScanTool**: SQL injection testi (`sqlmap --batch`) (Sprint 3.5)
 
 **API**:
 ```python
@@ -424,7 +440,7 @@ SentinelCoordinator - UI ↔ ToolManager Bridge
 **Sorumluluklar**:
 - UI ve ToolManager arasında köprü
 - Qt Signal routing (PyQt6)
-- 3 tool registration (ping, sweep, portscan)
+- 15 tool registration (DEFAULT_TOOL_CATALOG üzerinden)
 - Backend stats query
 
 **Signals**:
@@ -475,11 +491,11 @@ DockerRunner - Container execution
 AIOrchestrator - Local AI System
 
 **Sorumluluklar**:
-- Intent detection (flat + hierarchical dual-path)
+- Intent detection (hierarchical birincil, kontrollü fallback ile)
 - Tool selection
 - Command generation
 - Local-only: Qwen 2.5 3B / Ollama
-- Feature flag: `SENTINEL_USE_HIERARCHICAL` (flat/hierarchical secimi)
+- Feature flag: `SENTINEL_USE_HIERARCHICAL` (resolver davranış kontrolü)
 
 **API**:
 ```python
@@ -549,6 +565,7 @@ SentinelMainWindow - Ana uygulama penceresi
 - Chat/Terminal splitter yerlesimi (yatay/dikey swap destegi)
 - Status dot + badge (idle/running/root) — on-hesaplanmis stiller
 - i18n entegrasyonu (tum header etiketleri cevriliyor)
+- Runtime telemetry metriklerini status bar'da gosterme (`Q`, `Wait`, `Run`)
 
 **Optimizasyonlar** (Sprint 3.4):
 - `_DOT_STYLES` / `_BADGE_STYLES`: Modul seviyesinde on-hesaplanmis stil dict'leri
@@ -807,6 +824,13 @@ python main.py
 - 12 performans optimizasyonu (debounce, cache, pre-compile, QSS sabitleri)
 - 500 UI testi + 91 optimizasyon testi
 - Toplam: 715 test
+
+**Sprint 3.5 - Tool Komut Doğruluğu/Güvenlik Sertleştirme**:
+- Kritik komut güvenliği iyileştirmeleri ve validasyon sertleştirmesi
+- Registry metadata-only hizalaması (`build_tool_spec(arguments=[])`)
+- API execute yolunda execution tool `build_command` önceliği
+- Secure delete ayarının backend cleaner akışına bağlanması
+- Runtime telemetry status bar görünürlüğü
 
 **Sprint 3.6 - Backend Agent-Chat Foundation** (6/6 gorev):
 - UI degisimi olmadan backend session-memory chat eklendi

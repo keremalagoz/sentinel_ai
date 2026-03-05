@@ -9,6 +9,7 @@
 from typing import Optional, Dict, Any
 import logging
 import os
+import re
 import time
 import threading
 
@@ -35,6 +36,9 @@ from src.ai.tool_registry import (
 from src.ai.command_builder import CommandBuilder, get_command_builder
 from src.core.conversation_memory import ConversationMemoryStore
 from src.ui.i18n import t
+
+# Root gerektiren komut flag'leri — dinamik risk hesaplama icin
+_ROOT_FLAGS: frozenset = frozenset({"-sS", "-sU", "-O", "-A", "--privileged"})
 
 logger = logging.getLogger(__name__)
 
@@ -99,7 +103,22 @@ class AIOrchestrator:
     def get_session_turns(self, session_id: str, limit: int = 20) -> list[dict[str, Any]]:
         """Read session turns for API/debug use."""
         return self._conversation_memory.get_recent_turns(session_id=session_id, limit=limit)
-    
+
+    # ── Helpers ──
+
+    _IP_OR_HOST_RE = re.compile(
+        r"(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}(?:/\d{1,2})?)"
+        r"|"
+        r"((?:https?://)?(?:[a-zA-Z0-9](?:[a-zA-Z0-9\-]{0,61}[a-zA-Z0-9])?\.)+[a-zA-Z]{2,})"
+    )
+
+    def _extract_target_from_input(self, user_input: str) -> Optional[str]:
+        """Try to extract an IP address or hostname from raw user text."""
+        m = self._IP_OR_HOST_RE.search(user_input)
+        if m:
+            return m.group(0)
+        return None
+
     # =========================================================================
     # V2 API - Yeni Katmanli Mimari
     # =========================================================================
@@ -186,12 +205,39 @@ class AIOrchestrator:
         result["intent"] = intent
 
         # Keyword pre-filter cross-validation (C2)
+        kf_suggestion = self._keyword_filter.suggest(user_input)
         kf_ok, kf_msg = self._keyword_filter.cross_validate(
             intent.intent_type, user_input,
         )
         if not kf_ok:
             logger.info("Keyword cross-validation mismatch: %s", kf_msg)
-        
+
+        # ── Keyword fallback: LLM parse başarısızsa keyword önerisini kullan ──
+        if (
+            intent.intent_type == IntentType.UNKNOWN
+            and intent.needs_clarification
+            and kf_suggestion is not None
+            and kf_suggestion != IntentType.UNKNOWN
+        ):
+            logger.info(
+                "LLM failed (%s), keyword fallback to %s",
+                intent.clarification_reason,
+                kf_suggestion.value,
+            )
+            # Keyword eşleşmesinden target çıkarmaya çalış
+            fallback_target = target or intent.target or intent.params.get("target")
+            if not fallback_target:
+                fallback_target = self._extract_target_from_input(user_input)
+            intent = Intent(
+                intent_type=kf_suggestion,
+                target=fallback_target,
+                params=intent.params,
+                needs_clarification=False,
+                confidence=0.75,
+            )
+            result["intent"] = intent
+            result["agent_observation"] = "keyword_fallback"
+
         # Confidence dusukse clarification iste
         if intent.confidence < self.CONFIDENCE_THRESHOLD and not intent.needs_clarification:
             logger.info(
@@ -312,8 +358,62 @@ class AIOrchestrator:
         # =====================================================================
         tool_def = get_tool_for_intent(intent.intent_type)
         explanation = tool_def.description if tool_def else ""
-        
-        command, error = self._command_builder.build(tool_spec, explanation)
+
+        command = None
+        error = None
+
+        # Preferred path (Track E): build display command from real execution tool
+        try:
+            final_target = tool_spec.target
+            exec_tool_id = get_execution_tool_id(intent.intent_type)
+            exec_kwargs = build_execution_kwargs(intent.intent_type, final_target, intent.params)
+
+            if (
+                exec_tool_id
+                and exec_kwargs
+                and self._coordinator is not None
+                and hasattr(self._coordinator, "manager")
+            ):
+                integrated_tool = self._coordinator.manager.get_tool(exec_tool_id)
+                if integrated_tool is not None:
+                    cmd_list = integrated_tool.tool.build_command(**exec_kwargs)
+                    if cmd_list:
+                        # Dinamik risk hesaplama: statik registry yerine
+                        # gercek komut flag'lerine bakilir
+                        actual_requires_root = bool(
+                            _ROOT_FLAGS.intersection(cmd_list)
+                        )
+                        actual_risk = tool_spec.risk_level
+                        if actual_requires_root:
+                            actual_risk = RiskLevel.HIGH
+
+                        command = FinalCommand(
+                            executable=cmd_list[0],
+                            arguments=cmd_list[1:],
+                            requires_root=actual_requires_root,
+                            risk_level=actual_risk,
+                            explanation=explanation,
+                        )
+        except Exception:
+            logger.exception("Execution-tool display build failed, falling back to CommandBuilder")
+            result["agent_observation"] = "execution_tool_fallback"
+
+        # Fallback path for compatibility
+        if command is None:
+            fallback_command, error = self._command_builder.build(tool_spec, explanation)
+            if fallback_command is not None:
+                # Bare command guard: fallback'in yeterli arguman urettigini dogrula
+                if not fallback_command.arguments or (
+                    len(fallback_command.arguments) == 1
+                    and fallback_command.arguments[0] == tool_spec.target
+                ):
+                    logger.warning(
+                        "Fallback produced bare command for intent=%s, target=%s",
+                        intent.intent_type.value,
+                        tool_spec.target,
+                    )
+                    result["agent_observation"] = "bare_command_fallback"
+            command = fallback_command
         
         if error:
             result["message"] = t("ai.cmd_failed").format(error=error)
@@ -363,8 +463,25 @@ class AIOrchestrator:
         UI ile uyumluluk icin.
         """
         v2_result = self.process_v2(user_input, target)
-        
-        # FinalCommand -> ToolCommand donusumu (legacy compat)
+        return self._v2_to_response(v2_result)
+
+    def process_with_session(
+        self,
+        user_input: str,
+        target: Optional[str] = None,
+        session_id: Optional[str] = None,
+    ) -> AIResponse:
+        """Session-aware islem, AIResponse formatinda doner.
+
+        UI → BackendGateway → Orchestrator yolu icin.
+        process_v2'yi session_id ile cagirir, sonucu legacy AIResponse'a donusturur.
+        """
+        v2_result = self.process_v2(user_input, target, session_id=session_id)
+        return self._v2_to_response(v2_result)
+
+    @staticmethod
+    def _v2_to_response(v2_result: Dict[str, Any]) -> AIResponse:
+        """process_v2 sonucunu legacy AIResponse'a donustur."""
         tool_command = None
         if v2_result["command"]:
             cmd = v2_result["command"]
@@ -536,7 +653,9 @@ def get_orchestrator(model: str = "qwen2.5:3b") -> AIOrchestrator:
     if _orchestrator is None:
         with _orchestrator_lock:
             if _orchestrator is None:
-                _orchestrator = AIOrchestrator(model=model)
+                from src.core.sentinel_coordinator import SentinelCoordinator
+                _default_coordinator = SentinelCoordinator()
+                _orchestrator = AIOrchestrator(model=model, coordinator=_default_coordinator)
     return _orchestrator
 
 

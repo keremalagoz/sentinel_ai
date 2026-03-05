@@ -37,6 +37,11 @@ from src.core.tools.gobuster_dir import GobusterDirTool
 from src.core.tools.subdomain_enum import SubdomainEnumTool
 from src.core.tools.dns_lookup import DnsLookupTool
 from src.core.tools.web_app_scan import WebAppScanTool
+from src.core.tools.nmap_os_detection import NmapOsDetectionTool
+from src.core.tools.whois_lookup import WhoisLookupTool
+from src.core.tools.hydra_ssh import HydraSshTool
+from src.core.tools.hydra_http import HydraHttpTool
+from src.core.tools.sqlmap_scan import SqlmapScanTool
 
 __all__ = [
     # Base
@@ -55,4 +60,9 @@ __all__ = [
     "SubdomainEnumTool",
     "DnsLookupTool",
     "WebAppScanTool",
+    "NmapOsDetectionTool",
+    "WhoisLookupTool",
+    "HydraSshTool",
+    "HydraHttpTool",
+    "SqlmapScanTool",
 ]
