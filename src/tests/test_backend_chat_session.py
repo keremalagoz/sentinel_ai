@@ -41,8 +41,10 @@ def test_orchestrator_persists_session_and_enriches_context() -> None:
     second = orch.process_v2("simdi daha detayli tara", session_id=session_id)
     assert second["success"] is True
     assert len(dummy.calls) == 2
-    assert "Sohbet baglami" in dummy.calls[1]
-    assert "10.10.10.10 port taramasi yap" in dummy.calls[1]
+    # Fix 2 sonrasi: context user prompt'a eklenmez, resolver temiz input alir
+    assert dummy.calls[1] == "simdi daha detayli tara"
+    # Target onceki turlardan cikarilir (context'ten)
+    # DummyResolver zaten sabit target donduruyor
 
     turns = orch.get_session_turns(session_id, limit=10)
     assert len(turns) >= 4

@@ -8,7 +8,7 @@ import pytest
 
 from src.ai.orchestrator import AIOrchestrator
 from src.ai.schemas import Intent, IntentType
-from src.ai.tool_registry import build_execution_kwargs, get_execution_tool_id, _EXECUTION_REGISTRY
+from src.ai.tool_registry import build_execution_kwargs, get_execution_tool_id, _EXECUTION_REGISTRY, get_missing_required_params
 from src.core.sentinel_coordinator import SentinelCoordinator
 from src.core.platform_utils import get_shell
 from src.core.tool_base import (
@@ -114,21 +114,21 @@ def test_each_tool_returns_command_list(builder: Callable[[], list[str]], expect
         ),
         (
             lambda: NmapServiceDetectionTool().build_command(
-                target="192.168.1.10", version_intensity=7, version_mode="all", timing=2
+                target="192.168.1.10", version_intensity=7, version_mode="all", timing=2, no_ping=True, verbose=True
             ),
-            ["-sV", "--version-intensity", "7", "--version-all", "-T2", "192.168.1.10"],
+            ["-sV", "--version-intensity", "7", "--version-all", "-T2", "-Pn", "-v", "192.168.1.10"],
         ),
         (
             lambda: NmapVulnScanTool().build_command(
-                target="192.168.1.10", scripts="vuln,http-vuln*", script_args="unsafe=0", timing=5
+                target="192.168.1.10", scripts="vuln,http-vuln*", script_args="unsafe=0", timing=5, no_ping=True, verbose=True
             ),
-            ["--script", "vuln,http-vuln*", "--script-args", "unsafe=0", "-T5", "192.168.1.10"],
+            ["--script", "vuln,http-vuln*", "--script-args", "unsafe=0", "-T5", "-Pn", "-v", "192.168.1.10"],
         ),
         (
             lambda: NmapOsDetectionTool().build_command(
-                target="192.168.1.10", ports="22,80", timing=1, osscan_guess=True, service_detection=True
+                target="192.168.1.10", top_ports=50, timing=1, osscan_guess=True, service_detection=True, no_ping=True, verbose=True
             ),
-            ["-O", "-sV", "--osscan-guess", "-p", "22,80", "-T1", "192.168.1.10"],
+            ["-O", "-sV", "--osscan-guess", "--top-ports", "50", "-T1", "-Pn", "-v", "192.168.1.10"],
         ),
         (
             lambda: DnsLookupTool().build_command(
@@ -348,6 +348,27 @@ def test_orchestrator_falls_back_without_coordinator():
     assert result["command"].executable == "nmap"
 
 
+def test_orchestrator_adds_secondary_commands_for_compound_prompt(coordinator: SentinelCoordinator):
+    orchestrator = AIOrchestrator(model="qwen2.5:3b", coordinator=coordinator)
+    orchestrator._intent_resolver.resolve = lambda _user_input, _target: Intent(
+        intent_type=IntentType.PORT_SCAN,
+        target="10.0.0.1",
+        params={"top_ports": 20},
+        needs_clarification=False,
+        clarification_reason=None,
+        confidence=0.99,
+    )
+
+    result = orchestrator.process_v2("10.0.0.1 port tara ve dns sorgu yap")
+    assert result["success"] is True
+    assert result["command"] is not None
+    assert "secondary_commands" in result
+    assert isinstance(result["secondary_commands"], list)
+
+
+
+
+
 # =============================================================================
 # E2E PIPELINE TESTS: Intent -> build_execution_kwargs -> build_command
 # =============================================================================
@@ -398,6 +419,30 @@ class TestE2EPipelineCommands:
         assert "--top-ports" in cmd
         assert "100" in cmd
         assert "-p" not in cmd, "--top-ports ile -p birlikte kullanılmamalı"
+
+    def test_port_scan_with_no_ping(self):
+        """No-ping parametresi -Pn olarak yansimali."""
+        cmd = self._build_via_pipeline(
+            IntentType.PORT_SCAN, "10.0.0.1", {"no_ping": True}
+        )
+        assert "-Pn" in cmd
+
+    def test_port_scan_aggressive_mode(self):
+        """Aggressive modda -A olmali ve scan_type flag'i olmamali."""
+        cmd = self._build_via_pipeline(
+            IntentType.PORT_SCAN, "10.0.0.1", {"aggressive": True}
+        )
+        assert "-A" in cmd
+        assert "-sT" not in cmd
+        assert "-sS" not in cmd
+
+    def test_port_scan_aggressive_with_no_ping(self):
+        """Aggressive + no_ping birlikte calismali."""
+        cmd = self._build_via_pipeline(
+            IntentType.PORT_SCAN, "10.0.0.1", {"aggressive": True, "no_ping": True}
+        )
+        assert "-A" in cmd
+        assert "-Pn" in cmd
 
     def test_port_scan_syn_scan_type(self):
         """Kullanıcı SYN scan isterse: -sS olmalı."""

@@ -37,6 +37,7 @@ class NmapPingSweepTool(BaseTool):
         timing: Optional[int] = None,
         exclude: Optional[str] = None,
         no_dns: bool = False,
+        verbose: bool = False,
         **kwargs,
     ) -> List[str]:
         """
@@ -60,6 +61,9 @@ class NmapPingSweepTool(BaseTool):
 
         if no_dns:
             cmd.append("-n")
+
+        if verbose:
+            cmd.append("-v")
 
         cmd.append(safe_target)
         return cmd

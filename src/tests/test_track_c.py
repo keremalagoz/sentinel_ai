@@ -96,6 +96,12 @@ class TestKeywordPreFilter:
         ("192.168.1.0/24 agini tara", IntentType.HOST_DISCOVERY),
         ("ping sweep yap", IntentType.HOST_DISCOVERY),
         ("port taramasi yap", IntentType.PORT_SCAN),
+        ("portu hizlica tara", IntentType.PORT_SCAN),
+        ("hizli tara 192.168.1.1", IntentType.PORT_SCAN),
+        ("agresif tarama yap 10.0.0.1", IntentType.PORT_SCAN),
+        ("aggressive scan baslat", IntentType.PORT_SCAN),
+        ("ping atmadan tara", IntentType.PORT_SCAN),
+        ("no-ping ile tara", IntentType.PORT_SCAN),
         ("acik port bul", IntentType.PORT_SCAN),
         ("SSL sertifikasini kontrol et", IntentType.SSL_SCAN),
         ("DNS sorgulama yap", IntentType.DNS_LOOKUP),
@@ -115,6 +121,12 @@ class TestKeywordPreFilter:
     def test_suggest_unknown_returns_none(self, kf):
         """Hicbir pattern eslesmediyse None donmeli."""
         assert kf.suggest("bugun hava nasil") is None
+
+    def test_suggest_all_returns_multiple_candidates(self, kf):
+        """Compound ifadelerde birden fazla intent adayi donmeli."""
+        candidates = kf.suggest_all("10.0.0.1 port tara ve dns sorgu yap")
+        assert IntentType.PORT_SCAN in candidates
+        assert IntentType.DNS_LOOKUP in candidates
 
     # -- cross_validate --
 

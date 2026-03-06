@@ -158,6 +158,7 @@ class TestParamMapBuildCommandAlignment:
         # Kritik parametreler listesi — bunların KESİNLİKLE map'lenmiş olması gerekir
         CRITICAL_PARAMS = {
             "timing", "top_ports", "no_dns", "verbose", "service_detection",
+            "no_ping", "aggressive", "traceroute",
             "ports", "scan_type", "intensity", "version_intensity",
             "version_mode", "osscan_guess", "scripts", "script_args",
             "record_type", "dns_server", "port", "servername",

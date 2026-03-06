@@ -69,9 +69,23 @@ _KEYWORD_PATTERNS: list[Tuple[re.Pattern, IntentType]] = [
     # Host Discovery / Ping sweep
     (re.compile(
         r"(ping\s+sweep|host\s+discovery|agdaki\s+(aktif\s+)?(cihaz|host)|"
-        r"ag[i\u0131]n[i\u0131]\s+tara|canli\s+host|alive\s+host|ping\s+tara)",
+        r"ag[i\u0131]n[i\u0131]\s+tara|canli\s+host|alive\s+host|ping\s+tara|"
+        r"ping\s+atmadan\s+host\s+kesfet)",
         re.IGNORECASE,
     ), IntentType.HOST_DISCOVERY),
+
+    # Port scan with no-ping expressions (-Pn behavior)
+    (re.compile(
+        r"((no\s*-?\s*ping|ping\s+atmadan|-Pn\b).{0,30}(tara|scan|port))"
+        r"|((tara|scan|port).{0,30}(no\s*-?\s*ping|ping\s+atmadan|-Pn\b))",
+        re.IGNORECASE,
+    ), IntentType.PORT_SCAN),
+
+    # Aggressive scan language maps to port scan intent with aggressive param extraction in LLM
+    (re.compile(
+        r"(agresif\s+tara(ma)?|aggressive\s+scan|full\s+scan|tam\s+tarama)",
+        re.IGNORECASE,
+    ), IntentType.PORT_SCAN),
 
     # Web vuln scan (vuln_scan'den ONCE gelmeli — "nikto", "web zafiyet" burada yakalar)
     (re.compile(
@@ -97,16 +111,16 @@ _KEYWORD_PATTERNS: list[Tuple[re.Pattern, IntentType]] = [
     # OS detection
     (re.compile(
         r"(isletim\s+sistemi|os\s+detect|os\s+tespit|"
-        r"operating\s+system|fingerprint\s+os|-O\b)",
+        r"operating\s+system|fingerprint\s+os|os\s+fingerprint|-O\b)",
         re.IGNORECASE,
     ), IntentType.OS_DETECTION),
 
     # Port scan (genel tarama da buraya duser)
     (re.compile(
-        r"(port\s*(lar[i\u0131]?)?\s*(tara|scan|kontrol|check)|"
+        r"(port\w*\s+.*?(tara|scan|kontrol|check)|"
         r"port\s+tarama|tcp\s+scan|syn\s+scan|udp\s+scan|"
         r"acik\s+port|open\s+port|-sS\b|-sT\b|-sU\b|"
-        r"(tarama|scan)\s+yap)",
+        r"h[i\u0131]zl[i\u0131]ca\s+tara|h[i\u0131]zl[i\u0131]\s+tara)",
         re.IGNORECASE,
     ), IntentType.PORT_SCAN),
 
@@ -127,8 +141,8 @@ _KEYWORD_PATTERNS: list[Tuple[re.Pattern, IntentType]] = [
     # DNS lookup
     (re.compile(
         r"(dns\s+(sorgu|lookup|query|record)|"
-        r"nslookup|dig\s+|mx\s+record|a\s+record|"
-        r"ns\s+record|txt\s+record|aaaa\s+record)",
+        r"nslookup|dig\s+|"
+        r"(mx|a|aaaa|ns|txt|soa|cname)\s+(record|kay[iı]t|kayd[iı]))",
         re.IGNORECASE,
     ), IntentType.DNS_LOOKUP),
 
@@ -198,6 +212,23 @@ class KeywordPreFilter:
             if pattern.search(normalized):
                 return intent_type
         return None
+
+    def suggest_all(self, user_input: str) -> list[IntentType]:
+        """Kullanici girdisinden eslesen tum intent adaylarini don.
+
+        Ilk eslesen kazanir davranisini bozmaz; ancak compound/ek-komut
+        senaryolari icin tum adaylari oncelik sirasiyla dondurur.
+        """
+        normalized = _normalize_turkish(user_input)
+        matches: list[IntentType] = []
+        seen: set[IntentType] = set()
+
+        for pattern, intent_type in self._patterns:
+            if pattern.search(normalized) and intent_type not in seen:
+                matches.append(intent_type)
+                seen.add(intent_type)
+
+        return matches
 
     def cross_validate(
         self,

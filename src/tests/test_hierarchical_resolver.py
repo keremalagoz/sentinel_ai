@@ -441,6 +441,58 @@ class TestKeywordBypass:
             # Stage 1 + Stage 2 = 2 LLM cagrisi
             assert r._client.chat.completions.create.call_count == 2
 
+    def test_keyword_does_not_override_high_confidence_llm(self):
+        """LLM confidence yuksekse keyword farkli olsa bile LLM intent'i korunmali."""
+        stage2_resp = json.dumps({
+            "intent_type": "port_scan",
+            "target": "192.168.1.1",
+            "params": {},
+            "needs_clarification": False,
+            "clarification_reason": None,
+            "confidence": 0.92,
+        })
+        r = self._make_resolver_with_mocked_llm(stage2_resp)
+        r._keyword_filter = MagicMock()
+        r._keyword_filter.suggest.return_value = IntentType.OS_DETECTION
+
+        intent = r.resolve("192.168.1.1 port tara")
+        assert intent.intent_type == IntentType.PORT_SCAN
+
+    def test_keyword_overrides_low_confidence_llm(self):
+        """LLM confidence dusukse keyword fallback intent override etmeli."""
+        stage2_resp = json.dumps({
+            "intent_type": "unknown",
+            "target": "192.168.1.1",
+            "params": {},
+            "needs_clarification": False,
+            "clarification_reason": None,
+            "confidence": 0.40,
+        })
+        r = self._make_resolver_with_mocked_llm(stage2_resp)
+        r._keyword_filter = MagicMock()
+        r._keyword_filter.suggest.return_value = IntentType.PORT_SCAN
+
+        intent = r.resolve("192.168.1.1 port tara")
+        assert intent.intent_type == IntentType.PORT_SCAN
+
+    def test_keyword_agreement_boosts_confidence(self):
+        """Keyword ve LLM ayni intent'te bulusuyorsa confidence en az 0.9 olmali."""
+        stage2_resp = json.dumps({
+            "intent_type": "port_scan",
+            "target": "192.168.1.1",
+            "params": {},
+            "needs_clarification": False,
+            "clarification_reason": None,
+            "confidence": 0.61,
+        })
+        r = self._make_resolver_with_mocked_llm(stage2_resp)
+        r._keyword_filter = MagicMock()
+        r._keyword_filter.suggest.return_value = IntentType.PORT_SCAN
+
+        intent = r.resolve("192.168.1.1 port tara")
+        assert intent.intent_type == IntentType.PORT_SCAN
+        assert intent.confidence >= 0.9
+
 
 # =============================================================================
 # 3.7.6 — Orchestrator feature flag tests
@@ -518,6 +570,10 @@ class TestPromptCoverage:
         """SUB_INTENT_PROMPT_TEMPLATE {category} ve {intent_list} placeholder'lari icermeli."""
         assert "{category}" in SUB_INTENT_PROMPT_TEMPLATE
         assert "{intent_list}" in SUB_INTENT_PROMPT_TEMPLATE
+
+    @pytest.mark.parametrize("param_key", ["verbose", "no_ping", "aggressive", "traceroute", "osscan_guess", "scripts"])
+    def test_sub_intent_template_mentions_extended_params(self, param_key: str):
+        assert param_key in SUB_INTENT_PROMPT_TEMPLATE
 
 
 # =============================================================================

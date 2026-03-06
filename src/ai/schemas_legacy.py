@@ -27,6 +27,9 @@ ALLOWED_TOOLS = frozenset({
     "dirb",
     "hydra",
     "sqlmap",
+    # SSL/TLS analysis
+    "openssl",
+    "sslscan",
     # Basic recon / network utils
     "whois",
     "dig",
@@ -39,7 +42,7 @@ ALLOWED_TOOLS = frozenset({
 
 _TOOL_NAME_PATTERN = re.compile(r"^[a-z0-9][a-z0-9._+-]*$", re.IGNORECASE)
 _MAX_ARGUMENTS = 64
-_MAX_ARG_LENGTH = 512
+_MAX_ARG_LENGTH = 2048
 _ALLOWED_PLACEHOLDER = "{target}"
 
 

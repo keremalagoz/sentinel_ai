@@ -19,8 +19,8 @@ class HydraSshTool(BaseTool):
     def build_command(
         self,
         target: str,
-        username: str,
-        wordlist: str,
+        username: str = "[USER]",
+        wordlist: str = "/path/to/wordlist.txt",
         port: int = 22,
         threads: int = 4,
         verbose: bool = False,

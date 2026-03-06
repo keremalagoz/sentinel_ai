@@ -127,6 +127,12 @@ CIKTI FORMATI (STRICT JSON):
         "timing": "hiz seviyesi 0-5 (varsa, ornek: 4)",
         "service_detection": "versiyon tespiti (true/false)",
         "no_dns": "DNS cozumleme kapatma (true/false)",
+        "verbose": "detayli cikti (true/false)",
+        "no_ping": "ping atmadan tara (true/false)",
+        "osscan_guess": "OS tahmini yap (true/false)",
+        "aggressive": "agresif mod, nmap -A (true/false)",
+        "traceroute": "traceroute bilgisi ekle (true/false)",
+        "scripts": "NSE script kategorisi (varsa, ornek: 'vuln', 'default')",
         "wordlist": "wordlist tercihi (varsa)",
         "record_type": "DNS kayit tipi (varsa: 'A','AAAA','MX','NS','TXT')",
         "extensions": "dosya uzantilari (varsa, ornek: 'php,html,txt')",
@@ -421,12 +427,25 @@ class HierarchicalResolver(HierarchicalResolverBase):
             )
             intent = self.resolve_sub_intent(user_input, category, target_hint)
 
-            # Keyword pre-filter spesifik intent biliyorsa, LLM intent_type'ini override et
-            # LLM'den sadece target/params (NER) bilgisini kullaniyoruz
-            if intent.intent_type != kw_suggestion:
-                logger.debug(
-                    "Keyword override: LLM='%s' -> keyword='%s'",
+            # Confidence-aware uzlasma:
+            # - LLM yuksek guvenliyse intent'i koru.
+            # - LLM dusuk guvenliyse keyword fallback uygula.
+            # - Ayniysa confidence'i hafif boost et.
+            if intent.intent_type == kw_suggestion:
+                if intent.confidence < 0.9:
+                    intent = Intent(
+                        intent_type=intent.intent_type,
+                        target=intent.target,
+                        params=intent.params,
+                        needs_clarification=intent.needs_clarification,
+                        clarification_reason=intent.clarification_reason,
+                        confidence=max(intent.confidence, 0.9),
+                    )
+            elif intent.confidence < 0.7:
+                logger.warning(
+                    "Keyword override (low confidence): LLM='%s'(%.2f) -> keyword='%s'",
                     intent.intent_type.value,
+                    intent.confidence,
                     kw_suggestion.value,
                 )
                 intent = Intent(

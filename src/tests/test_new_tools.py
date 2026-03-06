@@ -114,7 +114,7 @@ def test_coordinator_has_execute_methods(coordinator, method_name):
         (
             NmapVulnScanTool(),
             {"target": "192.168.1.10", "ports": "443", "scripts": "vuln"},
-            ["nmap", "--script", "vuln"],
+            ["nmap", "-sS", "--script", "vuln"],
             ["-p", "443", "192.168.1.10"],
         ),
         (

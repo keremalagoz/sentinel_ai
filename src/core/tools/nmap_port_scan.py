@@ -58,6 +58,10 @@ class NmapPortScanTool(BaseTool):
         no_dns: bool = False,
         verbose: bool = False,
         service_detection: bool = False,
+        no_ping: bool = False,
+        osscan_guess: bool = False,
+        aggressive: bool = False,
+        traceroute: bool = False,
         **kwargs
     ) -> List[str]:
         """
@@ -68,17 +72,23 @@ class NmapPortScanTool(BaseTool):
             ports: Port range (1-1000, 80,443, etc.)
             scan_type: Scan type (sT, sS, sU)
             service_detection: Enable version detection (-sV)
+            traceroute: Enable traceroute (--traceroute)
 
         Returns:
             Command: ["nmap", "-sT", "-p", "1-1000", "192.168.1.10"]
         """
         safe_target = self.validate_target(target)
-        safe_scan_type = self.validate_enum(scan_type, {"sS", "sT", "sU", "sA"}, "scan_type")
+        cmd: List[str] = ["nmap", "-A"] if aggressive else ["nmap"]
 
-        cmd: List[str] = ["nmap", f"-{safe_scan_type}"]
+        if not aggressive:
+            safe_scan_type = self.validate_enum(scan_type, {"sS", "sT", "sU", "sA"}, "scan_type")
+            cmd.append(f"-{safe_scan_type}")
 
         if service_detection:
             cmd.append("-sV")
+
+        if osscan_guess:
+            cmd.append("--osscan-guess")
 
         if top_ports is not None:
             safe_top_ports = self.validate_range(top_ports, 1, 65535, "top_ports")
@@ -94,8 +104,14 @@ class NmapPortScanTool(BaseTool):
         if no_dns:
             cmd.append("-n")
 
+        if no_ping:
+            cmd.append("-Pn")
+
         if verbose:
             cmd.append("-v")
+
+        if traceroute:
+            cmd.append("--traceroute")
 
         cmd.append(safe_target)
         return cmd

@@ -7,6 +7,7 @@ Exposes AI Orchestrator via FastAPI (Headless mode - no Qt dependencies)
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 from typing import Optional, Dict, Any, List
+from contextlib import asynccontextmanager
 import uvicorn
 
 from src.ai.schemas import IntentType
@@ -22,11 +23,18 @@ from src.ai.command_builder import get_command_builder
 from src.ai.schemas import FinalCommand
 from src.core.sentinel_coordinator import SentinelCoordinator
 
+@asynccontextmanager
+async def _lifespan(_app: FastAPI):
+    """Application lifecycle hooks (startup/shutdown)."""
+    yield
+
+
 # Initialize FastAPI app
 app = FastAPI(
     title="SENTINEL AI API",
     description="Security Testing Automation with AI Orchestration",
-    version="2.1.0"
+    version="2.1.0",
+    lifespan=_lifespan,
 )
 
 _command_builder = get_command_builder()
@@ -239,13 +247,6 @@ async def get_stats():
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
-
-
-@app.on_event("shutdown")
-async def shutdown_event():
-    """Cleanup on shutdown"""
-    pass
-
 
 if __name__ == "__main__":
     uvicorn.run(

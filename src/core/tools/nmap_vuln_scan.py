@@ -37,6 +37,8 @@ class NmapVulnScanTool(BaseTool):
         scripts: str = "vuln",
         script_args: Optional[str] = None,
         timing: Optional[int] = None,
+        verbose: bool = False,
+        no_ping: bool = False,
         **kwargs
     ) -> List[str]:
         """
@@ -53,7 +55,7 @@ class NmapVulnScanTool(BaseTool):
         safe_target = self.validate_target(target)
         safe_scripts = self.validate_nse_scripts(scripts)
 
-        cmd: List[str] = ["nmap", "--script", safe_scripts]
+        cmd: List[str] = ["nmap", "-sS", "--script", safe_scripts]
 
         if script_args:
             cmd.extend(["--script-args", self.validate_string(script_args, "script_args")])
@@ -65,6 +67,12 @@ class NmapVulnScanTool(BaseTool):
         if ports:
             safe_ports = self.validate_ports(ports)
             cmd.extend(["-p", safe_ports])
+
+        if no_ping:
+            cmd.append("-Pn")
+
+        if verbose:
+            cmd.append("-v")
 
         cmd.append(safe_target)
         return cmd

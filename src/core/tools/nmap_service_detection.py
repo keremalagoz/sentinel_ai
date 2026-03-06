@@ -37,6 +37,8 @@ class NmapServiceDetectionTool(BaseTool):
         version_intensity: Optional[int] = None,
         timing: Optional[int] = None,
         version_mode: str = "default",
+        verbose: bool = False,
+        no_ping: bool = False,
         **kwargs
     ) -> List[str]:
         """
@@ -73,6 +75,12 @@ class NmapServiceDetectionTool(BaseTool):
         if ports:
             safe_ports = self.validate_ports(ports)
             cmd.extend(["-p", safe_ports])
+
+        if no_ping:
+            cmd.append("-Pn")
+
+        if verbose:
+            cmd.append("-v")
 
         cmd.append(safe_target)
         return cmd

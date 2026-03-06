@@ -225,6 +225,7 @@ _EXECUTION_REGISTRY: Dict[IntentType, Dict[str, Any]] = {
             "timing": "timing",
             "exclude": "exclude",
             "no_dns": "no_dns",
+            "verbose": "verbose",
         }
     },
     IntentType.PORT_SCAN: {
@@ -238,6 +239,10 @@ _EXECUTION_REGISTRY: Dict[IntentType, Dict[str, Any]] = {
             "no_dns": "no_dns",
             "verbose": "verbose",
             "service_detection": "service_detection",
+            "no_ping": "no_ping",
+            "osscan_guess": "osscan_guess",
+            "aggressive": "aggressive",
+            "traceroute": "traceroute",
         }
     },
     IntentType.SERVICE_DETECTION: {
@@ -249,6 +254,8 @@ _EXECUTION_REGISTRY: Dict[IntentType, Dict[str, Any]] = {
             "version_intensity": "version_intensity",
             "timing": "timing",
             "version_mode": "version_mode",
+            "verbose": "verbose",
+            "no_ping": "no_ping",
         }
     },
     IntentType.OS_DETECTION: {
@@ -259,6 +266,9 @@ _EXECUTION_REGISTRY: Dict[IntentType, Dict[str, Any]] = {
             "timing": "timing",
             "osscan_guess": "osscan_guess",
             "service_detection": "service_detection",
+            "verbose": "verbose",
+            "top_ports": "top_ports",
+            "no_ping": "no_ping",
         }
     },
     IntentType.VULN_SCAN: {
@@ -269,6 +279,8 @@ _EXECUTION_REGISTRY: Dict[IntentType, Dict[str, Any]] = {
             "scripts": "scripts",
             "script_args": "script_args",
             "timing": "timing",
+            "verbose": "verbose",
+            "no_ping": "no_ping",
         }
     },
     IntentType.DNS_LOOKUP: {
@@ -502,6 +514,43 @@ def validate_execution_registry(registered_tool_ids: Optional[Set[str]] = None) 
     return (len(errors) == 0, errors)
 
 
+# =============================================================================
+# PARAM TYPE COERCION — LLM ciktisindaki tip duzeltmeleri
+# =============================================================================
+
+# LLM JSON'da genellikle "4" (string) veya "true" (string) doner.
+# build_command int/bool beklediginden, burada tip donusumu yapilir.
+
+_INT_PARAMS: frozenset = frozenset({
+    "timing", "top_ports", "port", "threads", "intensity",
+    "version_intensity", "level", "risk",
+})
+
+_BOOL_PARAMS: frozenset = frozenset({
+    "no_dns", "verbose", "no_ping", "service_detection",
+    "osscan_guess", "aggressive", "no_tls_validation",
+    "follow_redirect", "traceroute", "batch", "forms", "dbs",
+})
+
+
+def _coerce_param(key: str, value: Any) -> Any:
+    """LLM ciktisindaki tip farkliliklarini duzelt."""
+    if key in _INT_PARAMS:
+        try:
+            return int(value)
+        except (TypeError, ValueError):
+            return value
+    if key in _BOOL_PARAMS:
+        if isinstance(value, str):
+            return value.lower() in ("true", "1", "yes", "evet")
+        return bool(value)
+    # LLM bazen ports icin "*", "all", "tum" gibi wildcard doner
+    if key == "ports" and isinstance(value, str):
+        if value.strip() in ("*", "all", "tüm", "tum", "hepsi", "-"):
+            return None  # build_command varsayilan port araligini kullansin
+    return value
+
+
 def build_execution_kwargs(
     intent_type: IntentType,
     target: Optional[str],
@@ -509,6 +558,9 @@ def build_execution_kwargs(
 ) -> Optional[Dict[str, Any]]:
     """
     Intent -> Tool kwargs mapping.
+
+    LLM ciktisindaki tip farkliliklarini duzeltir (str -> int/bool)
+    ve build_command icin dogru tipleri uretir.
 
     Returns:
         kwargs dict or None if intent is not executable
@@ -522,15 +574,49 @@ def build_execution_kwargs(
     if target_arg:
         if not target:
             return None
+        # URL gerektiren tool'lar icin http:// prefix otomatik ekle
+        if target_arg == "url" and not (
+            target.startswith("http://") or target.startswith("https://")
+        ):
+            target = f"http://{target}"
         kwargs[target_arg] = target
 
     param_map = mapping.get("param_map", {})
     if params:
         for param_key, tool_arg in param_map.items():
             if param_key in params and params[param_key] is not None:
-                kwargs[tool_arg] = params[param_key]
+                coerced = _coerce_param(param_key, params[param_key])
+                if coerced is not None:
+                    kwargs[tool_arg] = coerced
 
     return kwargs
+
+
+def get_missing_required_params(
+    intent_type: IntentType,
+    params: Optional[Dict[str, Any]] = None,
+) -> List[str]:
+    """Intent icin zorunlu parametrelerden eksik olanlari don.
+
+    Sadece execution registry'de required_params tanimli intent'ler icin calisir.
+    """
+    mapping = _EXECUTION_REGISTRY.get(intent_type)
+    if not mapping:
+        return []
+
+    required = mapping.get("required_params", []) or []
+    provided = params or {}
+
+    missing: List[str] = []
+    for key in required:
+        value = provided.get(key)
+        if value is None:
+            missing.append(key)
+            continue
+        if isinstance(value, str) and not value.strip():
+            missing.append(key)
+
+    return missing
 
 
 def print_registry_summary():
