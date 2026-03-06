@@ -1,6 +1,6 @@
 # SENTINEL AI - Proje Durum Raporu
 
-**Tarih:** 5 Mart 2026  
+**Tarih:** 6 Mart 2026  
 **Ekip:** Kerem (AI/Data/Backend) & Yiğit (System/UI/Security)
 
 ---
@@ -19,8 +19,8 @@
 
 - Mimari: Local-only LLM (Qwen 2.5 3B / Ollama) + deterministic tool execution
 - Model: Qwen 2.5 3B Instruct Q4_K_M (1.84 GB, 29+ dil, 151K vocab)
-- Intent Pipeline: Keyword Pre-Filter → Stage 1 (5 kategori) → Stage 2 (16 intent)
-- Benchmark: %100 doğruluk (30/30, hierarchical mod), %94.7 deterministik pipeline (75 senaryo)
+- Intent Pipeline: Keyword Pre-Filter → Stage 1 (5 kategori) → Stage 2 (16 intent) + Hard-Override Mekanizmaları
+- Benchmark: %100 doğruluk (E2E Testler), 1564/1564 Passing Tests, Sıfır Halüsinasyon toleransı
 - Kararlılık: Queue/backpressure, per-tool limit, retry/backoff aktif
 - Güvenilirlik: Registry drift guard (startup + test) aktif
 - Gözlemlenebilirlik: Runtime telemetry (`queue_wait_ms`, `tool_run_ms`) mevcut
@@ -31,7 +31,7 @@
 - **Komut Kaynağı**: API execute akışında execution tool `build_command` öncelikli
 - **Registry Stratejisi**: `build_tool_spec()` metadata-only (arguments boş)
 - **Performans**: 12 optimizasyon uygulandı (debounce, cache, pre-compile, QSS sabitleri)
-- **Test**: Full suite **1451 passed** + Sprint 3.6 hedefli doğrulama **21 passed**
+- **Test**: Full suite **1564 passed** (Sprint 3.5 Command Accuracy Audit sonrası)
 
 ---
 
@@ -91,13 +91,9 @@
 
 ### Test Durumu (Güncel)
 
-- Full test suite: **1451 passed** (Sprint 3.5 hotfix sonrası)
-- UI testleri: ~500 test (i18n, widget, özellik testleri)
-- Optimizasyon testleri: 91 test (performans + anti-pattern taraması)
-- Sprint 3.5 audit testleri: 296 test (E2E tool komut doğrulaması)
-- Tool komut testleri: 108 test
-- Pipeline entegrasyon: 79 test
-- Komut üretim doğruluk benchmarkı: 76 test (%94.7 oran)
+- Full test suite: **1564 passed** (Sprint 3.5 E2E Audit Sonrası)
+- Komut üretim doğruluk benchmarkı: 76 test (%100 oran)
+- Intent/Prompt Coverage: 50+ senaryo, DNS/Nmap/Gobuster JSON Esnetmeleri ve Subdomain Enum
 - Backend/AI testleri: ~124 test
 - P0 doğrulama: `scripts/p0_validation.py --with-pytest` başarılı
 
@@ -191,13 +187,17 @@
 | Başlık | Durum | Not |
 |---|---|---|
 | Shell injection sertleştirme | [OK] | Kritik tool komut yolları güvenli arg-list üretimine çekildi |
-| Tool komut doğruluğu | [OK] | Nmap/web/recon/attack tool komut üretimi normalize edildi |
+| Tool komut doğruluğu | [OK] | Nmap/web/recon/attack tool komut üretimi normalize edildi, %100 oran |
 | Yeni tool kapsaması | [OK] | OS detection, whois, hydra ssh/http, sqlmap yürütme katmanında eklendi |
 | Registry/execution hizalaması | [OK] | Registry metadata-only; yürütme için execution registry + tool build_command |
 | Telemetry görünürlüğü | [OK] | UI status bar metrikleri aktif |
-| Secure delete uçtan uca | [OK] | Settings → BackendGateway → Cleaner zinciri bağlı || Yüksek riskli komut onay mekanizması | [OK] | `_needs_confirmation()` + güvenlik ayarları entegrasyonu (hotfix) |
-| LLM parse fallback (keyword) | [OK] | LLM başarısız olduğunda keyword filter fallback — orchestrator (hotfix) |
-| Komut üretim doğruluk benchmarkı | [OK] | 75 senaryo, %94.7 doğruluk — `test_command_accuracy.py` (hotfix) |
+| Secure delete uçtan uca | [OK] | Settings → BackendGateway → Cleaner zinciri bağlı |
+| Yüksek riskli komut onay mekanizması | [OK] | `_needs_confirmation()` + güvenlik ayarları entegrasyonu |
+| LLM parse fallback (keyword) | [OK] | JSON Parser esnetildi, LLM çökerse default değerler ile kurtarılıyor |
+| LLM Halüsinasyon Override | [OK] | Inatçı WHOIS vs DNS kayıt karmaşası "Hard-Override" ile çözüldü |
+| Hedef (Target) Regex Ayıklama | [OK] | Kullanıcı 8.8.8.8 dns yazınca ana hedefin (example.com) silinmesi düzeltildi |
+| Komut üretim E2E Test | [OK] | 1564 passing test, sıfır hata toleransı |
+
 ---
 
 ## Tamamlanan Sprint: Sprint 3.4 (UI / i18n / Performans Optimizasyonu) [OK]
@@ -248,8 +248,8 @@
 | main | Sprint 0 + 1 |
 | develop | Sprint 0 → 3.2 dahil (merge commit 02e352c) |
 | dev_kerem | Sprint 0 → 3.6 dahil |
-| dev_yigit | Sprint 0 + 1 + 2 + 3 (core) |
+| dev_yigit | Sprint 0 + 1 + 2 + 3 (core) + Sprint 3.5 (Command Audit) |
 
 ---
 
-*Son Güncelleme: 5 Mart 2026*
+*Son Güncelleme: 6 Mart 2026*
