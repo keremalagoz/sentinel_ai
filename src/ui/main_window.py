@@ -46,7 +46,7 @@ class AIWorker(QThread):
     result_ready = pyqtSignal(object)
     error_occurred = pyqtSignal(str)
 
-    def __init__(self, gateway: BackendGateway, user_text: str, session_id: str | None = None):
+    def __init__(self, gateway: BackendGateway, user_text: str, session_id: str):
         super().__init__()
         self._gateway = gateway
         self._user_text = user_text
@@ -54,12 +54,10 @@ class AIWorker(QThread):
 
     def run(self):
         try:
-            if self._session_id:
-                response = self._gateway.ask_ai_with_session_compat(
-                    self._user_text, self._session_id
-                )
-            else:
-                response = self._gateway.ask_ai(self._user_text)
+            response = self._gateway.ask_ai_with_session(
+                user_text=self._user_text,
+                session_id=self._session_id,
+            )
             self.result_ready.emit(response)
         except Exception as error:
             self.error_occurred.emit(str(error))
@@ -494,7 +492,8 @@ class MainWindow(QMainWindow):
             self.chat_interface.add_ai_message(t("msg.ai_busy"))
             return
 
-        self._ai_worker = AIWorker(self.backend, text, session_id=self._chat_session_id)
+        session_id = self.chat_interface.get_current_chat_id()
+        self._ai_worker = AIWorker(self.backend, text, session_id)
         self._ai_worker.result_ready.connect(self._on_ai_result)
         self._ai_worker.error_occurred.connect(self._on_ai_error)
         self._pending_correlation_id = correlation_id
@@ -504,13 +503,35 @@ class MainWindow(QMainWindow):
         command_text = None
         risk_level = "low"
         requires_root = False
-        if getattr(response, "command", None):
-            command = response.command
-            command_text = f"{command.tool} {' '.join(command.arguments)}".strip()
-            risk_level = self._normalize_risk(str(getattr(command, "risk_level", "low")))
-            requires_root = bool(getattr(command, "requires_root", False))
 
-        message = getattr(response, "message", None) or t("msg.ai_no_response")
+        if isinstance(response, dict):
+            command = response.get("command")
+            if command:
+                if isinstance(command, dict):
+                    executable = command.get("executable", "")
+                    arguments = command.get("arguments", [])
+                    risk_raw = command.get("risk_level", "low")
+                    requires_root = bool(command.get("requires_root", False))
+                else:
+                    executable = getattr(command, "executable", "")
+                    arguments = getattr(command, "arguments", []) or []
+                    risk_raw = getattr(command, "risk_level", "low")
+                    requires_root = bool(getattr(command, "requires_root", False))
+
+                if hasattr(risk_raw, "value"):
+                    risk_raw = risk_raw.value
+
+                command_text = f"{executable} {' '.join(arguments)}".strip()
+                risk_level = self._normalize_risk(str(risk_raw))
+            message = response.get("message") or t("msg.ai_no_response")
+        else:
+            if getattr(response, "command", None):
+                command = response.command
+                command_text = f"{command.tool} {' '.join(command.arguments)}".strip()
+                risk_level = self._normalize_risk(str(getattr(command, "risk_level", "low")))
+                requires_root = bool(getattr(command, "requires_root", False))
+            message = getattr(response, "message", None) or t("msg.ai_no_response")
+
         if requires_root:
             risk_level = "high"
         self._update_risk_indicator(risk_level)
