@@ -369,7 +369,8 @@ class IntentResolver:
             model=self._model,
             messages=messages,
             temperature=0.1,  # Dusuk temperature = tutarli cikti
-            max_tokens=300,
+            max_tokens=500,
+            response_format={"type": "json_object"},
             timeout=self._request_timeout,
         )
         return response.choices[0].message.content
