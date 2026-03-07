@@ -63,6 +63,15 @@ Bu liste, `develop` öncesi 3-5 dakikalık hızlı doğrulama için hazırlanmı
 - Font değişikliği anlık uygulanır, gecikme yok.
 - Çoklu terminal sekmesi açma/kapama akıcıdır.
 
+## 11) Stabilization Kontrolleri (7 Mart 2026)
+- Yeni chat açıldığında backend session yenilenir; aynı sohbet içinde çoklu AI mesajları aynı backend session ile devam eder.
+- Geçmişten sohbet yüklenince backend session metadata'sı geri gelir; ilk yeni mesaj gölge session oluşturmaz.
+- Chatten gelen `whois` / `sqlmap` gibi destekli AI komutları `Run` sonrası reddedilmez.
+- Query string içeren structured URL'ler ve HTTP form payload'ları AI komut yolunda kabul edilir.
+- Terminale elle yazılan riskli raw komutlar (`rm`, shell injection karakterleri vb.) hâlâ reddedilir.
+- Windows native modda `ping` ve benzeri temel araçlar executable çözümleme hatası vermeden başlar.
+- Başlatılamayan komut bir kez `FAILED` olur; aynı komut için sahte ikinci timeout sonucu görünmez.
+
 ## Önerilen Kısa Akış
 1. Uygulamayı başlat.
 2. `Settings` → dili Türkçe'ye çevir, etiketleri kontrol et.

@@ -7,6 +7,8 @@ import shutil
 import time
 import tempfile
 
+from src.core.platform_utils import resolve_executable
+
 class ExecutionMode(Enum):
     DOCKER = "docker"      # Container içinde çalıştır (Tercih edilen)
     NATIVE = "native"      # Host'ta direkt çalıştır (Linux/Windows)
@@ -118,6 +120,8 @@ class ExecutionManager:
             if requires_root and self.is_linux:
                 final_args = [tool] + final_args
                 final_cmd = "pkexec"
+            else:
+                final_cmd = resolve_executable(final_cmd)
                 
             # Windows ise path ayarla
             if self.is_windows:

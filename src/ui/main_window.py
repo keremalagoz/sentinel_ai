@@ -6,6 +6,7 @@ Single header, cohesive layout
 import json
 import os
 import uuid
+from typing import Any, Dict, Optional
 
 from PyQt6.QtWidgets import (
     QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
@@ -91,8 +92,8 @@ class MainWindow(QMainWindow):
         self._risk_level = "low"
         self._ai_state = "checking"   # checking | online | offline
         self._ai_model_name = ""
-        # Backend conversation session — multi-turn context enrichment icin
-        self._chat_session_id: str = self.backend._orchestrator.create_session()
+        self._chat_session_id = ""
+        self._ai_command_cache: Dict[str, Dict[str, Any]] = {}
         set_language(self._security_settings.get("language", "en"))
         self.backend.set_secure_delete(self._security_settings.get("secure_delete", True))
         self.backend.cleanup_old_sessions(
@@ -103,6 +104,8 @@ class MainWindow(QMainWindow):
         self.setStyleSheet(GLOBAL_STYLE)
         self._setup_ui()
         self._connect_signals()
+        self._chat_session_id = self.backend.create_session()
+        self.chat_interface.set_backend_session_id(self._chat_session_id)
         self._apply_text_settings(self._security_settings)
     
     def _setup_ui(self):
@@ -305,6 +308,7 @@ class MainWindow(QMainWindow):
         self.chat_interface.input_sent.connect(self.terminal_view.send_input)
         self.chat_interface.action_response.connect(self._handle_action_response)
         self.chat_interface.message_sent.connect(self._handle_user_message)
+        self.chat_interface.backend_session_changed.connect(self._on_chat_backend_session_changed)
         
         # Terminal -> Chat
         self.terminal_view.sig_status_changed.connect(self._on_terminal_status)
@@ -318,9 +322,14 @@ class MainWindow(QMainWindow):
         self.chat_interface._show_history()
     
     def _new_chat(self):
+        self._ai_command_cache.clear()
         self.chat_interface._new_chat()
-        # Yeni sohbet basladiginda yeni backend session olustur
-        self._chat_session_id = self.backend._orchestrator.create_session()
+
+    def _on_chat_backend_session_changed(self, session_id: str) -> None:
+        self._ai_command_cache.clear()
+        active_session = self.backend.create_session(session_id=session_id or None)
+        self._chat_session_id = active_session
+        self.chat_interface.set_backend_session_id(active_session)
     
     def _add_terminal(self):
         self.terminal_view._add_terminal()
@@ -365,6 +374,47 @@ class MainWindow(QMainWindow):
         if value in {"high", "medium", "low"}:
             return value
         return "low"
+
+    def _build_command_payload(self, command: Any) -> Optional[Dict[str, Any]]:
+        if not command:
+            return None
+
+        if isinstance(command, dict):
+            executable = command.get("executable") or command.get("tool")
+            arguments = command.get("arguments", [])
+            requires_root = bool(command.get("requires_root", False))
+            risk_level = command.get("risk_level", "low")
+        else:
+            executable = getattr(command, "executable", None) or getattr(command, "tool", None)
+            arguments = getattr(command, "arguments", [])
+            requires_root = bool(getattr(command, "requires_root", False))
+            risk_level = getattr(command, "risk_level", "low")
+
+        if hasattr(risk_level, "value"):
+            risk_level = risk_level.value
+
+        if not executable:
+            return None
+        if not isinstance(arguments, list):
+            arguments = list(arguments or [])
+
+        payload = {
+            "executable": str(executable).strip(),
+            "arguments": [str(arg) for arg in arguments],
+            "requires_root": requires_root,
+            "risk_level": self._normalize_risk(str(risk_level or "low")),
+        }
+        if not payload["executable"]:
+            return None
+        if payload["requires_root"]:
+            payload["risk_level"] = "high"
+        return payload
+
+    @staticmethod
+    def _format_command_text(payload: Dict[str, Any]) -> str:
+        parts = [str(payload.get("executable", "")).strip()]
+        parts.extend(str(arg) for arg in payload.get("arguments", []))
+        return " ".join(part for part in parts if part)
 
     def _risk_to_ui(self, risk_level: str) -> str:
         normalized = self._normalize_risk(risk_level)
@@ -445,8 +495,14 @@ class MainWindow(QMainWindow):
         return False
 
     def _execute_command(self, command: str):
-        cmd, args, requires_root, risk_level = self.backend.parse_command_with_risk(command)
+        command_meta = self.chat_interface.get_command_meta(command) or self._ai_command_cache.get(command)
+        if command_meta:
+            cmd, args, requires_root, risk_level = self.backend.prepare_structured_command(command_meta)
+        else:
+            cmd, args, requires_root, risk_level = self.backend.parse_command_with_risk(command)
         if not cmd:
+            command_name = command.split()[0] if command.strip() else ""
+            self.chat_interface.add_ai_message(t("msg.cmd_rejected").format(cmd=command_name))
             return
         correlation_id = self._next_correlation_id()
         self._update_risk_indicator(risk_level)
@@ -492,7 +548,11 @@ class MainWindow(QMainWindow):
             self.chat_interface.add_ai_message(t("msg.ai_busy"))
             return
 
-        session_id = self.chat_interface.get_current_chat_id()
+        session_id = self._chat_session_id or self.chat_interface.get_backend_session_id()
+        if not session_id:
+            session_id = self.backend.create_session()
+            self._chat_session_id = session_id
+            self.chat_interface.set_backend_session_id(session_id)
         self._ai_worker = AIWorker(self.backend, text, session_id)
         self._ai_worker.result_ready.connect(self._on_ai_result)
         self._ai_worker.error_occurred.connect(self._on_ai_error)
@@ -502,50 +562,38 @@ class MainWindow(QMainWindow):
     def _on_ai_result(self, response):
         command_text = None
         risk_level = "low"
-        requires_root = False
+        command_payload = None
 
         if isinstance(response, dict):
-            command = response.get("command")
-            if command:
-                if isinstance(command, dict):
-                    executable = command.get("executable", "")
-                    arguments = command.get("arguments", [])
-                    risk_raw = command.get("risk_level", "low")
-                    requires_root = bool(command.get("requires_root", False))
-                else:
-                    executable = getattr(command, "executable", "")
-                    arguments = getattr(command, "arguments", []) or []
-                    risk_raw = getattr(command, "risk_level", "low")
-                    requires_root = bool(getattr(command, "requires_root", False))
-
-                if hasattr(risk_raw, "value"):
-                    risk_raw = risk_raw.value
-
-                command_text = f"{executable} {' '.join(arguments)}".strip()
-                risk_level = self._normalize_risk(str(risk_raw))
+            session_id = str(response.get("session_id") or "").strip()
+            if session_id:
+                self._chat_session_id = session_id
+                self.chat_interface.set_backend_session_id(session_id)
+            command_payload = self._build_command_payload(response.get("command"))
             message = response.get("message") or t("msg.ai_no_response")
         else:
-            if getattr(response, "command", None):
-                command = response.command
-                command_text = f"{command.tool} {' '.join(command.arguments)}".strip()
-                risk_level = self._normalize_risk(str(getattr(command, "risk_level", "low")))
-                requires_root = bool(getattr(command, "requires_root", False))
+            command_payload = self._build_command_payload(getattr(response, "command", None))
             message = getattr(response, "message", None) or t("msg.ai_no_response")
 
-        if requires_root:
-            risk_level = "high"
+        if command_payload:
+            command_text = self._format_command_text(command_payload)
+            risk_level = command_payload["risk_level"]
+            self._ai_command_cache[command_text] = dict(command_payload)
         self._update_risk_indicator(risk_level)
         self.chat_interface.add_ai_message(
             message,
             command_text,
             correlation_id=self._pending_correlation_id or None,
+            command_meta=command_payload,
         )
+        self._pending_correlation_id = ""
 
     def _on_ai_error(self, error: str):
         self.chat_interface.add_ai_message(
             t("msg.ai_error").format(error=error),
             correlation_id=self._pending_correlation_id or None,
         )
+        self._pending_correlation_id = ""
     
     # ── Event Handlers ──
     

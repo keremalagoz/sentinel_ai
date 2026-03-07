@@ -1,6 +1,6 @@
 # SENTINEL AI - Sprint Roadmap (Güncel)
 
-**Güncelleme Tarihi:** 4 Mart 2026  
+**Güncelleme Tarihi:** 7 Mart 2026  
 **Mimari:** Action Planner v2.1 + Backend Session-Memory Chat (Local-Only LLM + Deterministic Command Builder)
 
 ---
@@ -14,6 +14,11 @@ local AI destekli güvenlik test platformudur.
 Temel akış:
 
 `User Input -> Intent Resolver -> Tool Registry -> Command Builder -> Execution Layer`
+
+7 Mart 2026 stabilizasyon notları:
+
+- Tamamlanan Yiğit hotfix özeti: `docs/yigit_stabilization_hotfix.md`
+- Ortak/Kerem handoff konuları: `docs/kerem_handoff_issues.md`
 
 ---
 
@@ -74,7 +79,7 @@ Temel akış:
 
 ---
 
-### Sprint 3 — Güvenlik ve Temizlik (4/6 — 2 görev backlog'da)
+### Sprint 3 — Güvenlik ve Temizlik (6/6)
 
 | # | Görev | Sorumlu | Durum | Açıklama |
 |---|-------|---------|-------|----------|
@@ -82,8 +87,8 @@ Temel akış:
 | 3.2 | Secure Cleaner (`cleaner.py`) | Yiğit | ✅ | Güvenli dosya temizleme, Whitelist, Shredding |
 | 3.3 | Input Validation | Yiğit | ✅ | IP/Domain validasyonu, Shell injection check |
 | 3.4 | ProcessManager Update | Yiğit | ✅ | Yeni core modüllerle entegrasyon |
-| 3.5 | UI Security Indicators | Yiğit | ⬜ BACKLOG | Terminalde root uyarısı |
-| 3.6 | Settings Menu (Security) | Yiğit | ⬜ BACKLOG | Temizlik sıklığı vb. |
+| 3.5 | UI Security Indicators | Yiğit | ✅ | Terminalde risk/root uyarısı |
+| 3.6 | Settings Menu (Security) | Yiğit | ✅ | Temizlik sıklığı, güvenlik politikası vb. |
 
 ---
 
@@ -233,13 +238,27 @@ Temel akış:
 
 ---
 
+### 7 Mart 2026 — Yiğit Stabilization Hotfix ✅
+
+| # | Görev | Sorumlu | Durum | Açıklama |
+|---|-------|---------|-------|----------|
+| YS-1 | Backend session ownership | Yiğit | ✅ | `main_window.py` + `chat_interface.py` aynı backend `session_id` ile hizalandı |
+| YS-2 | Structured AI command execution | Yiğit | ✅ | AI komutları reparsing olmadan structured payload olarak çalıştırılıyor |
+| YS-3 | Typed validation ayrımı | Yiğit | ✅ | URL/query/form payload argümanları structured path'te kabul ediliyor |
+| YS-4 | Failed-start lifecycle fix | Yiğit | ✅ | `BaseTool` tek terminal sonuç üretir, timeout yarışını tekrar etmez |
+| YS-5 | Windows native execution | Yiğit | ✅ | Merkezi executable resolution + subprocess fallback aktif |
+| YS-6 | Kerem handoff | Yiğit | ✅ | Ortak AI/registry drift ve canlı LLM exact-match oynaklığı ayrı raporlandı |
+
+---
+
 ## 3.1) Hızlı Durum Özeti
 
 - Mimari: Local-only LLM + deterministic execution + backend session-memory chat
-- Test sağlığı: full suite yeşil (**715 passed**) + Sprint 3.6 hedefli doğrulama **21 passed**
-- Tamamlanan: Sprint 0 → 3.6 (toplam **70 görev** tamamlandı)
-- Aktif sprint: **Sprint 3.6 tamamlandı** — sonraki: Sprint 4
-- Backlog: 2 görev (Sprint 3'ten kalan UI görevleri — Yiğit)
+- Test sağlığı: local full run **1578 passed, 1 failed**; kalan tek kırık canlı LLM exact-match testi
+- Yiğit stabilization regresyon paketi: **311 passed**
+- Tamamlanan: Sprint 0 → 3.6 + Yiğit stabilization hotfix
+- Aktif sprint: **Sprint 3.6 tamamlandı** + stabilization hotfix kapandı — sonraki: Sprint 4
+- Backlog: Yiğit tarafında kritik açık yok; ortak AI/registry drift Kerem handoff listesinde
 - Sonraki hedef: Sprint 3.6 → Sprint 4 (Veri Adaptasyonu)
 
 ---
@@ -275,12 +294,12 @@ Temel akış:
 | 6.1 | Plugin Structure | Yiğit | ⬜ | Interface ve Manager |
 | 6.2 | Linux Build | Kerem | ⬜ | PyInstaller |
 
-### Backlog (Yerleştirilmemiş)
+### Backlog (Tarihsel Kayıtlar)
 
 | # | Görev | Sorumlu | Durum | Kaynak |
 |---|-------|---------|-------|--------|
-| BL-1 | UI Security Indicators | Yiğit | ⬜ | Sprint 3'ten kalan |
-| BL-2 | Settings Menu (Security) | Yiğit | ⬜ | Sprint 3'ten kalan |
+| BL-1 | UI Security Indicators | Yiğit | ✅ | Stabilization öncesi tamamlandı |
+| BL-2 | Settings Menu (Security) | Yiğit | ✅ | Stabilization öncesi tamamlandı |
 | BL-3 | Runtime Telemetry UI görünürlüğü | Yiğit | ✅ | Status bar metrik yüzeyi aktif |
 
 ---
@@ -311,9 +330,9 @@ Bir sprint maddesi tamamlandı sayılması için:
 |--------|-------|
 | Tamamlanan görev | **70** |
 | Aktif (Sprint 3.6) | **6** |
-| Backlog (yerleştirilmemiş) | **3** |
+| Açık backlog | **0** |
 | Bekleyen (Sprint 4-6) | **9** |
-| Toplam test | **715 passed + Sprint 3.6 hedefli 21 passed** |
+| Toplam test | **1578 passed, 1 failed live-LLM exact-match** |
 | Son merge | develop `02e352c` |
 
 

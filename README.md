@@ -40,7 +40,10 @@ SENTINEL AI, siber güvenlik testlerini yapay zeka destekli komutlarla otomatikl
 - **Telemetry Görünürlüğü** - Status bar üzerinde kuyruk/bekleme/çalıştırma metrikleri
 - **Güvenli Temizlik Akışı** - Ayarlardaki `secure_delete` bayrağı backend cleaner katmanına iletilir
 - **Sprint 3.6 Backend Chat Hafızası** - Session/turn tabanlı multi-turn context (UI değişikliği olmadan)
-- **Kapsamlı Test Altyapısı** - 1451 test (UI, i18n, optimizasyon, backend, accuracy benchmark) + Sprint 3.5 hedefli doğrulama setleri
+- **Structured AI Command Execution** - AI komutları structured payload olarak çalıştırılır; raw terminal komutları ayrı güvenlik kapısından geçer
+- **Backend-Owned Session Flow** - Chat history id ile backend session id ayrılmıştır; yeni sohbet, geri yükleme ve multi-turn akışları aynı backend session ile sürer
+- **Typed Validation + Windows Native Execution** - URL/query/form payload argümanları typed validation ile korunur; Windows native yürütmede merkezi executable resolution ve subprocess fallback kullanılır
+- **Kapsamlı Test Altyapısı** - 1579 test koleksiyonu; 7 Mart 2026 tam yerel koşusunda 1578 test geçti, 1 canlı LLM exact-match testi oynak kaldı
 
 ### Planlanan Özellikler
 
@@ -81,6 +84,18 @@ Backend Chat Pipeline (Sprint 3.6):
 ```
 
 ---
+
+## 7 Mart 2026 Stabilization Notu
+
+Bu turda Yiğit alanındaki stabilizasyon/hotfix çalışmaları tamamlandı:
+
+- AI tarafından üretilen structured komutlar artık tekrar flat string'e çevrilip parse edilmez.
+- Raw terminal komutları mevcut güvenlik kapısında kalır; structured AI komutları typed validation ile çalıştırılır.
+- Backend session id, chat history metadata'sından ayrıştırıldı ve `MainWindow` içinde tek otorite haline getirildi.
+- `BaseTool` failed-start yarışı kapatıldı; başlatılamayan process ikinci kez timeout üretmez.
+- Windows native komut çalıştırmada executable resolution ve subprocess fallback eklendi.
+
+Bu turda bilinçli olarak kodda büyütülmeyen ortak alan sorunları için `docs/kerem_handoff_issues.md` dosyasına bakın.
 
 ## Proje Yapısı
 
@@ -239,6 +254,12 @@ docker-compose down -v
 4. **Sonuçları İncele** - Parse edilmiş sonuçları tabloda gör
 5. **Önerileri Takip Et** - AI'ın sonraki adım önerilerini değerlendir
 
+### Çalıştırma Akışı
+
+- Chat üzerinden gelen AI komutları: `AI -> structured command payload -> BackendGateway.prepare_structured_command() -> TerminalView -> ProcessManager`
+- Terminale elle yazılan komutlar: `User raw command -> BackendGateway.parse_command_with_risk() -> TerminalView -> ProcessManager`
+- Sohbet geçmişi: UI chat id yalnızca history/display için tutulur, backend tarafındaki kalıcı bağlam `session_id` ile sürer
+
 ### Örnek Komutlar
 
 ```
@@ -278,29 +299,31 @@ Mevcut sürümde sistem local-only çalışır ve varsayılan akışta veri dı�
 ## Test
 
 ```bash
-# Tüm testleri çalıştır (1451 test)
-pytest src/tests/ -q
+# Tüm testleri çalıştır
+PYTHONPATH=. pytest -q
 
 # Belirli bir modülü test et
-pytest src/tests/test_sprint1.py -v
+PYTHONPATH=. pytest src/tests/test_sprint1.py -v
 
 # UI + i18n + optimizasyon testleri
-pytest src/tests/test_i18n.py src/tests/test_ui_widgets.py src/tests/test_ui_features.py src/tests/test_optimizations.py -q
+PYTHONPATH=. pytest src/tests/test_i18n.py src/tests/test_ui_widgets.py src/tests/test_ui_features.py src/tests/test_optimizations.py -q
 
 # Coverage raporu
-pytest --cov=src src/tests/
+PYTHONPATH=. pytest --cov=src src/tests/
 ```
+
+Not: `src/tests/test_action_planner_v2.py::test_intent_resolver` canlı LLM exact-match testi olduğu için yerel modele göre oynak olabilir. 7 Mart 2026 tam koşusunda kalan tek kırık bu testti; deterministic Yiğit stabilizasyon regresyon paketi yeşil geçti.
 
 ### Test Dağılımı
 
 | Test Dosyası | Test Sayısı | Kapsam |
 |---|---|---|
 | test_i18n.py | 156 | 11 dil çeviri doğruluğu |
-| test_ui_widgets.py | 138 | Widget oluşturma ve davranış |
+| test_ui_widgets.py | 144 | Widget oluşturma ve davranış |
 | test_ui_features.py | 245 | UI özellikleri (settings, swap, history) |
 | test_optimizations.py | 91 | Performans ve anti-pattern taraması |
 | test_sprint35_audit.py | 296 | Sprint 3.5 E2E audit testleri |
-| test_tool_commands.py | 108 | Tool komut üretim testleri |
+| test_tool_commands.py | 112 | Tool komut üretim testleri |
 | test_pipeline_integration.py | 79 | Pipeline entegrasyon testleri |
 | test_command_accuracy.py | 76 | Komut üretim doğruluk benchmarkı |
 | Diğer test dosyaları | 262 | Backend, parser, AI, resolver, entegrasyon |

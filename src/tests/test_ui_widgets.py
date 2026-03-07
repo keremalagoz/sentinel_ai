@@ -16,7 +16,9 @@ Coverage:
   K. Styles constants        (colors, fonts, no hardcoded font-size)
 """
 
+import os
 import sys
+import tempfile
 import pytest
 from unittest.mock import MagicMock, patch
 
@@ -505,11 +507,15 @@ class TestTerminalSession:
 # =========================================================================
 class TestChatInterface:
 
-    def _make(self, app):
+    def _make(self, app, history_path=None):
+        from src.ui import chat_interface as chat_interface_module
         from src.ui.chat_interface import ChatInterface
-        # Patch the history file to avoid polluting real data
-        with patch("src.ui.chat_interface.CHAT_HISTORY_FILE", "/tmp/sentinel_test_chat.json"):
-            ci = ChatInterface()
+        if history_path is None:
+            fd, history_path = tempfile.mkstemp(suffix=".json")
+            os.close(fd)
+            os.unlink(history_path)
+        chat_interface_module.CHAT_HISTORY_FILE = history_path
+        ci = ChatInterface()
         return ci
 
     def test_instantiation(self, app):
@@ -537,6 +543,18 @@ class TestChatInterface:
         ci = self._make(app)
         ci.add_ai_message("Ready", command="nmap -sS 10.0.0.1")
         assert ci._messages[0]["command"] == "nmap -sS 10.0.0.1"
+
+    def test_add_ai_message_with_command_meta(self, app):
+        ci = self._make(app)
+        command_meta = {
+            "executable": "sqlmap",
+            "arguments": ["-u", "http://target/app?id=1"],
+            "risk_level": "high",
+            "requires_root": False,
+        }
+        ci.add_ai_message("Ready", command="sqlmap -u http://target/app?id=1", command_meta=command_meta)
+        assert ci._messages[0]["command_meta"]["executable"] == "sqlmap"
+        assert ci.get_command_meta("sqlmap -u http://target/app?id=1") == command_meta
 
     def test_add_ai_message_without_command(self, app):
         ci = self._make(app)
@@ -594,6 +612,49 @@ class TestChatInterface:
         ci.command_requested.emit("ping 1.1.1.1")
         assert signals == ["ping 1.1.1.1"]
 
+    def test_backend_session_roundtrip(self, app):
+        ci = self._make(app)
+        ci.set_backend_session_id("backend_session_1")
+        assert ci.get_backend_session_id() == "backend_session_1"
+
+    def test_new_chat_resets_backend_session(self, app):
+        ci = self._make(app)
+        ci.set_backend_session_id("backend_session_1")
+        signals = []
+        ci.backend_session_changed.connect(signals.append)
+        ci._new_chat()
+        assert ci.get_backend_session_id() == ""
+        assert signals[-1] == ""
+
+    def test_save_history_persists_backend_session(self, app):
+        fd, history_path = tempfile.mkstemp(suffix=".json")
+        os.close(fd)
+        os.unlink(history_path)
+        ci = self._make(app, history_path=history_path)
+        ci.set_backend_session_id("backend_session_2")
+        ci.add_user_message("hello")
+        ci.save_on_close()
+
+        loaded = ci._load_history()
+        assert loaded[0]["backend_session_id"] == "backend_session_2"
+
+    def test_load_chat_restores_backend_session(self, app):
+        fd, history_path = tempfile.mkstemp(suffix=".json")
+        os.close(fd)
+        os.unlink(history_path)
+        ci = self._make(app, history_path=history_path)
+        ci.set_backend_session_id("backend_session_3")
+        ci.add_user_message("hello")
+        chat_id = ci.get_current_chat_id()
+        ci.save_on_close()
+
+        restored = self._make(app, history_path=history_path)
+        signals = []
+        restored.backend_session_changed.connect(signals.append)
+        restored._load_chat(chat_id)
+        assert restored.get_backend_session_id() == "backend_session_3"
+        assert signals[-1] == "backend_session_3"
+
     def test_set_text_font_size_normal(self, app):
         ci = self._make(app)
         ci.set_text_font_size(16)
@@ -650,6 +711,39 @@ class TestChatInterface:
         ci.add_user_message("test")
         ci._new_chat()
         assert ci._messages == []
+
+
+class TestMainWindow:
+
+    def test_user_message_uses_backend_session_id(self, app):
+        captured = {}
+
+        class DummyWorker:
+            def __init__(self, gateway, user_text, session_id):
+                captured["session_id"] = session_id
+                self.result_ready = MagicMock()
+                self.error_occurred = MagicMock()
+
+            def isRunning(self):
+                return False
+
+            def start(self):
+                captured["started"] = True
+
+        with patch("src.ui.main_window.AIWorker", DummyWorker), patch(
+            "src.ui.main_window.MainWindow._check_ai_status", lambda self: None
+        ):
+            from src.ui.main_window import MainWindow
+
+            window = MainWindow()
+            window._chat_session_id = "backend_session"
+            window.chat_interface.set_backend_session_id("backend_session")
+            window.chat_interface._current_chat_id = "ui_session"
+            window._handle_user_message("hello")
+
+            assert captured["session_id"] == "backend_session"
+            assert captured["started"] is True
+            window.close()
 
 
 # =========================================================================

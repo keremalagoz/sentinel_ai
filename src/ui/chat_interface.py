@@ -11,7 +11,7 @@ from PyQt6.QtWidgets import (
 from PyQt6.QtCore import pyqtSignal, Qt, QTimer
 from PyQt6.QtGui import QFont, QColor
 
-from typing import List, Dict, Optional
+from typing import Any, List, Dict, Optional
 from datetime import datetime
 import json
 import os
@@ -509,10 +509,12 @@ class ChatInterface(QWidget):
     stop_requested = pyqtSignal()
     input_sent = pyqtSignal(str)
     action_response = pyqtSignal(str)
+    backend_session_changed = pyqtSignal(str)
     
     def __init__(self, parent=None):
         super().__init__(parent)
         self._current_chat_id = None
+        self._backend_session_id = ""
         self._messages: List[Dict] = []
         self._command_running = False
         self._text_font_size = 13
@@ -660,6 +662,7 @@ class ChatInterface(QWidget):
         if self._current_chat_id and self._messages:
             self._save_current_chat()
         self._current_chat_id = datetime.now().strftime("%Y%m%d_%H%M%S")
+        self._set_backend_session_id("", notify=True)
         self._messages = []
         self.clear_chat()
 
@@ -679,6 +682,7 @@ class ChatInterface(QWidget):
             if chat.get('id') == self._current_chat_id:
                 history[i]['messages'] = self._messages
                 history[i]['title'] = self._get_chat_title()
+                history[i]['backend_session_id'] = self._backend_session_id
                 found = True
                 break
         if not found:
@@ -686,7 +690,8 @@ class ChatInterface(QWidget):
                 'id': self._current_chat_id,
                 'title': self._get_chat_title(),
                 'date': datetime.now().strftime("%Y-%m-%d %H:%M"),
-                'messages': self._messages
+                'messages': self._messages,
+                'backend_session_id': self._backend_session_id,
             })
         self._history_cache = history
         self._dirty = True
@@ -753,6 +758,7 @@ class ChatInterface(QWidget):
         for chat in history:
             if chat.get('id') == chat_id:
                 self._current_chat_id = chat_id
+                self._set_backend_session_id(str(chat.get('backend_session_id') or ""), notify=True)
                 self._messages = chat.get('messages', [])
                 self._render_messages()
                 break
@@ -763,7 +769,12 @@ class ChatInterface(QWidget):
             if msg.get('is_user'):
                 self._add_bubble(msg['text'], is_user=True, timestamp=msg.get('timestamp'))
             else:
-                self._add_bubble(msg['text'], is_user=False, command=msg.get('command'), timestamp=msg.get('timestamp'))
+                self._add_bubble(
+                    msg['text'],
+                    is_user=False,
+                    command=msg.get('command'),
+                    timestamp=msg.get('timestamp'),
+                )
     
     # ── Bubble Management ──
     
@@ -843,14 +854,41 @@ class ChatInterface(QWidget):
         message: str,
         command: Optional[str] = None,
         correlation_id: Optional[str] = None,
+        command_meta: Optional[Dict[str, Any]] = None,
     ):
         timestamp = datetime.now().strftime("%H:%M")
         item = {'text': message, 'is_user': False, 'command': command, 'timestamp': timestamp}
         if correlation_id:
             item['correlation_id'] = correlation_id
+        if command_meta:
+            item['command_meta'] = dict(command_meta)
         self._messages.append(item)
         self._add_bubble(message, is_user=False, command=command, timestamp=timestamp)
         self._save_current_chat()
+
+    def _set_backend_session_id(self, session_id: str, notify: bool = False) -> None:
+        normalized = str(session_id or "").strip()
+        changed = normalized != self._backend_session_id
+        self._backend_session_id = normalized
+        if notify and changed:
+            self.backend_session_changed.emit(normalized)
+
+    def set_backend_session_id(self, session_id: str) -> None:
+        self._set_backend_session_id(session_id, notify=False)
+
+    def get_backend_session_id(self) -> str:
+        return self._backend_session_id
+
+    def get_command_meta(self, command: str) -> Optional[Dict[str, Any]]:
+        for item in reversed(self._messages):
+            if item.get("is_user"):
+                continue
+            if item.get("command") != command:
+                continue
+            command_meta = item.get("command_meta")
+            if command_meta:
+                return dict(command_meta)
+        return None
     
     def show_stop_button(self):
         self._command_running = True

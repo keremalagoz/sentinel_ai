@@ -1,8 +1,8 @@
 # SENTINEL AI - Proje Yapısı (Sadeleştirilmiş)
 
-**Versiyon**: Action Planner v2.1 - Sprint 3.4 + 3.5 + 3.6 (UI/i18n + Tool Security/Accuracy + Backend Agent-Chat Foundation)  
-**Tarih**: 5 Mart 2026  
-**Mimari**: Local-Only LLM (Qwen 2.5 3B) + 2-Asamali Intent Resolution + Deterministic Execution + Backend Session Memory
+**Versiyon**: Action Planner v2.1 + Yigit Stabilization Hotfix  
+**Tarih**: 7 Mart 2026  
+**Mimari**: Local-Only LLM (Qwen 2.5 3B) + 2-Asamali Intent Resolution + Deterministic Execution + Backend Session Memory + Structured AI Command Execution
 
 > Not: Bu doküman sadeleştirme sürecindedir. Öncelik, mevcut çalışma mimarisi ve aktif modüllerin net gösterimidir.
 
@@ -18,6 +18,12 @@ Sprint 3.6 backend chat akışı:
 
 `Session -> Turn History -> Context Enrichment -> Intent Resolution -> Safe Command Suggestion`
 
+Sprint 3.6 + 7 Mart 2026 UI/execution stabilizasyon akışı:
+
+`AI Result -> Structured Command Payload -> BackendGateway.prepare_structured_command() -> TerminalView -> ProcessManager`
+
+`Manual Terminal Input -> BackendGateway.parse_command_with_risk() -> TerminalView -> ProcessManager`
+
 Sistem garantileri:
 - Queue backpressure
 - Global/per-tool concurrency limit
@@ -26,6 +32,10 @@ Sistem garantileri:
 - Runtime telemetry (`queue_wait_ms`, `tool_run_ms`)
 - UI telemetry yüzeyi (status bar)
 - Secure delete ayarı için uçtan uca settings->backend->cleaner bağlantısı
+- Backend-owned session continuity (history restore dahil)
+- Raw command gate ve structured AI command gate ayrımı
+- Typed argument validation (URL/query/form payload)
+- Windows native executable resolution + subprocess fallback
 
 ---
 
@@ -60,21 +70,21 @@ sentinel_root/
 │   │   ├── tool_base.py         # BaseTool + 15 tool implementation
 │   │   ├── tool_integration.py  # IntegratedTool + ToolManager (queue/backpressure)
 │   │   ├── sentinel_coordinator.py # UI-ToolManager bridge
-│   │   ├── process_manager.py   # QProcess tabanlı process yonetimi
+│   │   ├── process_manager.py   # Process yonetimi (QProcess + Windows subprocess fallback)
 │   │   ├── docker_runner.py     # Docker container runner
 │   │   ├── execution_manager.py # Execution state management (Docker/Native)
-│   │   ├── validators.py        # Input validation (IP/domain/shell injection)
+│   │   ├── validators.py        # Input validation (raw command gate + typed structured arg validation)
 │   │   ├── cleaner.py           # Secure file cleanup
 │   │   └── adapters/            # (Bos - Sprint 4 icin)
 │   │
 │   ├── application/             # Application facade katmani
 │   │   ├── __init__.py
-│   │   ├── backend_gateway.py   # UI-Backend facade (guvenlik katmanli)
+│   │   ├── backend_gateway.py   # UI-Backend facade (raw vs structured command gate ayrimi)
 │   │   └── api_server.py        # API modu (deterministic execute + chat/session endpointleri)
 │   │
 │   ├── ui/                      # UI Bilesenleri
-│   │   ├── main_window.py       # Ana pencere (unified header)
-│   │   ├── chat_interface.py    # Chat & CommandCard paneli
+│   │   ├── main_window.py       # Ana pencere (backend session source of truth + structured AI execution)
+│   │   ├── chat_interface.py    # Chat & CommandCard paneli (+ history metadata / backend session)
 │   │   ├── terminal_view.py     # Multi-session terminal emulator
 │   │   ├── settings_dialog.py   # Ayarlar diyalogu (dil, font, temizlik, guvenlik politikasi)
 │   │   ├── i18n.py              # 11 dil ceviri sistemi (97 anahtar)
@@ -83,10 +93,10 @@ sentinel_root/
 │   ├── plugins/                 # Plugin sistemi (gelecek)
 │   │   └── .gitkeep
 │   │
-│   └── tests/                   # Test Suite (1451 test)
+│   └── tests/                   # Test Suite (1579 collected; 7 Mart 2026 local run: 1578 pass, 1 live-LLM flaky)
 │       ├── conftest.py          # PyQt6 QApplication fixture + i18n reset
 │       ├── test_i18n.py         # 11 dil ceviri testleri (156 test)
-│       ├── test_ui_widgets.py   # Widget olusturma ve davranis testleri (138 test)
+│       ├── test_ui_widgets.py   # Widget olusturma ve davranis testleri (144 test)
 │       ├── test_ui_features.py  # UI ozellikleri testleri (245 test)
 │       ├── test_optimizations.py # Performans optimizasyon testleri (91 test)
 │       ├── test_sprint1_week1.py # Week 1 tests (backend + entity ID, 29 test)
@@ -96,12 +106,12 @@ sentinel_root/
 │       ├── test_new_tools.py    # ToolManager + parser + telemetry + callback safety (44 test)
 │       ├── test_advanced_parsers.py # Genis parser senaryolari (17 test)
 │       ├── test_registry_consistency.py # Registry drift guard testleri (2 test)
-│       ├── test_ui_backend_boundary.py # UI-Backend boundary + guvenlik testleri (21 test)
+│       ├── test_ui_backend_boundary.py # UI-Backend boundary + raw/structured command gate testleri (24 test)
 │       ├── test_backend_chat_session.py # Sprint 3.6 backend chat/session testleri (2 test)
 │       ├── test_chat_history_cleanup_regression.py # Gecmis temizlik regresyon (1 test)
 │       ├── test_hierarchical_resolver.py # 2-asamali resolver testleri (57 test)
 │       ├── test_sprint35_audit.py # Sprint 3.5 E2E audit testleri (296 test)
-│       ├── test_tool_commands.py # Tool komut uretim testleri (108 test)
+│       ├── test_tool_commands.py # Tool komut uretim testleri (112 test)
 │       ├── test_pipeline_integration.py # Pipeline entegrasyon testleri (79 test)
 │       ├── test_track_c.py      # Track C testleri (36 test)
 │       ├── test_track_d.py      # Track D testleri (18 test)
@@ -459,18 +469,20 @@ coordinator.get_backend_stats()
 ---
 
 ### **src/core/process_manager.py**
-AdvancedProcessManager (QProcess wrapper)
+AdvancedProcessManager (QProcess + Windows subprocess fallback)
 
 **Sorumluluklar**:
 - Process lifecycle management
 - Output streaming (stdout/stderr)
 - Docker execution support
 - ExecutionManager entegrasyonu
+- Native Windows executable resolution
 
 **Özellikler**:
 - Auth handling (sudo/docker)
 - Cross-platform (Windows/Linux)
 - Signal-based notifications
+- Native Windows subprocess backend
 
 ---
 
@@ -566,6 +578,8 @@ SentinelMainWindow - Ana uygulama penceresi
 - Status dot + badge (idle/running/root) — on-hesaplanmis stiller
 - i18n entegrasyonu (tum header etiketleri cevriliyor)
 - Runtime telemetry metriklerini status bar'da gosterme (`Q`, `Wait`, `Run`)
+- Backend session id'yi source of truth olarak tasima
+- Structured AI command payload'larini reparsing yapmadan execution katmanina gonderme
 
 **Optimizasyonlar** (Sprint 3.4):
 - `_DOT_STYLES` / `_BADGE_STYLES`: Modul seviyesinde on-hesaplanmis stil dict'leri
@@ -579,6 +593,8 @@ ChatInterface - Chat ve CommandCard paneli
 - Mesaj ekleme (user/AI balonlari)
 - CommandCard (Run / Copy aksiyon kartlari)
 - Chat gecmisi yonetimi (create/delete/switch)
+- Backend session metadata'sini chat history ile birlikte saklama
+- AI command metadata'sini komut karti metni ile birlikte tutma
 - Font boyutu ayari (dinamik guncelleme)
 - i18n entegrasyonu
 
@@ -823,7 +839,7 @@ python main.py
 - Chat/Terminal pozisyon degistirme (Layout Swap)
 - 12 performans optimizasyonu (debounce, cache, pre-compile, QSS sabitleri)
 - 500 UI testi + 91 optimizasyon testi
-- Toplam: 715 test
+- 7 Mart 2026 itibariyla Yiğit regression paketi: 311 test yesil
 
 **Sprint 3.5 - Tool Komut Doğruluğu/Güvenlik Sertleştirme**:
 - Kritik komut güvenliği iyileştirmeleri ve validasyon sertleştirmesi
@@ -838,6 +854,13 @@ python main.py
 - `api_server.py` chat endpointleri eklendi (`/api/chat/session`, `/api/chat/turn`, `/api/chat/history/{session_id}`)
 - Orchestrator `process_v2` session-aware hale getirildi
 - Hedefli backend dogrulama: 21 test yesil (2 yeni + 19 boundary regresyon)
+
+**7 Mart 2026 - Yigit Stabilization Hotfix**:
+- Structured AI command execution ile raw terminal command gate ayrildi
+- `chat_interface.py` ve `main_window.py` backend-owned session modeline gecirildi
+- `validators.py` typed structured arg validation ile query/form payload'lari kabul eder hale geldi
+- `process_manager.py`, `execution_manager.py` ve `src/core/tools/base.py` Windows native executable resolution + subprocess fallback ile guncellendi
+- Local tam kosu: `1578 passed, 1 failed` (kalan tek kirik: live LLM exact-match `test_action_planner_v2.py::test_intent_resolver`)
 
 ---
 
@@ -879,9 +902,11 @@ nmap --version
 - [NMAP_KURULUM.md](NMAP_KURULUM.md) - Nmap kurulum rehberi
 - [docs/sprint1_ready.md](docs/sprint1_ready.md) - Sprint 1 raporu
 - [docs/sqlite_schema.md](docs/sqlite_schema.md) - Veritabanı şeması
+- [docs/yigit_stabilization_hotfix.md](docs/yigit_stabilization_hotfix.md) - 7 Mart 2026 Yiğit stabilization özeti
+- [docs/kerem_handoff_issues.md](docs/kerem_handoff_issues.md) - Kerem'e devredilen ortak alan sorunları
 
 ---
 
-**Son Güncelleme**: 4 Mart 2026  
-**Versiyon**: Sprint 3.6 Complete + Backend Session-Memory Chat  
+**Son Güncelleme**: 7 Mart 2026  
+**Versiyon**: Sprint 3.6 Complete + Yigit Stabilization Hotfix  
 **Sonraki Hedef**: Sprint 4 - Veri Adaptasyonu ve Parsing

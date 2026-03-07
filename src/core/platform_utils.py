@@ -8,6 +8,7 @@ Sprint 3.2 Track B7: Linux platform uyumlulugu icin temel modul.
 
 import os
 import platform
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -70,6 +71,35 @@ def get_temp_dir() -> str:
         os.makedirs(base, exist_ok=True)
         return base
     return tempfile.gettempdir()
+
+
+def resolve_executable(program: str) -> str:
+    """Resolve an executable to a platform-appropriate path when possible."""
+    if not program:
+        return program
+
+    normalized = str(program).strip().strip('"')
+    if not normalized:
+        return normalized
+
+    if os.path.isabs(normalized) or any(sep in normalized for sep in ("\\", "/")):
+        return normalized
+
+    resolved = shutil.which(normalized)
+    if resolved:
+        return resolved
+
+    if is_windows():
+        windir = os.environ.get("WINDIR", r"C:\Windows")
+        system32 = os.path.join(windir, "System32")
+        suffixes = ("", ".exe", ".cmd", ".bat", ".com")
+        for suffix in suffixes:
+            candidate = normalized if normalized.lower().endswith(suffix) and suffix else f"{normalized}{suffix}"
+            candidate_path = os.path.join(system32, candidate)
+            if os.path.exists(candidate_path):
+                return candidate_path
+
+    return normalized
 
 
 def get_console_encoding() -> str:

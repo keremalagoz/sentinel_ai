@@ -1,6 +1,6 @@
 # SENTINEL AI - Proje Durum Raporu
 
-**Tarih:** 6 Mart 2026  
+**Tarih:** 7 Mart 2026  
 **Ekip:** Kerem (AI/Data/Backend) & Yiğit (System/UI/Security)
 
 ---
@@ -20,7 +20,7 @@
 - Mimari: Local-only LLM (Qwen 2.5 3B / Ollama) + deterministic tool execution
 - Model: Qwen 2.5 3B Instruct Q4_K_M (1.84 GB, 29+ dil, 151K vocab)
 - Intent Pipeline: Keyword Pre-Filter → Stage 1 (5 kategori) → Stage 2 (16 intent) + Hard-Override Mekanizmaları
-- Benchmark: %100 doğruluk (E2E Testler), 1564/1564 Passing Tests, Sıfır Halüsinasyon toleransı
+- Benchmark: deterministic regression paketi yeşil; tam yerel koşuda 1578/1579 test geçti
 - Kararlılık: Queue/backpressure, per-tool limit, retry/backoff aktif
 - Güvenilirlik: Registry drift guard (startup + test) aktif
 - Gözlemlenebilirlik: Runtime telemetry (`queue_wait_ms`, `tool_run_ms`) mevcut
@@ -29,9 +29,24 @@
 - **Ayarlar Diyalogu**: Dil seçimi, font boyutu, oturum temizleme
 - **Güvenli Temizlik**: `secure_delete` ayarı backend cleaner akışına bağlı
 - **Komut Kaynağı**: API execute akışında execution tool `build_command` öncelikli
+- **AI Execution Flow**: Structured AI command payload ile raw terminal command gate ayrıldı
+- **Session Ownership**: Backend `session_id` artık UI history id'den ayrışmış durumda
+- **Validation**: Typed validation ile query string, form payload ve percent-encoded değerler destekleniyor
+- **Windows Native**: Merkezi executable resolution + subprocess fallback aktif
 - **Registry Stratejisi**: `build_tool_spec()` metadata-only (arguments boş)
 - **Performans**: 12 optimizasyon uygulandı (debounce, cache, pre-compile, QSS sabitleri)
-- **Test**: Full suite **1564 passed** (Sprint 3.5 Command Accuracy Audit sonrası)
+- **Test**: Full local run **1578 passed, 1 failed**; kalan tek kırık canlı LLM exact-match testi
+
+---
+
+## 7 Mart 2026 Yiğit Stabilization Hotfix [OK]
+
+- `MainWindow` ve `ChatInterface` backend-owned session modeline geçirildi; history restore/new chat akışında aynı backend session sürdürülebiliyor.
+- AI komutları structured payload olarak çalıştırılıyor; raw terminal komutları mevcut güvenlik kapısında kaldı.
+- `validators.py` typed validation ile `sqlmap`, HTTP query string ve form payload argümanlarını kabul edecek şekilde ayrıştırıldı.
+- `BaseTool`, `ExecutionManager` ve `AdvancedProcessManager` tarafında Windows native executable resolution + subprocess fallback eklendi.
+- Failed-to-start yarış durumu kapatıldı; başlatılamayan process ikinci kez timeout sonucuna düşmüyor.
+- Kerem'e owner handoff: canlı LLM exact-match testi oynaklığı ve ortak AI/registry semantik drift alanları.
 
 ---
 
@@ -91,7 +106,9 @@
 
 ### Test Durumu (Güncel)
 
-- Full test suite: **1564 passed** (Sprint 3.5 E2E Audit Sonrası)
+- Full test suite local run (7 Mart 2026): **1578 passed, 1 failed**
+- Kalan tek kırık: `src/tests/test_action_planner_v2.py::test_intent_resolver` (canlı LLM exact-match oynaklığı)
+- Yiğit stabilization regresyon paketi: **311 passed**
 - Komut üretim doğruluk benchmarkı: 76 test (%100 oran)
 - Intent/Prompt Coverage: 50+ senaryo, DNS/Nmap/Gobuster JSON Esnetmeleri ve Subdomain Enum
 - Backend/AI testleri: ~124 test
@@ -100,11 +117,11 @@
 | Test Dosyası | Test Sayısı | Kapsam |
 |---|---|---|
 | test_i18n.py | 156 | 11 dil çeviri doğruluğu |
-| test_ui_widgets.py | 138 | Widget oluşturma ve davranış |
+| test_ui_widgets.py | 144 | Widget oluşturma ve davranış |
 | test_ui_features.py | 245 | UI özellikleri (settings, swap, history) |
 | test_optimizations.py | 91 | Performans ve anti-pattern taraması |
 | test_sprint35_audit.py | 296 | Sprint 3.5 E2E audit testleri |
-| test_tool_commands.py | 108 | Tool komut üretim testleri |
+| test_tool_commands.py | 112 | Tool komut üretim testleri |
 | test_pipeline_integration.py | 79 | Pipeline entegrasyon testleri |
 | test_command_accuracy.py | 76 | Komut üretim doğruluk benchmarkı |
 | Diğer (backend, AI, parser) | 262 | Backend, resolver, entegrasyon |
@@ -196,7 +213,7 @@
 | LLM parse fallback (keyword) | [OK] | JSON Parser esnetildi, LLM çökerse default değerler ile kurtarılıyor |
 | LLM Halüsinasyon Override | [OK] | Inatçı WHOIS vs DNS kayıt karmaşası "Hard-Override" ile çözüldü |
 | Hedef (Target) Regex Ayıklama | [OK] | Kullanıcı 8.8.8.8 dns yazınca ana hedefin (example.com) silinmesi düzeltildi |
-| Komut üretim E2E Test | [OK] | 1564 passing test, sıfır hata toleransı |
+| Komut üretim E2E Test | [OK] | 7 Mart 2026 local run: 1578 passed, 1 live LLM test oynak |
 
 ---
 

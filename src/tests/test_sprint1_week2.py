@@ -16,6 +16,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 from PyQt6.QtCore import QCoreApplication, QTimer
 
 from src.core.tool_base import (
+    BaseTool,
     PingTool, NmapPingSweepTool, NmapPortScanTool,
     ToolStatus, ToolExecutionSignals
 )
@@ -376,6 +377,39 @@ Reply from 127.0.0.1: bytes=32 time<1ms TTL=128
         # Verify all are ping
         for exec_record in all_execs:
             self.assertEqual(exec_record.tool_id, "ping")
+
+
+class _MissingExecutableTool(BaseTool):
+    def __init__(self):
+        super().__init__("missing_exec", timeout=1)
+
+    def build_command(self, **kwargs):
+        return ["sentinel_missing_binary_12345.exe"]
+
+
+class TestToolFailureHandling(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.app = QCoreApplication.instance()
+        if cls.app is None:
+            cls.app = QCoreApplication([])
+
+    def setUp(self):
+        self.tool = _MissingExecutableTool()
+        self.results = []
+
+    def _callback(self, result):
+        self.results.append(result)
+        self.app.quit()
+
+    def test_failed_start_emits_single_failed_result(self):
+        self.tool.execute(callback=self._callback)
+        if not self.results:
+            QTimer.singleShot(3000, self.app.quit)
+            self.app.exec()
+
+        self.assertEqual(len(self.results), 1)
+        self.assertEqual(self.results[0].status, ToolStatus.FAILED)
 
 
 if __name__ == '__main__':

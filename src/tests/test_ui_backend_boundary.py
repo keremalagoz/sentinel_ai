@@ -91,7 +91,7 @@ class TestParseCommandSecurity:
         assert cmd is None, f"Command should be rejected: {disallowed!r}"
 
     def test_allowed_commands_accepted(self) -> None:
-        for allowed in ["ping", "nmap", "nslookup", "gobuster", "curl"]:
+        for allowed in ["ping", "nmap", "nslookup", "gobuster", "curl", "whois", "sqlmap"]:
             cmd, args, root = BackendGateway.parse_command(f"{allowed} 127.0.0.1")
             assert cmd == allowed, f"{allowed} should be allowed"
 
@@ -113,5 +113,44 @@ class TestParseCommandSecurity:
 
     def test_parse_command_with_risk_rejects_unsafe(self) -> None:
         cmd, args, root, risk = BackendGateway.parse_command_with_risk("rm -rf /")
+        assert cmd is None
+        assert risk == "high"
+
+    def test_prepare_structured_command_allows_sqlmap_query_string(self) -> None:
+        cmd, args, root, risk = BackendGateway.prepare_structured_command(
+            {
+                "executable": "sqlmap",
+                "arguments": ["-u", "http://target.local/item.php?id=1&lang=en"],
+                "requires_root": False,
+                "risk_level": "high",
+            }
+        )
+        assert cmd == "sqlmap"
+        assert args[1] == "http://target.local/item.php?id=1&lang=en"
+        assert root is False
+        assert risk == "high"
+
+    def test_prepare_structured_command_allows_shell_wrapper(self) -> None:
+        cmd, args, root, risk = BackendGateway.prepare_structured_command(
+            {
+                "executable": "bash",
+                "arguments": ["-c", "curl -sS http://target.local/login.php"],
+                "requires_root": False,
+                "risk_level": "medium",
+            }
+        )
+        assert cmd == "bash"
+        assert args == ["-c", "curl -sS http://target.local/login.php"]
+        assert risk == "medium"
+
+    def test_prepare_structured_command_rejects_unknown_executable(self) -> None:
+        cmd, args, root, risk = BackendGateway.prepare_structured_command(
+            {
+                "executable": "python",
+                "arguments": ["-c", "print('hi')"],
+                "requires_root": False,
+                "risk_level": "low",
+            }
+        )
         assert cmd is None
         assert risk == "high"

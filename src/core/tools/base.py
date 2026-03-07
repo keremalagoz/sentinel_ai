@@ -11,9 +11,12 @@ from typing import Optional, Dict, Any, List, Callable, Iterable
 from dataclasses import dataclass
 from enum import Enum
 import re
+import subprocess
+import threading
 import time
 
-from PyQt6.QtCore import QProcess, QTimer, pyqtSignal, QObject
+from PyQt6.QtCore import QProcess, QTimer, pyqtSignal, pyqtSlot, QObject
+from src.core.platform_utils import CONSOLE_ENCODING, is_windows, resolve_executable
 
 
 _SHELL_METACHAR_RE = re.compile(r'(?:;|\|\||&&|\||`|\$\(|\$\{|\)|\{|\}|!|<|>|\n|\r|\x00)')
@@ -61,6 +64,22 @@ class ToolExecutionSignals(QObject):
     error = pyqtSignal(str, str)  # tool_id, error_message
 
 
+class _CallbackDispatcher(QObject):
+    """Dispatch result callbacks on the Qt object thread."""
+
+    def __init__(self) -> None:
+        super().__init__()
+        self._callback: Optional[Callable[[ToolResult], None]] = None
+
+    def set_callback(self, callback: Optional[Callable[[ToolResult], None]]) -> None:
+        self._callback = callback
+
+    @pyqtSlot(str, object)
+    def dispatch(self, tool_id: str, result: ToolResult) -> None:
+        if self._callback:
+            self._callback(result)
+
+
 class BaseTool(ABC):
     """
     Base class for all tools.
@@ -86,12 +105,17 @@ class BaseTool(ABC):
         self.tool_id = tool_id
         self.timeout = timeout
         self.signals = signals or ToolExecutionSignals()
+        self._callback_dispatcher = _CallbackDispatcher()
+        self.signals.finished.connect(self._callback_dispatcher.dispatch)
 
         self.process: Optional[QProcess] = None
         self.timer: Optional[QTimer] = None
         self.status = ToolStatus.IDLE
         self.started_at: Optional[float] = None
         self._effective_timeout = timeout
+        self._subprocess: Optional[subprocess.Popen] = None
+        self._subprocess_thread: Optional[threading.Thread] = None
+        self._result_emitted = False
 
         self._stdout_buffer: List[str] = []
         self._stderr_buffer: List[str] = []
@@ -144,8 +168,10 @@ class BaseTool(ABC):
             raise RuntimeError(f"Tool {self.tool_id} is already running")
 
         self._result_callback = callback
+        self._callback_dispatcher.set_callback(callback)
         self._stdout_buffer = []
         self._stderr_buffer = []
+        self._result_emitted = False
 
         local_kwargs = dict(kwargs)
         timeout_override = local_kwargs.pop("_timeout", None)
@@ -160,8 +186,15 @@ class BaseTool(ABC):
             self._handle_error("Empty command")
             return
 
-        program = command[0]
+        program = resolve_executable(command[0])
         args = command[1:]
+
+        self.status = ToolStatus.RUNNING
+        self.started_at = time.time()
+
+        if is_windows():
+            self._start_subprocess_backend(program, args)
+            return
 
         # Create QProcess
         self.process = QProcess()
@@ -175,14 +208,14 @@ class BaseTool(ABC):
         self.timer.timeout.connect(self._on_timeout)
         self.timer.setSingleShot(True)
 
-        # Start execution
-        self.status = ToolStatus.RUNNING
-        self.started_at = time.time()
-
         self.process.start(program, args)
-        self.timer.start(self._effective_timeout * 1000)
-
         self.signals.started.emit(self.tool_id)
+        if self.process.waitForStarted(250):
+            self.timer.start(self._effective_timeout * 1000)
+            return
+
+        if not self._result_emitted and self.status == ToolStatus.RUNNING:
+            self._handle_error("Failed to start process")
 
     def cancel(self) -> None:
         """Cancel running execution"""
@@ -191,6 +224,12 @@ class BaseTool(ABC):
 
         if self.process:
             self.process.kill()
+
+        if self._subprocess:
+            try:
+                self._subprocess.kill()
+            except Exception:
+                pass
 
         if self.timer:
             self.timer.stop()
@@ -210,21 +249,112 @@ class BaseTool(ABC):
 
         self._emit_result(result)
 
-    def _on_stdout(self) -> None:
-        """Handle stdout data"""
-        if not self.process:
+    def _start_subprocess_backend(self, program: str, args: List[str]) -> None:
+        """Use subprocess on Windows where QProcess startup is unreliable."""
+        creation_flags = getattr(subprocess, "CREATE_NO_WINDOW", 0) if is_windows() else 0
+        try:
+            self._subprocess = subprocess.Popen(
+                [program, *args],
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                stdin=subprocess.PIPE,
+                creationflags=creation_flags,
+            )
+        except Exception as exc:
+            self._handle_error(f"Failed to start process: {exc}")
             return
 
-        data = self.process.readAllStandardOutput().data().decode('utf-8', errors='replace')
+        self.signals.started.emit(self.tool_id)
+        self._subprocess_thread = threading.Thread(
+            target=self._wait_for_subprocess,
+            name=f"{self.tool_id}-runner",
+            daemon=True,
+        )
+        self._subprocess_thread.start()
+
+    def _wait_for_subprocess(self) -> None:
+        process = self._subprocess
+        if process is None:
+            return
+
+        try:
+            stdout_bytes, stderr_bytes = process.communicate(timeout=self._effective_timeout)
+        except subprocess.TimeoutExpired:
+            try:
+                process.kill()
+                stdout_bytes, stderr_bytes = process.communicate(timeout=1)
+            except Exception:
+                stdout_bytes = b""
+                stderr_bytes = b""
+            if self._result_emitted or self.status == ToolStatus.CANCELLED:
+                return
+            self._append_subprocess_output(stdout_bytes, stderr_bytes)
+            self.status = ToolStatus.TIMEOUT
+            result = ToolResult(
+                tool_id=self.tool_id,
+                status=ToolStatus.TIMEOUT,
+                stdout="".join(self._stdout_buffer),
+                stderr="".join(self._stderr_buffer),
+                exit_code=-1,
+                started_at=self.started_at or time.time(),
+                finished_at=time.time(),
+                error_message=f"Execution timeout after {self._effective_timeout} seconds",
+            )
+            self._emit_result(result)
+            return
+        except Exception as exc:
+            if self._result_emitted or self.status == ToolStatus.CANCELLED:
+                return
+            self._handle_error(str(exc))
+            return
+        finally:
+            self._subprocess = None
+
+        if self._result_emitted or self.status == ToolStatus.CANCELLED:
+            return
+
+        self._append_subprocess_output(stdout_bytes, stderr_bytes)
+        exit_code = int(process.returncode or 0)
+        self.status = ToolStatus.SUCCESS if exit_code == 0 else ToolStatus.FAILED
+
+        result = ToolResult(
+            tool_id=self.tool_id,
+            status=self.status,
+            stdout="".join(self._stdout_buffer),
+            stderr="".join(self._stderr_buffer),
+            exit_code=exit_code,
+            started_at=self.started_at or time.time(),
+            finished_at=time.time(),
+            error_message=None if exit_code == 0 else f"Process exited with code {exit_code}",
+        )
+        self._emit_result(result)
+
+    def _append_subprocess_output(self, stdout_bytes: bytes, stderr_bytes: bytes) -> None:
+        stdout_text = stdout_bytes.decode(CONSOLE_ENCODING, errors="replace") if stdout_bytes else ""
+        stderr_text = stderr_bytes.decode(CONSOLE_ENCODING, errors="replace") if stderr_bytes else ""
+
+        if stdout_text:
+            self._stdout_buffer.append(stdout_text)
+            self.signals.stdout_ready.emit(self.tool_id, stdout_text)
+        if stderr_text:
+            self._stderr_buffer.append(stderr_text)
+            self.signals.stderr_ready.emit(self.tool_id, stderr_text)
+
+    def _on_stdout(self) -> None:
+        """Handle stdout data"""
+        if not self.process or self._result_emitted:
+            return
+
+        data = self.process.readAllStandardOutput().data().decode(CONSOLE_ENCODING, errors='replace')
         self._stdout_buffer.append(data)
         self.signals.stdout_ready.emit(self.tool_id, data)
 
     def _on_stderr(self) -> None:
         """Handle stderr data"""
-        if not self.process:
+        if not self.process or self._result_emitted:
             return
 
-        data = self.process.readAllStandardError().data().decode('utf-8', errors='replace')
+        data = self.process.readAllStandardError().data().decode(CONSOLE_ENCODING, errors='replace')
         self._stderr_buffer.append(data)
         self.signals.stderr_ready.emit(self.tool_id, data)
 
@@ -233,7 +363,7 @@ class BaseTool(ABC):
         if self.timer:
             self.timer.stop()
 
-        if self.status == ToolStatus.CANCELLED:
+        if self.status == ToolStatus.CANCELLED or self._result_emitted:
             return
 
         self.status = ToolStatus.SUCCESS if exit_code == 0 else ToolStatus.FAILED
@@ -253,6 +383,8 @@ class BaseTool(ABC):
 
     def _on_timeout(self) -> None:
         """Handle execution timeout"""
+        if self._result_emitted or self.status != ToolStatus.RUNNING:
+            return
         if self.process:
             self.process.kill()
 
@@ -276,6 +408,9 @@ class BaseTool(ABC):
         if self.timer:
             self.timer.stop()
 
+        if self.status == ToolStatus.CANCELLED or self._result_emitted:
+            return
+
         error_messages = {
             QProcess.ProcessError.FailedToStart: "Failed to start process",
             QProcess.ProcessError.Crashed: "Process crashed",
@@ -290,6 +425,8 @@ class BaseTool(ABC):
 
     def _handle_error(self, error_message: str) -> None:
         """Handle execution error"""
+        if self._result_emitted:
+            return
         self.status = ToolStatus.FAILED
 
         result = ToolResult(
@@ -308,10 +445,13 @@ class BaseTool(ABC):
 
     def _emit_result(self, result: ToolResult) -> None:
         """Emit result via signal and callback"""
+        if self._result_emitted:
+            return
+        self._result_emitted = True
+        if self.timer:
+            self.timer.stop()
         self.signals.finished.emit(self.tool_id, result)
 
-        if self._result_callback:
-            self._result_callback(result)
 
     def validate_target(self, target: str, field_name: str = "target") -> str:
         """Validate target-like string input and reject shell metacharacters."""
