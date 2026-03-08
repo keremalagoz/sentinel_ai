@@ -548,6 +548,17 @@ class TestChatInterface:
         ci.add_user_message("test", correlation_id="cid_abc")
         assert ci._messages[0]["correlation_id"] == "cid_abc"
 
+    def test_set_backend_session_id(self, app):
+        ci = self._make(app)
+        ci.set_backend_session_id("sess_123")
+        assert ci.get_backend_session_id() == "sess_123"
+
+    def test_new_chat_resets_backend_session_id(self, app):
+        ci = self._make(app)
+        ci.set_backend_session_id("sess_123")
+        ci._new_chat()
+        assert ci.get_backend_session_id() is None
+
     def test_get_chat_title_first_user_msg(self, app):
         ci = self._make(app)
         ci._messages = [{"text": "Scan 192.168.1.0/24", "is_user": True}]
@@ -650,6 +661,47 @@ class TestChatInterface:
         ci.add_user_message("test")
         ci._new_chat()
         assert ci._messages == []
+
+    def test_save_current_chat_persists_backend_session_id(self, app):
+        ci = self._make(app)
+        ci.set_backend_session_id("sess_history")
+        ci.add_user_message("scan target")
+        ci._flush_history()
+        history = ci._load_history()
+        assert history[-1]["backend_session_id"] == "sess_history"
+
+    def test_load_chat_emits_backend_session_id(self, app):
+        ci = self._make(app)
+        ci._history_cache = [
+            {
+                "id": "chat_1",
+                "title": "Chat 1",
+                "date": "2026-03-08 10:00",
+                "backend_session_id": "sess_saved",
+                "messages": [{"text": "hello", "is_user": True, "timestamp": "10:00"}],
+            }
+        ]
+        events = []
+        ci.chat_loaded.connect(lambda chat_id, session_id: events.append((chat_id, session_id)))
+        ci._load_chat("chat_1")
+        assert ci.get_backend_session_id() == "sess_saved"
+        assert events == [("chat_1", "sess_saved")]
+
+    def test_load_chat_without_backend_session_emits_empty_string(self, app):
+        ci = self._make(app)
+        ci._history_cache = [
+            {
+                "id": "chat_2",
+                "title": "Chat 2",
+                "date": "2026-03-08 10:05",
+                "messages": [{"text": "hello", "is_user": True, "timestamp": "10:05"}],
+            }
+        ]
+        events = []
+        ci.chat_loaded.connect(lambda chat_id, session_id: events.append((chat_id, session_id)))
+        ci._load_chat("chat_2")
+        assert ci.get_backend_session_id() is None
+        assert events == [("chat_2", "")]
 
 
 # =========================================================================

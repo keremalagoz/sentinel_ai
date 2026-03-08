@@ -12,6 +12,7 @@ from src.ai.tool_registry import (
     TOOL_REGISTRY,
     get_tool_for_intent,
     build_tool_spec,
+    get_clarification_message,
     get_supported_intents
 )
 from src.ai.intent_resolver import IntentResolver
@@ -38,6 +39,10 @@ INTENT_TEST_CASES = [
     # DNS Lookup
     ("google.com DNS sorgusu yap", IntentType.DNS_LOOKUP, "nslookup", None),
     ("DNS kayitlarini goster", IntentType.DNS_LOOKUP, "nslookup", None),
+
+    # Recon
+    ("example.com whois bilgisi getir", IntentType.WHOIS_LOOKUP, "whois", None),
+    ("hedefin isletim sistemini tespit et", IntentType.OS_DETECTION, "nmap", None),
     
     # Web Dir Enum
     ("web sitesinde dizin ara", IntentType.WEB_DIR_ENUM, "gobuster", None),
@@ -184,6 +189,57 @@ def _run_command_builder() -> bool:
 
 def test_command_builder() -> None:
     assert _run_command_builder() is True
+
+
+def test_os_detection_build_tool_spec_supports_ports_and_aggressive_flag() -> None:
+    spec = build_tool_spec(
+        IntentType.OS_DETECTION,
+        "192.168.1.10",
+        {"ports": "22,80", "aggressive": True},
+    )
+
+    assert spec is not None
+    assert spec.arguments == ["-O", "-sV", "-p", "22,80", "--osscan-guess"]
+
+
+def test_dns_lookup_build_tool_spec_supports_record_type() -> None:
+    spec = build_tool_spec(
+        IntentType.DNS_LOOKUP,
+        "example.com",
+        {"record_type": "MX"},
+    )
+
+    assert spec is not None
+    assert spec.arguments == ["-type=MX"]
+
+
+def test_sqlmap_command_builder_uses_u_flag_for_target() -> None:
+    spec = build_tool_spec(
+        IntentType.SQL_INJECTION,
+        "http://example.com/login.php?id=1",
+        {},
+    )
+    assert spec is not None
+
+    cmd, err = CommandBuilder().build(spec, "SQL injection testi")
+
+    assert err is None
+    assert cmd is not None
+    assert cmd.executable == "sqlmap"
+    assert cmd.arguments[:4] == ["--batch", "--level", "3", "-u"]
+    assert "http://example.com/login.php?id=1" in cmd.arguments
+
+
+def test_phase2_clarification_policy_for_bruteforce_ssh() -> None:
+    message = get_clarification_message(IntentType.BRUTE_FORCE_SSH, "10.0.0.5", {})
+    assert message is not None
+    assert "username" in message
+
+
+def test_phase2_clarification_policy_for_sql_injection_requires_url() -> None:
+    message = get_clarification_message(IntentType.SQL_INJECTION, "example.com", {})
+    assert message is not None
+    assert "URL" in message
 
 
 

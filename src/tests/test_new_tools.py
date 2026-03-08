@@ -14,20 +14,24 @@ from src.core.sqlite_backend import SQLiteBackend
 from src.core.tool_base import (
     DnsLookupTool,
     GobusterDirTool,
+    NmapOsDetectionTool,
     NmapPortScanTool,
     NmapServiceDetectionTool,
     NmapVulnScanTool,
     SslScanTool,
     SubdomainEnumTool,
+    WhoisLookupTool,
     WebAppScanTool,
 )
 from src.core.parser_framework import (
     DnsLookupParser,
     GobusterDirParser,
+    NmapOsDetectionParser,
     NmapServiceDetectionParser,
     NmapVulnScanParser,
     SslScanParser,
     SubdomainEnumParser,
+    WhoisLookupParser,
     WebAppScanParser,
 )
 
@@ -37,8 +41,10 @@ EXPECTED_TOOLS = {
     "nmap_ping_sweep",
     "nmap_port_scan",
     "nmap_service_detection",
+    "nmap_os_detection",
     "nmap_vuln_scan",
     "dns_lookup",
+    "whois_lookup",
     "ssl_scan",
     "gobuster_dir",
     "subdomain_enum",
@@ -63,8 +69,10 @@ def test_registered_tools_exact_set(coordinator):
     "method_name",
     [
         "execute_service_detection",
+        "execute_os_detection",
         "execute_vuln_scan",
         "execute_dns_lookup",
+        "execute_whois_lookup",
         "execute_ssl_scan",
         "execute_web_dir_enum",
         "execute_subdomain_enum",
@@ -86,6 +94,12 @@ def test_coordinator_has_execute_methods(coordinator, method_name):
             ["-p", "80,443", "192.168.1.10"],
         ),
         (
+            NmapOsDetectionTool(),
+            {"target": "192.168.1.10", "ports": "22,80", "aggressive": True},
+            ["nmap", "-O", "-sV", "--osscan-guess"],
+            ["-p", "22,80", "192.168.1.10"],
+        ),
+        (
             NmapVulnScanTool(),
             {"target": "192.168.1.10", "ports": "443", "scripts": "vuln"},
             ["nmap", "--script", "vuln"],
@@ -95,6 +109,12 @@ def test_coordinator_has_execute_methods(coordinator, method_name):
             DnsLookupTool(),
             {"domain": "example.com", "record_type": "mx"},
             ["nslookup", "-type=MX", "example.com"],
+            [],
+        ),
+        (
+            WhoisLookupTool(),
+            {"domain": "example.com"},
+            ["whois", "example.com"],
             [],
         ),
         (
@@ -140,6 +160,8 @@ def test_new_tool_command_building_is_specific(tool, kwargs, expected_prefix, re
         NmapServiceDetectionParser,
         NmapVulnScanParser,
         DnsLookupParser,
+        WhoisLookupParser,
+        NmapOsDetectionParser,
         SslScanParser,
         GobusterDirParser,
         SubdomainEnumParser,
@@ -150,6 +172,57 @@ def test_parser_classes_are_instantiable(parser_cls):
     """Yeni parser sınıfları hatasız instantiate edilebilmeli."""
     parser = parser_cls()
     assert parser is not None
+
+
+def test_whois_parser_extracts_registrar_and_nameserver():
+    parser = WhoisLookupParser()
+    entities = parser.parse(
+        """
+        Domain Name: example.com
+        Registrar: RESERVED-EXAMPLE REGISTRAR
+        Creation Date: 1995-08-14T04:00:00Z
+        Registry Expiry Date: 2030-08-13T04:00:00Z
+        Name Server: NS1.EXAMPLE.COM
+        """
+    )
+    assert len(entities) >= 3
+    assert any(entity.data.get("field") == "registrar" for entity in entities)
+    assert any(entity.data.get("record_type") == "NS" for entity in entities)
+
+
+def test_nmap_os_detection_parser_extracts_host_os():
+    parser = NmapOsDetectionParser()
+    entities = parser.parse(
+        """
+        Nmap scan report for 192.168.1.10
+        Running: Linux 5.X
+        OS details: Linux 5.4 - 5.15
+        Network Distance: 1 hop
+        """
+    )
+    assert len(entities) == 1
+    assert entities[0].data.get("ip_address") == "192.168.1.10"
+    assert "Linux" in entities[0].data.get("os_type", "")
+
+
+def test_nmap_port_scan_rejects_invalid_scan_type():
+    with pytest.raises(ValueError, match="Invalid scan type"):
+        NmapPortScanTool().build_command(target="192.168.1.10", scan_type="sX")
+
+
+def test_nmap_port_scan_rejects_invalid_port_range():
+    with pytest.raises(ValueError, match="Invalid port range"):
+        NmapPortScanTool().build_command(target="192.168.1.10", ports="80,abc")
+
+
+def test_dns_lookup_rejects_invalid_record_type():
+    with pytest.raises(ValueError, match="Invalid DNS record type"):
+        DnsLookupTool().build_command(domain="example.com", record_type="BAD")
+
+
+def test_whois_lookup_rejects_invalid_domain():
+    with pytest.raises(ValueError, match="Invalid domain"):
+        WhoisLookupTool().build_command(domain="example.com;cat")
 
 
 def test_execution_registry_points_to_registered_tools(coordinator):
