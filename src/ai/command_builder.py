@@ -100,6 +100,9 @@ class CommandBuilder:
                         arguments.extend(["-u", tool_spec.target])
                     else:  # nikto
                         arguments.extend(["-h", tool_spec.target])
+            elif tool_spec.tool == "sqlmap":
+                if "-u" not in arguments and "--url" not in arguments:
+                    arguments.extend(["-u", tool_spec.target])
             # Hydra icin service://target format
             elif tool_spec.tool == "hydra":
                 # Hydra target'i en sona ekler, service bilgisi ile

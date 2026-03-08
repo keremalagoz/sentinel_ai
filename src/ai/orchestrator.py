@@ -28,6 +28,7 @@ from src.ai.keyword_filter import KeywordPreFilter
 from src.ai.hierarchical_resolver import HierarchicalResolver, get_hierarchical_resolver
 from src.ai.tool_registry import (
     build_tool_spec,
+    get_clarification_message,
     get_tool_for_intent,
     get_execution_tool_id,
     build_execution_kwargs
@@ -278,6 +279,24 @@ class AIOrchestrator:
             )
             result["needs_clarification"] = True
             result["agent_observation"] = "missing_target"
+            if effective_session_id:
+                self._conversation_memory.append_turn(
+                    session_id=effective_session_id,
+                    role="assistant",
+                    content=result["message"],
+                    metadata={"intent": intent.intent_type.value, "confidence": intent.confidence},
+                )
+            return result
+
+        clarification_message = get_clarification_message(
+            intent.intent_type,
+            final_target,
+            intent.params,
+        )
+        if clarification_message:
+            result["message"] = clarification_message
+            result["needs_clarification"] = True
+            result["agent_observation"] = "clarification_required"
             if effective_session_id:
                 self._conversation_memory.append_turn(
                     session_id=effective_session_id,

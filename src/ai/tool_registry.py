@@ -56,7 +56,10 @@ TOOL_REGISTRY: Dict[IntentType, ToolDef] = {
         requires_root=True,  # OS detection root gerektirir
         risk_level=RiskLevel.MEDIUM,
         description="Isletim sistemi ve servis tespiti",
-        arg_templates={}
+        arg_templates={
+            "ports": "-p {value}",
+            "aggressive": "--osscan-guess",
+        }
     ),
     
     IntentType.VULN_SCAN: ToolDef(
@@ -118,7 +121,9 @@ TOOL_REGISTRY: Dict[IntentType, ToolDef] = {
         requires_root=False,
         risk_level=RiskLevel.LOW,
         description="DNS sorgusu",
-        arg_templates={}
+        arg_templates={
+            "record_type": "-type={value}",
+        }
     ),
 
     IntentType.SUBDOMAIN_ENUM: ToolDef(
@@ -235,6 +240,14 @@ _EXECUTION_REGISTRY: Dict[IntentType, Dict[str, Any]] = {
             "intensity": "intensity"
         }
     },
+    IntentType.OS_DETECTION: {
+        "tool_id": "nmap_os_detection",
+        "target_arg": "target",
+        "param_map": {
+            "ports": "ports",
+            "aggressive": "aggressive"
+        }
+    },
     IntentType.VULN_SCAN: {
         "tool_id": "nmap_vuln_scan",
         "target_arg": "target",
@@ -249,6 +262,11 @@ _EXECUTION_REGISTRY: Dict[IntentType, Dict[str, Any]] = {
         "param_map": {
             "record_type": "record_type"
         }
+    },
+    IntentType.WHOIS_LOOKUP: {
+        "tool_id": "whois_lookup",
+        "target_arg": "domain",
+        "param_map": {}
     },
     IntentType.SSL_SCAN: {
         "tool_id": "ssl_scan",
@@ -276,6 +294,40 @@ _EXECUTION_REGISTRY: Dict[IntentType, Dict[str, Any]] = {
         "tool_id": "web_app_scan",
         "target_arg": "url",
         "param_map": {}
+    },
+}
+
+
+_PHASE2_CLARIFICATION_POLICIES: Dict[IntentType, Dict[str, Any]] = {
+    IntentType.BRUTE_FORCE_SSH: {
+        "message": (
+            "SSH brute force icin hedefe ek olarak username veya userlist ve "
+            "password veya passlist belirtmelisiniz."
+        ),
+        "requirements": [
+            ("username", "userlist"),
+            ("password", "passlist"),
+        ],
+    },
+    IntentType.BRUTE_FORCE_HTTP: {
+        "message": (
+            "HTTP brute force icin hedef URL, username veya userlist, password veya passlist, "
+            "form_path, form_params ve fail_string belirtmelisiniz."
+        ),
+        "requirements": [
+            ("username", "userlist"),
+            ("password", "passlist"),
+            ("form_path",),
+            ("form_params",),
+            ("fail_string",),
+        ],
+    },
+    IntentType.SQL_INJECTION: {
+        "message": (
+            "SQL injection testi icin tam hedef URL belirtmelisiniz. "
+            "Ornek: http://example.com/login.php?id=1"
+        ),
+        "requires_url_target": True,
     },
 }
 
@@ -365,9 +417,15 @@ def build_tool_spec(
     if params:
         for param_key, param_value in params.items():
             if param_key in tool_def.arg_templates:
+                if param_value is None or param_value is False:
+                    continue
                 template = tool_def.arg_templates[param_key]
-                # Template'i parse et: "-p {value}" -> ["-p", value]
-                formatted = template.replace("{value}", str(param_value))
+                if "{value}" in template:
+                    formatted = template.replace("{value}", str(param_value))
+                else:
+                    if not bool(param_value):
+                        continue
+                    formatted = template
                 arguments.extend(formatted.split())
     
     return ToolSpec(
@@ -460,6 +518,35 @@ def build_execution_kwargs(
                 kwargs[tool_arg] = params[param_key]
 
     return kwargs
+
+
+def get_clarification_message(
+    intent_type: IntentType,
+    target: Optional[str],
+    params: Optional[Dict[str, Any]] = None,
+) -> Optional[str]:
+    """
+    Faz-2 veya eksik parametre gerektiren intent'ler icin clarification mesaji dondur.
+
+    Returns:
+        clarification message veya None
+    """
+    policy = _PHASE2_CLARIFICATION_POLICIES.get(intent_type)
+    if not policy:
+        return None
+
+    normalized_params = params or {}
+
+    if policy.get("requires_url_target"):
+        target_value = str(target or normalized_params.get("url") or "").strip().lower()
+        if not (target_value.startswith("http://") or target_value.startswith("https://")):
+            return str(policy["message"])
+
+    for requirement_group in policy.get("requirements", []):
+        if not any(normalized_params.get(key) for key in requirement_group):
+            return str(policy["message"])
+
+    return None
 
 
 def print_registry_summary():
