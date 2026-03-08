@@ -1,8 +1,14 @@
 """Nmap Port Scan Tool (-sS/-sT/-sU)"""
 
+import re
 from typing import Optional, List
 
 from src.core.tools.base import BaseTool, ToolExecutionSignals
+from src.core.validators import InputValidator
+
+
+_PORTS_RE = re.compile(r"^\d+(?:-\d+)?(?:,\d+(?:-\d+)?)*$")
+_ALLOWED_SCAN_TYPES = {"sT", "sS", "sU"}
 
 
 class NmapPortScanTool(BaseTool):
@@ -38,9 +44,46 @@ class NmapPortScanTool(BaseTool):
 
         return max(1, min(total, 65535))
 
+    @staticmethod
+    def _normalize_target(target: str) -> str:
+        raw_value = str(target or "").strip()
+        sanitized = InputValidator.sanitize(raw_value)
+        if sanitized != raw_value:
+            raise ValueError("Invalid scan target")
+        if not InputValidator.validate_target(sanitized):
+            raise ValueError("Invalid scan target")
+        return sanitized
+
+    @staticmethod
+    def _normalize_ports(ports: str) -> str:
+        value = str(ports or "1-1000").replace(" ", "")
+        if not _PORTS_RE.fullmatch(value):
+            raise ValueError("Invalid port range")
+
+        for part in value.split(","):
+            if "-" in part:
+                start_str, end_str = part.split("-", 1)
+                start = int(start_str)
+                end = int(end_str)
+                if start < 1 or end > 65535 or start > end:
+                    raise ValueError("Invalid port range")
+            else:
+                port = int(part)
+                if port < 1 or port > 65535:
+                    raise ValueError("Invalid port range")
+
+        return value
+
+    @staticmethod
+    def _normalize_scan_type(scan_type: str) -> str:
+        value = str(scan_type or "sT").strip()
+        if value not in _ALLOWED_SCAN_TYPES:
+            raise ValueError("Invalid scan type")
+        return value
+
     def estimate_timeout(self, **kwargs) -> int:
-        ports = kwargs.get("ports", "1-1000")
-        scan_type = str(kwargs.get("scan_type", "sT"))
+        ports = self._normalize_ports(kwargs.get("ports", "1-1000"))
+        scan_type = self._normalize_scan_type(kwargs.get("scan_type", "sT"))
 
         port_count = self._estimate_port_count(ports)
         factor = {"sT": 1.0, "sS": 0.8, "sU": 1.6}.get(scan_type, 1.1)
@@ -66,4 +109,7 @@ class NmapPortScanTool(BaseTool):
         Returns:
             Command: ["nmap", "-sT", "-p", "1-1000", "192.168.1.10"]
         """
-        return ["nmap", f"-{scan_type}", "-p", ports, target]
+        normalized_target = self._normalize_target(target)
+        normalized_ports = self._normalize_ports(ports)
+        normalized_scan_type = self._normalize_scan_type(scan_type)
+        return ["nmap", f"-{normalized_scan_type}", "-p", normalized_ports, normalized_target]

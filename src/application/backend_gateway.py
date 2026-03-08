@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import logging
 import shlex
-from typing import Optional, Tuple, List
+from typing import Optional, Tuple, List, Dict, Any
 
 from src.ai.orchestrator import AIOrchestrator
 from src.core.cleaner import get_cleaner
@@ -15,7 +15,7 @@ logger = logging.getLogger(__name__)
 
 # Izin verilen komut listesi — registry ile tutarli
 _SECURITY_COMMANDS = frozenset({
-    "ping", "nmap", "openssl", "gobuster", "nslookup",
+    "ping", "nmap", "openssl", "gobuster", "nslookup", "whois",
     "dig", "nikto", "hydra", "curl", "wget", "sslscan",
 })
 
@@ -40,6 +40,7 @@ class BackendGateway:
     def __init__(self, model: str = "qwen2.5:3b") -> None:
         self._process_manager = AdvancedProcessManager()
         self._orchestrator = AIOrchestrator(model=model)
+        self._secure_delete = True
 
     @property
     def process_manager(self) -> AdvancedProcessManager:
@@ -133,9 +134,26 @@ class BackendGateway:
     def shutdown(self) -> None:
         self._process_manager.stop_process()
 
-    def cleanup_old_sessions(self, days: int) -> int:
+    def cleanup_old_sessions(self, days: int, secure_delete: Optional[bool] = None) -> int:
         cleaner = get_cleaner()
-        return cleaner.cleanup_old_sessions(days=days)
+        secure_flag = self._secure_delete if secure_delete is None else bool(secure_delete)
+        return cleaner.cleanup_old_sessions(days=days, secure_delete=secure_flag)
+
+    def set_secure_delete(self, enabled: bool) -> None:
+        self._secure_delete = bool(enabled)
+
+    def get_runtime_metrics(self) -> Dict[str, Any]:
+        tool_manager = getattr(self._process_manager, "_tool_manager", None)
+        if tool_manager and hasattr(tool_manager, "get_runtime_metrics"):
+            return tool_manager.get_runtime_metrics()
+        return {
+            "active_executions": 0,
+            "queued_executions": 0,
+            "per_tool_active": {},
+            "avg_queue_wait_ms": 0.0,
+            "avg_tool_run_ms": 0.0,
+            "recent_count": 0,
+        }
 
     def is_docker_running(self) -> bool:
         try:

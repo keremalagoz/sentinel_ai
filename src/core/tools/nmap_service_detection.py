@@ -23,8 +23,8 @@ class NmapServiceDetectionTool(BaseTool):
 
     def estimate_timeout(self, **kwargs) -> int:
         ports = kwargs.get("ports")
-        intensity = int(kwargs.get("intensity", 5))
-        port_count = NmapPortScanTool._estimate_port_count(ports) if ports else 1000
+        intensity = max(0, min(9, int(kwargs.get("intensity", 5))))
+        port_count = NmapPortScanTool._estimate_port_count(NmapPortScanTool._normalize_ports(ports)) if ports else 1000
 
         estimate = int(30 + port_count * 0.18 + intensity * 8)
         return max(30, min(1200, estimate))
@@ -47,10 +47,12 @@ class NmapServiceDetectionTool(BaseTool):
         Returns:
             Command: ["nmap", "-sV", "--version-intensity", "5", "-p", "80,443", "192.168.1.10"]
         """
-        cmd = ["nmap", "-sV", "--version-intensity", str(intensity)]
+        normalized_target = NmapPortScanTool._normalize_target(target)
+        normalized_intensity = max(0, min(9, int(intensity)))
+        cmd = ["nmap", "-sV", "--version-intensity", str(normalized_intensity)]
 
         if ports:
-            cmd.extend(["-p", ports])
+            cmd.extend(["-p", NmapPortScanTool._normalize_ports(ports)])
 
-        cmd.append(target)
+        cmd.append(normalized_target)
         return cmd

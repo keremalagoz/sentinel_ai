@@ -3,6 +3,10 @@
 from typing import Optional, List
 
 from src.core.tools.base import BaseTool, ToolExecutionSignals
+from src.core.validators import InputValidator
+
+
+_ALLOWED_RECORD_TYPES = {"A", "AAAA", "CNAME", "MX", "NS", "PTR", "SOA", "SRV", "TXT"}
 
 
 class DnsLookupTool(BaseTool):
@@ -35,4 +39,15 @@ class DnsLookupTool(BaseTool):
         Returns:
             Command: ["nslookup", "-type=A", "example.com"]
         """
-        return ["nslookup", f"-type={record_type.upper()}", domain]
+        raw_domain = str(domain or "").strip().lower()
+        normalized_domain = InputValidator.sanitize(raw_domain)
+        if normalized_domain != raw_domain:
+            raise ValueError("Invalid domain")
+        if not InputValidator.validate_hostname(normalized_domain):
+            raise ValueError("Invalid domain")
+
+        normalized_record_type = str(record_type or "A").strip().upper()
+        if normalized_record_type not in _ALLOWED_RECORD_TYPES:
+            raise ValueError("Invalid DNS record type")
+
+        return ["nslookup", f"-type={normalized_record_type}", normalized_domain]

@@ -137,7 +137,7 @@ class SecureCleaner:
         except Exception:
             return False
 
-    def cleanup_old_sessions(self, days: int = 7) -> int:
+    def cleanup_old_sessions(self, days: int = 7, secure_delete: bool = False) -> int:
         """
         Eski session loglarını (sentinel_*, session_*) temizler.
         System temp + proje ici temp dizinlerini birlikte tarar.
@@ -173,7 +173,7 @@ class SecureCleaner:
 
                     try:
                         mtime = datetime.fromtimestamp(item.stat().st_mtime)
-                        if mtime < cutoff and self.delete(str(item), secure=False):
+                        if mtime < cutoff and self.delete(str(item), secure=secure_delete):
                             deleted_count += 1
                     except Exception:
                         continue
