@@ -20,6 +20,24 @@ _PROMPT_STYLE_IDLE = f"color: {Colors.SUCCESS}; background: transparent; border:
 _PROMPT_STYLE_RUNNING = f"color: {Colors.WARNING}; background: transparent; border: none;"
 _PROMPT_STYLE_ROOT = f"color: {Colors.DANGER}; background: transparent; border: none;"
 
+_RISK_BANNER = {
+    "high": (
+        f'<div style="background: rgba(239,68,68,0.12); border: 1px solid rgba(239,68,68,0.35); '
+        f'border-radius: 4px; padding: 4px 8px; margin: 2px 0; color: {Colors.DANGER}; '
+        f'font-size: 11px;">{{text}}</div>'
+    ),
+    "medium": (
+        f'<div style="background: rgba(234,179,8,0.10); border: 1px solid rgba(234,179,8,0.30); '
+        f'border-radius: 4px; padding: 4px 8px; margin: 2px 0; color: {Colors.WARNING}; '
+        f'font-size: 11px;">{{text}}</div>'
+    ),
+    "low": (
+        f'<div style="background: rgba(34,197,94,0.08); border: 1px solid rgba(34,197,94,0.25); '
+        f'border-radius: 4px; padding: 4px 8px; margin: 2px 0; color: {Colors.SUCCESS}; '
+        f'font-size: 11px;">{{text}}</div>'
+    ),
+}
+
 # Pre-built HTML escape table (M10 optimization)
 _ESCAPE_TABLE = str.maketrans({
     '&': '&amp;',
@@ -43,6 +61,7 @@ class TerminalSession:
         self.output.setFont(font)
         self.is_running = False
         self.requires_root = False
+        self.risk_level = "low"
         self._awaiting_first_output_line = False
 
 
@@ -388,12 +407,13 @@ class TerminalView(QWidget):
             return
         self._active_session.is_running = True
         self._active_session.requires_root = requires_root
+        self._active_session.risk_level = self._normalize_risk_label(risk_label, requires_root)
         self._active_session._awaiting_first_output_line = True
         self._update_status()
         if correlation_id:
             self._log(f"[CID:{correlation_id}]", Colors.TEXT_DIM)
         if risk_label:
-            self._log(f"[RISK] {risk_label.upper()}", Colors.WARNING if risk_label.lower() != "safe" else Colors.SUCCESS)
+            self._log_risk_banner(risk_label, self._active_session.risk_level)
         self._log(f"$ {command} {' '.join(args)}", Colors.TEXT_SECONDARY)
         if requires_root:
             self._log(t("terminal.root_running"), Colors.WARNING)
@@ -406,6 +426,7 @@ class TerminalView(QWidget):
             if self._active_session:
                 self._active_session.is_running = False
                 self._active_session.requires_root = False
+                self._active_session.risk_level = "low"
                 self._update_status()
     
     def send_input(self, text: str):
@@ -452,6 +473,34 @@ class TerminalView(QWidget):
         cursor.insertHtml(f"<span style='color: {color};'>{escaped}</span>")
         output.setTextCursor(cursor)
         output.ensureCursorVisible()
+
+    def _log_risk_banner(self, text: str, risk_level: str) -> None:
+        if not self._active_session:
+            return
+        output = self._active_session.output
+        cursor = output.textCursor()
+        cursor.movePosition(QTextCursor.MoveOperation.End)
+        if output.toPlainText():
+            cursor.insertHtml("<br>")
+        normalized = risk_level if risk_level in _RISK_BANNER else "low"
+        cursor.insertHtml(_RISK_BANNER[normalized].format(text=self._escape(text)))
+        output.setTextCursor(cursor)
+        output.ensureCursorVisible()
+
+    @staticmethod
+    def _normalize_risk_label(risk_label: str, requires_root: bool = False) -> str:
+        if requires_root:
+            return "high"
+        value = (risk_label or "").strip().lower()
+        if "root" in value:
+            return "high"
+        if value in {"high", "medium", "low"}:
+            return value
+        if value in {"caution", "dikkat"}:
+            return "medium"
+        if value in {"safe", "güvenli"}:
+            return "low"
+        return "low"
     
     @pyqtSlot(str, str)
     def _on_output(self, text: str, channel: str):
@@ -496,6 +545,7 @@ class TerminalView(QWidget):
         if self._active_session:
             self._active_session.is_running = False
             self._active_session.requires_root = False
+            self._active_session.risk_level = "low"
             self._update_status()
             if exit_code == 0:
                 self._log(t("terminal.completed"), Colors.SUCCESS)
@@ -508,6 +558,7 @@ class TerminalView(QWidget):
         if self._active_session:
             self._active_session.is_running = False
             self._active_session.requires_root = False
+            self._active_session.risk_level = "low"
             self._update_status()
             self._log(t("terminal.auth_failed"), Colors.WARNING)
     

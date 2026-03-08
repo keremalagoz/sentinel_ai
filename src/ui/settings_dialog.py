@@ -28,7 +28,7 @@ class SecuritySettingsDialog(QDialog):
     def __init__(self, parent=None, cleanup_handler=None, clear_all_chats_handler=None):
         super().__init__(parent)
         self.setWindowTitle(t("settings.title"))
-        self.setFixedSize(450, 640)
+        self.setFixedSize(450, 780)
         self._cleanup_handler = cleanup_handler
         self._clear_all_chats_handler = clear_all_chats_handler
         self.setStyleSheet(f"""
@@ -156,6 +156,52 @@ class SecuritySettingsDialog(QDialog):
         display_layout.addLayout(lang_layout)
 
         layout.addWidget(display_group)
+
+        # Security Policy Group
+        security_group = QGroupBox(t("settings.security_policy"))
+        security_layout = QVBoxLayout(security_group)
+
+        self._confirm_root = QCheckBox(t("settings.confirm_root"))
+        self._confirm_root.setChecked(True)
+        self._confirm_root.setStyleSheet(f"color: {Colors.TEXT_SECONDARY};")
+        security_layout.addWidget(self._confirm_root)
+
+        self._warn_high_risk = QCheckBox(t("settings.warn_high_risk"))
+        self._warn_high_risk.setChecked(True)
+        self._warn_high_risk.setStyleSheet(f"color: {Colors.TEXT_SECONDARY};")
+        security_layout.addWidget(self._warn_high_risk)
+
+        auto_layout = QHBoxLayout()
+        auto_label = QLabel(t("settings.auto_cleanup"))
+        auto_layout.addWidget(auto_label)
+
+        self._auto_cleanup_combo = QComboBox()
+        self._auto_cleanup_combo.setStyleSheet(f"""
+            QComboBox {{
+                background-color: {Colors.BG_TERTIARY};
+                border: 1px solid {Colors.BG_ELEVATED};
+                border-radius: 4px;
+                padding: 4px 8px;
+                color: {Colors.TEXT_PRIMARY};
+                min-width: 120px;
+            }}
+            QComboBox::drop-down {{
+                border: none;
+            }}
+            QComboBox QAbstractItemView {{
+                background-color: {Colors.BG_SECONDARY};
+                color: {Colors.TEXT_PRIMARY};
+                selection-background-color: {Colors.ACCENT_PRIMARY};
+            }}
+        """)
+        self._auto_cleanup_combo.addItem(t("settings.auto_cleanup_off"), "off")
+        self._auto_cleanup_combo.addItem(t("settings.auto_cleanup_daily"), "daily")
+        self._auto_cleanup_combo.addItem(t("settings.auto_cleanup_weekly"), "weekly")
+        auto_layout.addWidget(self._auto_cleanup_combo)
+        auto_layout.addStretch()
+        security_layout.addLayout(auto_layout)
+
+        layout.addWidget(security_group)
         
         # Connection Status Group
         status_group = QGroupBox(t("settings.connection"))
@@ -311,7 +357,7 @@ class SecuritySettingsDialog(QDialog):
         days = self._days_spin.value()
         deleted = 0
         if self._cleanup_handler:
-            deleted = self._cleanup_handler(days)
+            deleted = self._cleanup_handler(days, secure_delete=self._secure_delete.isChecked())
         
         if deleted > 0:
             self._status_label.setText(t("settings.deleted_sessions").format(n=deleted))
@@ -335,6 +381,9 @@ class SecuritySettingsDialog(QDialog):
             "secure_delete": self._secure_delete.isChecked(),
             "font_size": self._font_spin.value(),
             "language": self._lang_combo.currentData(),
+            "confirm_root": self._confirm_root.isChecked(),
+            "warn_high_risk": self._warn_high_risk.isChecked(),
+            "auto_cleanup": self._auto_cleanup_combo.currentData(),
         }
         self.settings_changed.emit(settings)
         self.accept()
@@ -346,6 +395,9 @@ class SecuritySettingsDialog(QDialog):
             "secure_delete": self._secure_delete.isChecked(),
             "font_size": self._font_spin.value(),
             "language": self._lang_combo.currentData(),
+            "confirm_root": self._confirm_root.isChecked(),
+            "warn_high_risk": self._warn_high_risk.isChecked(),
+            "auto_cleanup": self._auto_cleanup_combo.currentData(),
         }
 
     def set_settings(self, settings: dict) -> None:
@@ -353,6 +405,12 @@ class SecuritySettingsDialog(QDialog):
         self._days_spin.setValue(int(settings.get("cleanup_days", self._days_spin.value())))
         self._secure_delete.setChecked(bool(settings.get("secure_delete", self._secure_delete.isChecked())))
         self._font_spin.setValue(int(settings.get("font_size", self._font_spin.value())))
+        self._confirm_root.setChecked(bool(settings.get("confirm_root", True)))
+        self._warn_high_risk.setChecked(bool(settings.get("warn_high_risk", True)))
+        auto_cleanup = str(settings.get("auto_cleanup", "off"))
+        auto_idx = self._auto_cleanup_combo.findData(auto_cleanup)
+        if auto_idx >= 0:
+            self._auto_cleanup_combo.setCurrentIndex(auto_idx)
         lang = settings.get("language", "en")
         idx = self._lang_combo.findData(lang)
         if idx >= 0:

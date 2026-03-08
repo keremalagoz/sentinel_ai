@@ -509,10 +509,12 @@ class ChatInterface(QWidget):
     stop_requested = pyqtSignal()
     input_sent = pyqtSignal(str)
     action_response = pyqtSignal(str)
+    chat_loaded = pyqtSignal(str, str)
     
     def __init__(self, parent=None):
         super().__init__(parent)
         self._current_chat_id = None
+        self._backend_session_id: Optional[str] = None
         self._messages: List[Dict] = []
         self._command_running = False
         self._text_font_size = 13
@@ -660,8 +662,15 @@ class ChatInterface(QWidget):
         if self._current_chat_id and self._messages:
             self._save_current_chat()
         self._current_chat_id = datetime.now().strftime("%Y%m%d_%H%M%S")
+        self._backend_session_id = None
         self._messages = []
         self.clear_chat()
+
+    def set_backend_session_id(self, session_id: Optional[str]) -> None:
+        self._backend_session_id = session_id or None
+
+    def get_backend_session_id(self) -> Optional[str]:
+        return self._backend_session_id
 
     def get_current_chat_id(self) -> str:
         if not self._current_chat_id:
@@ -679,6 +688,7 @@ class ChatInterface(QWidget):
             if chat.get('id') == self._current_chat_id:
                 history[i]['messages'] = self._messages
                 history[i]['title'] = self._get_chat_title()
+                history[i]['backend_session_id'] = self._backend_session_id
                 found = True
                 break
         if not found:
@@ -686,7 +696,8 @@ class ChatInterface(QWidget):
                 'id': self._current_chat_id,
                 'title': self._get_chat_title(),
                 'date': datetime.now().strftime("%Y-%m-%d %H:%M"),
-                'messages': self._messages
+                'messages': self._messages,
+                'backend_session_id': self._backend_session_id,
             })
         self._history_cache = history
         self._dirty = True
@@ -753,8 +764,10 @@ class ChatInterface(QWidget):
         for chat in history:
             if chat.get('id') == chat_id:
                 self._current_chat_id = chat_id
+                self._backend_session_id = chat.get('backend_session_id') or None
                 self._messages = chat.get('messages', [])
                 self._render_messages()
+                self.chat_loaded.emit(chat_id, self._backend_session_id or "")
                 break
     
     def _render_messages(self):
