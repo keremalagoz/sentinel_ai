@@ -106,7 +106,7 @@ sentinel_root/
 ├── docker-compose.yml        # Docker servis tanımları
 ├── PROJECT_STRUCTURE.md      # Proje yapısı rehberi
 ├── README.md                 # Bu dosya
-├── son_durum.md              # Durum raporu
+├── docs/son_durum.md         # Durum raporu
 ├── data/                     # Veri klasörü
 │   └── databases/            # SQLite veritabanı dosyaları
 ├── docker/                   # Docker yapılandırmaları
@@ -203,23 +203,6 @@ docker-compose logs -f ollama-service
 ```bash
 python main.py
 ```
-
-## CI
-
-Repo artık GitHub Actions ile temel doğrulamayı otomatik çalıştıracak şekilde yapılandırıldı.
-
-CI akışı şunları yapar:
-
-- Python 3.10 kurar
-- `requirements.txt` bağımlılıklarını yükler
-- Headless PyQt test ortamını hazırlar
-- `python -m pytest src/tests -q` komutunu çalıştırır
-
-Workflow dosyası:
-
-- `.github/workflows/ci.yml`
-
----
 
 ## Docker Servisleri
 
