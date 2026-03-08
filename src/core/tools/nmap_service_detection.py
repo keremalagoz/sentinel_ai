@@ -24,7 +24,8 @@ class NmapServiceDetectionTool(BaseTool):
     def estimate_timeout(self, **kwargs) -> int:
         ports = kwargs.get("ports")
         intensity = int(kwargs.get("intensity", kwargs.get("version_intensity", 5)))
-        port_count = NmapPortScanTool._estimate_port_count(ports) if ports else 1000
+        port_count = NmapPortScanTool._estimate_port_count(NmapPortScanTool._normalize_ports(ports)) if ports else 1000
+        intensity = max(0, min(9, intensity))
 
         estimate = int(30 + port_count * 0.18 + intensity * 8)
         return max(30, min(1200, estimate))
@@ -52,15 +53,14 @@ class NmapServiceDetectionTool(BaseTool):
         Returns:
             Command: ["nmap", "-sV", "--version-intensity", "5", "-p", "80,443", "192.168.1.10"]
         """
-        safe_target = self.validate_target(target)
-        safe_intensity = self.validate_range(
+        normalized_target = NmapPortScanTool._normalize_target(target)
+        normalized_intensity = self.validate_range(
             version_intensity if version_intensity is not None else intensity,
             0,
             9,
             "version_intensity",
         )
-
-        cmd: List[str] = ["nmap", "-sV", "--version-intensity", str(safe_intensity)]
+        cmd = ["nmap", "-sV", "--version-intensity", str(normalized_intensity)]
 
         safe_mode = self.validate_enum(version_mode, {"default", "light", "all"}, "version_mode")
         if safe_mode == "light":
@@ -73,14 +73,12 @@ class NmapServiceDetectionTool(BaseTool):
             cmd.append(f"-T{safe_timing}")
 
         if ports:
-            safe_ports = self.validate_ports(ports)
-            cmd.extend(["-p", safe_ports])
+            cmd.extend(["-p", NmapPortScanTool._normalize_ports(ports)])
 
         if no_ping:
             cmd.append("-Pn")
-
         if verbose:
             cmd.append("-v")
 
-        cmd.append(safe_target)
+        cmd.append(normalized_target)
         return cmd

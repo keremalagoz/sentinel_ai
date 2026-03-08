@@ -220,6 +220,34 @@ Temel akış:
 
 ---
 
+### Sprint 3.5 v2 — Dev_Kerem Tabanlı UI + Tool Konsolidasyonu ✅
+
+> Kapsam: `dev_kerem` AI/planner mimarisi korunacak; develop tarafındaki UI değişiklikleri alınacak; tool katmanı seçici ve planner uyumlu şekilde genişletilecek  
+> Branch stratejisi: `develop` mevcut haliyle `experimental` branch'inde korunur, gerçek geliştirme doğrudan `dev_kerem` üzerinde yürütülür  
+> Hedef: İş bittiğinde `dev_kerem` → `develop` merge
+
+| # | Görev | Sorumlu | Durum | Açıklama |
+|---|-------|---------|-------|----------|
+| 3.5v2.1 | Experimental güvenlik dalı | Kerem | ✅ | `develop` mimarisi `experimental` branch'inde donduruldu |
+| 3.5v2.2 | İlk güvenlik/telemetry dilimi | Kerem | ✅ | `BackendGateway`, `SecureCleaner`, `MainWindow`, `SecuritySettingsDialog`, `i18n` üzerinde secure-delete + confirmation policy + telemetry yüzeyi eklendi |
+| 3.5v2.3 | Terminal risk yüzeyi | Yiğit + Kerem | ✅ | `terminal_view.py` içinde renkli risk bannerları, oturum risk state'i ve risk bazlı terminal görünürlüğü alındı |
+| 3.5v2.4 | UI parity göçüsü | Yiğit + Kerem | ✅ | `main_window.py`, `chat_interface.py`, `settings_dialog.py`, `i18n.py` üzerinde parity akışı tamamlandı; session göstergesi, telemetry yüzeyi, chat history -> backend session senkronizasyonu ve clear-all sonrası session reset akışı alındı |
+| 3.5v2.5 | Faz 1 tool göçüsü | Kerem | ✅ | `whois_lookup`, `nmap_os_detection` execution katmanına eklendi; parser/coordinator/allowlist ve güvenli `build_command()` uyarlamaları tamamlandı |
+| 3.5v2.6 | Planner-friendly registry uyarlaması | Kerem | ✅ | `tool_registry.py` planner kontratını koruyarak yeni tool parametre şablonlarını (`record_type`, `ports`, `aggressive`) ve execution mapping'lerini tamamladı |
+| 3.5v2.7 | Faz 2 tool politikası | Kerem | ✅ | `hydra_http`, `hydra_ssh`, `sqlmap_scan` için deterministic explicit clarification politikası tanımlandı; eksik zorunlu parametrede komut hazırlamak yerine netleştirme istenir |
+| 3.5v2.8 | Regresyon ve merge hazırlığı | Kerem | ✅ | Planner regresyonları, UI smoke, tool onboarding ve roadmap senkronizasyonu tamamlandı; hedefli doğrulama seti yeşil |
+
+**Sprint 3.5 v2 Toplam: 8/8 görev ✅**
+
+**Sprint 3.5 v2 Kılavuz Kararları**
+
+- AI/planner çekirdeği `dev_kerem` çizgisinde kalır; develop'in execution-first mimarisi ana akış yapılmaz.
+- UI tarafında develop değişikliklerinin tamamı hedeflenir.
+- Tool katmanı iki fazlı alınır: düşük riskli/recon tool'lar önce, zengin parametre isteyen tool'lar sonra.
+- Sprint 3 backlog maddeleri BL-1, BL-2 ve BL-3 bu sprint kapsamına alınmıştır; ayrı backlog takibi yapılmayacaktır.
+
+---
+
 ### Sprint 3.6 — Backend Agent-Chat Foundation (UI Değişikliği Yok) ✅
 
 > Detaylı plan: [sprint_3_6_plan.md](sprint_3_6_plan.md)  
@@ -254,11 +282,10 @@ Temel akış:
 ## 3.1) Hızlı Durum Özeti
 
 - Mimari: Local-only LLM + deterministic execution + backend session-memory chat
-- Test sağlığı: local full run **1578 passed, 1 failed**; kalan tek kırık canlı LLM exact-match testi
-- Yiğit stabilization regresyon paketi: **311 passed**
-- Tamamlanan: Sprint 0 → 3.6 + Yiğit stabilization hotfix
-- Aktif sprint: **Sprint 3.6 tamamlandı** + stabilization hotfix kapandı — sonraki: Sprint 4
-- Backlog: Yiğit tarafında kritik açık yok; ortak AI/registry drift Kerem handoff listesinde
+- Test sağlığı: baseline full suite yeşil (**715 passed**) + Sprint 3.6 hedefli doğrulama **21 passed** + Sprint 3.5 v2 hedefli regresyon **425 passed** (`414 + 11`)
+- Tamamlanan: Sprint 0 → 3.6 + Sprint 3.5 v2
+- Aktif sprint: **Sprint 3.5 v2 ve Sprint 3.6 tamamlandı** — sonraki: Sprint 4
+- Backlog: Sprint 3 UI backlog'u Sprint 3.5 v2 içinde kapatıldı
 - Sonraki hedef: Sprint 3.6 → Sprint 4 (Veri Adaptasyonu)
 
 ---
@@ -298,9 +325,9 @@ Temel akış:
 
 | # | Görev | Sorumlu | Durum | Kaynak |
 |---|-------|---------|-------|--------|
-| BL-1 | UI Security Indicators | Yiğit | ✅ | Stabilization öncesi tamamlandı |
-| BL-2 | Settings Menu (Security) | Yiğit | ✅ | Stabilization öncesi tamamlandı |
-| BL-3 | Runtime Telemetry UI görünürlüğü | Yiğit | ✅ | Status bar metrik yüzeyi aktif |
+| BL-1 | UI Security Indicators | Yiğit | Sprint 3.5 v2 ile tamamlandı | `3.5v2.3 / 3.5v2.4` |
+| BL-2 | Settings Menu (Security) | Yiğit | Sprint 3.5 v2 ile tamamlandı | `3.5v2.2 / 3.5v2.4` |
+| BL-3 | Runtime Telemetry UI görünürlüğü | Yiğit | Sprint 3.5 v2 ile tamamlandı | `3.5v2.2 / 3.5v2.3` |
 
 ---
 
@@ -328,11 +355,11 @@ Bir sprint maddesi tamamlandı sayılması için:
 
 | Metrik | Değer |
 |--------|-------|
-| Tamamlanan görev | **70** |
+| Tamamlanan görev | **78** |
 | Aktif (Sprint 3.6) | **6** |
-| Açık backlog | **0** |
-| Bekleyen (Sprint 4-6) | **9** |
-| Toplam test | **1578 passed, 1 failed live-LLM exact-match** |
+| Backlog (yerleştirilmemiş) | **0** |
+| Bekleyen (Sprint 4-6) | **11** |
+| Toplam test | **715 passed + Sprint 3.6 hedefli 21 passed + Sprint 3.5 v2 hedefli 425 passed** |
 | Son merge | develop `02e352c` |
 
 

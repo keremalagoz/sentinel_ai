@@ -157,7 +157,7 @@ class SecuritySettingsDialog(QDialog):
 
         layout.addWidget(display_group)
 
-        # Security Policy Group (BL-2)
+        # Security Policy Group
         security_group = QGroupBox(t("settings.security_policy"))
         security_layout = QVBoxLayout(security_group)
 
@@ -171,7 +171,6 @@ class SecuritySettingsDialog(QDialog):
         self._warn_high_risk.setStyleSheet(f"color: {Colors.TEXT_SECONDARY};")
         security_layout.addWidget(self._warn_high_risk)
 
-        # Auto cleanup schedule
         auto_layout = QHBoxLayout()
         auto_label = QLabel(t("settings.auto_cleanup"))
         auto_layout.addWidget(auto_label)
@@ -410,6 +409,12 @@ class SecuritySettingsDialog(QDialog):
         self._days_spin.setValue(int(settings.get("cleanup_days", self._days_spin.value())))
         self._secure_delete.setChecked(bool(settings.get("secure_delete", self._secure_delete.isChecked())))
         self._font_spin.setValue(int(settings.get("font_size", self._font_spin.value())))
+        self._confirm_root.setChecked(bool(settings.get("confirm_root", True)))
+        self._warn_high_risk.setChecked(bool(settings.get("warn_high_risk", True)))
+        auto_cleanup = str(settings.get("auto_cleanup", "off"))
+        auto_idx = self._auto_cleanup_combo.findData(auto_cleanup)
+        if auto_idx >= 0:
+            self._auto_cleanup_combo.setCurrentIndex(auto_idx)
         lang = settings.get("language", "en")
         idx = self._lang_combo.findData(lang)
         if idx >= 0:

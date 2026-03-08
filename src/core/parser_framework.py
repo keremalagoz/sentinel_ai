@@ -1195,6 +1195,102 @@ class DnsLookupParser(BaseParser):
         return entities
 
 
+class WhoisLookupParser(BaseParser):
+    """Parser for whois output."""
+
+    def parse(self, output: str) -> List[BaseEntity]:
+        entities = []
+        domain = None
+
+        for raw_line in output.split('\n'):
+            line = raw_line.strip()
+            line_lower = line.lower()
+
+            if not line or ':' not in line:
+                continue
+
+            key, value = line.split(':', 1)
+            key = key.strip().lower()
+            value = value.strip()
+
+            if not value:
+                continue
+
+            if key in {"domain name", "domain"} and not domain:
+                domain = value.lower().rstrip('.')
+                continue
+
+            if domain is None:
+                continue
+
+            if key == "registrar":
+                entities.append(self._create_dns_entity(domain, "TXT", value, source="whois", field="registrar"))
+            elif key in {"creation date", "created", "registered on"}:
+                entities.append(self._create_dns_entity(domain, "TXT", value, source="whois", field="creation_date"))
+            elif key in {"registry expiry date", "expiry date", "expires on", "paid-till"}:
+                entities.append(self._create_dns_entity(domain, "TXT", value, source="whois", field="expiry_date"))
+            elif key in {"name server", "nserver"}:
+                entities.append(self._create_dns_entity(domain, "NS", value.split()[0].rstrip('.'), source="whois"))
+
+        if not entities:
+            raise ParserException("No structured WHOIS fields found in output")
+
+        return entities
+
+
+class NmapOsDetectionParser(BaseParser):
+    """Parser for nmap OS detection output."""
+
+    def parse(self, output: str) -> List[BaseEntity]:
+        entities = []
+        current_ip = None
+        os_type = None
+        accuracy = None
+
+        for raw_line in output.split('\n'):
+            line = raw_line.strip()
+
+            if 'Nmap scan report for' in line:
+                parts = line.split()
+                if len(parts) >= 5:
+                    current_ip = parts[-1]
+
+            elif line.startswith('OS details:'):
+                os_type = line.split(':', 1)[1].strip()
+
+            elif line.startswith('Aggressive OS guesses:') and not os_type:
+                os_type = line.split(':', 1)[1].split(',', 1)[0].strip()
+
+            elif line.startswith('Running:') and not os_type:
+                os_type = line.split(':', 1)[1].strip()
+
+            elif line.startswith('OS CPE:') and not os_type:
+                os_type = line.split(':', 1)[1].strip()
+
+            elif 'accuracy' in line.lower() and '%' in line and accuracy is None:
+                for token in line.replace('(', ' ').replace(')', ' ').split():
+                    if token.endswith('%'):
+                        try:
+                            accuracy = max(0.0, min(1.0, float(token.rstrip('%')) / 100.0))
+                            break
+                        except ValueError:
+                            continue
+
+        if not current_ip or not os_type:
+            raise ParserException('No OS detection results found in nmap output')
+
+        entities.append(
+            self._create_host_entity(
+                ip=current_ip,
+                is_alive=True,
+                os_type=os_type,
+                confidence=accuracy or 0.8,
+            )
+        )
+
+        return entities
+
+
 class SslScanParser(BaseParser):
     """
     Parser for OpenSSL s_client output.
@@ -1582,21 +1678,24 @@ class NmapOsDetectionParser(BaseParser):
 
     def parse(self, output: str) -> List[BaseEntity]:
         lines = [line.strip() for line in output.splitlines() if line.strip()]
+        ip_address = None
         os_hints: List[str] = []
         for line in lines:
+            if line.startswith("Nmap scan report for "):
+                ip_address = line.replace("Nmap scan report for ", "", 1).strip()
             if line.startswith("Running:") or line.startswith("OS details:"):
                 os_hints.append(line)
 
         if not os_hints:
             raise ParserException("No OS detection data found")
 
-        entity_id = self.id_generator.generate_id(entity_type="os_detection", key="|".join(os_hints))
+        os_type = " | ".join(os_hints)
         return [
-            BaseEntity(
-                id=entity_id,
-                type="os_detection",
-                properties={"details": " | ".join(os_hints)},
-                relationships=[],
+            self._create_host_entity(
+                ip=ip_address or "unknown",
+                os_type=os_type,
+                os_details=os_type,
+                confidence=0.9,
             )
         ]
 
@@ -1617,15 +1716,63 @@ class WhoisLookupParser(BaseParser):
             raise ParserException("No whois data found")
 
         domain_key = key_values.get("domain name") or key_values.get("domain") or "unknown"
-        entity_id = self.id_generator.generate_id(entity_type="whois", key=domain_key)
-        return [
-            BaseEntity(
-                id=entity_id,
-                type="whois",
-                properties=key_values,
-                relationships=[],
+        entities: List[BaseEntity] = []
+
+        registrar = key_values.get("registrar")
+        if registrar:
+            entities.append(
+                self._create_dns_entity(
+                    domain_key,
+                    "TXT",
+                    registrar,
+                    field="registrar",
+                )
             )
-        ]
+
+        creation_date = key_values.get("creation date")
+        if creation_date:
+            entities.append(
+                self._create_dns_entity(
+                    domain_key,
+                    "TXT",
+                    creation_date,
+                    field="creation_date",
+                )
+            )
+
+        expiry_date = key_values.get("registry expiry date") or key_values.get("expiry date")
+        if expiry_date:
+            entities.append(
+                self._create_dns_entity(
+                    domain_key,
+                    "TXT",
+                    expiry_date,
+                    field="expiry_date",
+                )
+            )
+
+        name_server = key_values.get("name server")
+        if name_server:
+            entities.append(
+                self._create_dns_entity(
+                    domain_key,
+                    "NS",
+                    name_server,
+                    field="name_server",
+                )
+            )
+
+        if not entities:
+            entities.append(
+                self._create_dns_entity(
+                    domain_key,
+                    "TXT",
+                    domain_key,
+                    field="domain",
+                )
+            )
+
+        return entities
 
 
 class HydraSshParser(BaseParser):

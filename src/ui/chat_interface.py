@@ -510,11 +510,12 @@ class ChatInterface(QWidget):
     input_sent = pyqtSignal(str)
     action_response = pyqtSignal(str)
     backend_session_changed = pyqtSignal(str)
+    chat_loaded = pyqtSignal(str, str)
     
     def __init__(self, parent=None):
         super().__init__(parent)
         self._current_chat_id = None
-        self._backend_session_id = ""
+        self._backend_session_id: Optional[str] = None
         self._messages: List[Dict] = []
         self._command_running = False
         self._text_font_size = 13
@@ -662,7 +663,7 @@ class ChatInterface(QWidget):
         if self._current_chat_id and self._messages:
             self._save_current_chat()
         self._current_chat_id = datetime.now().strftime("%Y%m%d_%H%M%S")
-        self._set_backend_session_id("", notify=True)
+        self._set_backend_session_id(None, notify=True)
         self._messages = []
         self.clear_chat()
 
@@ -758,9 +759,10 @@ class ChatInterface(QWidget):
         for chat in history:
             if chat.get('id') == chat_id:
                 self._current_chat_id = chat_id
-                self._set_backend_session_id(str(chat.get('backend_session_id') or ""), notify=True)
+                self._set_backend_session_id(chat.get('backend_session_id'), notify=True)
                 self._messages = chat.get('messages', [])
                 self._render_messages()
+                self.chat_loaded.emit(chat_id, self._backend_session_id or "")
                 break
     
     def _render_messages(self):
@@ -866,17 +868,17 @@ class ChatInterface(QWidget):
         self._add_bubble(message, is_user=False, command=command, timestamp=timestamp)
         self._save_current_chat()
 
-    def _set_backend_session_id(self, session_id: str, notify: bool = False) -> None:
-        normalized = str(session_id or "").strip()
+    def _set_backend_session_id(self, session_id: Optional[str], notify: bool = False) -> None:
+        normalized = str(session_id or "").strip() or None
         changed = normalized != self._backend_session_id
         self._backend_session_id = normalized
         if notify and changed:
-            self.backend_session_changed.emit(normalized)
+            self.backend_session_changed.emit(normalized or "")
 
-    def set_backend_session_id(self, session_id: str) -> None:
+    def set_backend_session_id(self, session_id: Optional[str]) -> None:
         self._set_backend_session_id(session_id, notify=False)
 
-    def get_backend_session_id(self) -> str:
+    def get_backend_session_id(self) -> Optional[str]:
         return self._backend_session_id
 
     def get_command_meta(self, command: str) -> Optional[Dict[str, Any]]:

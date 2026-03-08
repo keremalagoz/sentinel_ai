@@ -35,8 +35,8 @@ DEFAULT_TOOL_CATALOG = [
     (GobusterDirTool, GobusterDirParser, 300, 1),
     (SubdomainEnumTool, SubdomainEnumParser, 120, 1),
     (WebAppScanTool, WebAppScanParser, 60, 2),
-    (NmapOsDetectionTool, NmapOsDetectionParser, 240, 1),
-    (WhoisLookupTool, WhoisLookupParser, 60, 2),
+    (NmapOsDetectionTool, NmapOsDetectionParser, 180, 1),
+    (WhoisLookupTool, WhoisLookupParser, 45, 2),
     (HydraSshTool, HydraSshParser, 600, 1),
     (HydraHttpTool, HydraHttpParser, 600, 1),
     (SqlmapScanTool, SqlmapScanParser, 900, 1),
@@ -191,6 +191,21 @@ class SentinelCoordinator(QObject):
             callback=None,
             **kwargs
         )
+
+    def execute_os_detection(self, target: str, ports: Optional[str] = None, aggressive: bool = False) -> bool:
+        kwargs = {
+            "target": target,
+            "aggressive": aggressive,
+        }
+
+        if ports:
+            kwargs["ports"] = ports
+
+        return self.manager.execute_tool(
+            "nmap_os_detection",
+            callback=None,
+            **kwargs
+        )
     
     def execute_vuln_scan(self, target: str, ports: Optional[str] = None, scripts: str = "vuln") -> bool:
         """
@@ -234,6 +249,13 @@ class SentinelCoordinator(QObject):
             callback=None,
             domain=domain,
             record_type=record_type
+        )
+
+    def execute_whois_lookup(self, domain: str) -> bool:
+        return self.manager.execute_tool(
+            "whois_lookup",
+            callback=None,
+            domain=domain
         )
     
     def execute_ssl_scan(self, target: str, port: int = 443) -> bool:

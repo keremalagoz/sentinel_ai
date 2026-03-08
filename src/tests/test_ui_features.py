@@ -493,6 +493,110 @@ class TestRiskNormalization:
         assert t("risk.safe")
 
 
+class TestSessionParity:
+    """Chat history selection should keep backend session context aligned."""
+
+    def test_chat_loaded_restores_existing_backend_session(self):
+        from src.ui.main_window import MainWindow
+
+        create_calls = []
+
+        class DummyOrchestrator:
+            def create_session(self, session_id=None):
+                create_calls.append(session_id)
+                return session_id or "sess_new"
+
+        class DummyChatInterface:
+            def __init__(self):
+                self.backend_session_id = None
+
+            def set_backend_session_id(self, session_id):
+                self.backend_session_id = session_id
+
+        dummy = type("DummyWindow", (), {})()
+        dummy.backend = type("DummyBackend", (), {"_orchestrator": DummyOrchestrator()})()
+        dummy.chat_interface = DummyChatInterface()
+        dummy._chat_session_id = None
+        dummy.updated = False
+        dummy._update_session_indicator = lambda: setattr(dummy, "updated", True)
+
+        MainWindow._on_chat_loaded(dummy, "chat_1", "sess_existing")
+
+        assert create_calls == ["sess_existing"]
+        assert dummy._chat_session_id == "sess_existing"
+        assert dummy.chat_interface.backend_session_id == "sess_existing"
+        assert dummy.updated is True
+
+    def test_chat_loaded_without_saved_backend_session_creates_new_one(self):
+        from src.ui.main_window import MainWindow
+
+        create_calls = []
+
+        class DummyOrchestrator:
+            def create_session(self, session_id=None):
+                create_calls.append(session_id)
+                return "sess_generated"
+
+        class DummyChatInterface:
+            def __init__(self):
+                self.backend_session_id = None
+
+            def set_backend_session_id(self, session_id):
+                self.backend_session_id = session_id
+
+        dummy = type("DummyWindow", (), {})()
+        dummy.backend = type("DummyBackend", (), {"_orchestrator": DummyOrchestrator()})()
+        dummy.chat_interface = DummyChatInterface()
+        dummy._chat_session_id = None
+        dummy.updated = False
+        dummy._update_session_indicator = lambda: setattr(dummy, "updated", True)
+
+        MainWindow._on_chat_loaded(dummy, "chat_2", "")
+
+        assert create_calls == [None]
+        assert dummy._chat_session_id == "sess_generated"
+        assert dummy.chat_interface.backend_session_id == "sess_generated"
+        assert dummy.updated is True
+
+    def test_clear_all_chats_resets_backend_session(self):
+        from src.ui.main_window import MainWindow
+
+        create_calls = []
+
+        class DummyOrchestrator:
+            def create_session(self, session_id=None):
+                create_calls.append(session_id)
+                return "sess_after_clear"
+
+        class DummyChatInterface:
+            def __init__(self):
+                self.backend_session_id = "sess_old"
+                self.delete_calls = 0
+
+            def delete_all_history(self):
+                self.delete_calls += 1
+                return 4
+
+            def set_backend_session_id(self, session_id):
+                self.backend_session_id = session_id
+
+        dummy = type("DummyWindow", (), {})()
+        dummy.backend = type("DummyBackend", (), {"_orchestrator": DummyOrchestrator()})()
+        dummy.chat_interface = DummyChatInterface()
+        dummy._chat_session_id = "sess_old"
+        dummy.updated = False
+        dummy._update_session_indicator = lambda: setattr(dummy, "updated", True)
+
+        deleted = MainWindow._clear_all_chats(dummy)
+
+        assert deleted == 4
+        assert dummy.chat_interface.delete_calls == 1
+        assert create_calls == [None]
+        assert dummy._chat_session_id == "sess_after_clear"
+        assert dummy.chat_interface.backend_session_id == "sess_after_clear"
+        assert dummy.updated is True
+
+
 # =========================================================================
 # H. Connection Status  i18n
 # =========================================================================

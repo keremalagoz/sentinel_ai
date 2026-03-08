@@ -29,6 +29,7 @@ from src.ai.keyword_filter import KeywordPreFilter
 from src.ai.hierarchical_resolver import HierarchicalResolver, get_hierarchical_resolver
 from src.ai.tool_registry import (
     build_tool_spec,
+    get_clarification_message,
     get_tool_for_intent,
     get_execution_tool_id,
     build_execution_kwargs,
@@ -553,6 +554,24 @@ class AIOrchestrator:
                     metadata={"intent": intent.intent_type.value, "confidence": intent.confidence},
                 )
             return result
+
+        clarification_message = get_clarification_message(
+            intent.intent_type,
+            final_target,
+            intent.params,
+        )
+        if clarification_message:
+            result["message"] = clarification_message
+            result["needs_clarification"] = True
+            result["agent_observation"] = "clarification_required"
+            if effective_session_id:
+                self._conversation_memory.append_turn(
+                    session_id=effective_session_id,
+                    role="assistant",
+                    content=result["message"],
+                    metadata={"intent": intent.intent_type.value, "confidence": intent.confidence},
+                )
+            return result
         
         tool_spec = build_tool_spec(
             intent_type=intent.intent_type,
@@ -631,6 +650,16 @@ class AIOrchestrator:
                 if integrated_tool is not None:
                     cmd_list = integrated_tool.tool.build_command(**exec_kwargs)
                     if cmd_list:
+                        display_args = cmd_list[1:]
+                        if (
+                            intent.intent_type == IntentType.SQL_INJECTION
+                            and len(display_args) >= 2
+                            and display_args[0] == "-u"
+                        ):
+                            sqlmap_target = display_args[1]
+                            remaining_args = display_args[2:]
+                            display_args = list(remaining_args) + ["-u", sqlmap_target]
+
                         # Dinamik risk hesaplama: statik registry yerine
                         # gercek komut flag'lerine bakilir
                         actual_requires_root = bool(
@@ -642,7 +671,7 @@ class AIOrchestrator:
 
                         command = FinalCommand(
                             executable=cmd_list[0],
-                            arguments=cmd_list[1:],
+                            arguments=display_args,
                             requires_root=actual_requires_root,
                             risk_level=actual_risk,
                             explanation=explanation,

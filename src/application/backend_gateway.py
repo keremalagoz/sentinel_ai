@@ -3,7 +3,7 @@ from __future__ import annotations
 import logging
 import os
 import shlex
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Optional, Tuple, List, Dict, Any
 
 from src.ai.orchestrator import AIOrchestrator
 from src.core.cleaner import get_cleaner
@@ -15,18 +15,8 @@ from src.core.platform_utils import is_windows
 logger = logging.getLogger(__name__)
 
 _SECURITY_COMMANDS = frozenset({
-    "ping",
-    "nmap",
-    "openssl",
-    "gobuster",
-    "nslookup",
-    "dig",
-    "nikto",
-    "hydra",
-    "curl",
-    "wget",
-    "sslscan",
-    "whois",
+    "ping", "nmap", "openssl", "gobuster", "nslookup", "whois",
+    "dig", "nikto", "hydra", "curl", "wget", "sslscan",
     "sqlmap",
 })
 

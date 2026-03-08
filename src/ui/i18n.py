@@ -55,6 +55,7 @@ _EN: dict[str, str] = {
 
     # Status Bar
     "status.mode":              "Mode",
+    "status.session":           "Session",
     "status.checking":          "Checking...",
     "status.risk":              "Risk",
     "status.session_default":   "Session: --",
@@ -107,6 +108,13 @@ _EN: dict[str, str] = {
     "settings.days_suffix":     " days",
     "settings.secure_delete":   "Use secure delete (overwrite before deletion)",
     "settings.display":         "Display",
+    "settings.security_policy": "Security Policy",
+    "settings.confirm_root":    "Ask confirmation for root commands",
+    "settings.warn_high_risk":  "Warn before medium/high risk commands",
+    "settings.auto_cleanup":    "Auto cleanup schedule:",
+    "settings.auto_cleanup_off": "Off",
+    "settings.auto_cleanup_daily": "Daily",
+    "settings.auto_cleanup_weekly": "Weekly",
     "settings.font_size":       "Chat + Terminal font size:",
     "settings.px_suffix":       " px",
     "settings.language":        "Language:",
@@ -174,6 +182,7 @@ _TR: dict[str, str] = {
     "tooltip.layout":           "Yatay/Dikey Değiştir",
     "tooltip.settings":         "Ayarlar",
     "status.mode":              "Mod",
+    "status.session":           "Oturum",
     "status.checking":          "Kontrol ediliyor...",
     "status.risk":              "Risk",
     "status.session_default":   "Oturum: --",
@@ -216,6 +225,13 @@ _TR: dict[str, str] = {
     "settings.days_suffix":     " gün",
     "settings.secure_delete":   "Güvenli silme kullan (silmeden önce üzerine yaz)",
     "settings.display":         "Görünüm",
+    "settings.security_policy": "Güvenlik Politikası",
+    "settings.confirm_root":    "Root komutlarda onay iste",
+    "settings.warn_high_risk":  "Orta/yüksek riskli komutlarda uyar",
+    "settings.auto_cleanup":    "Otomatik temizlik sıklığı:",
+    "settings.auto_cleanup_off": "Kapalı",
+    "settings.auto_cleanup_daily": "Günlük",
+    "settings.auto_cleanup_weekly": "Haftalık",
     "settings.font_size":       "Chat + Terminal yazı boyutu:",
     "settings.px_suffix":       " px",
     "settings.language":        "Dil:",
@@ -1230,6 +1246,12 @@ _TRANSLATIONS: dict[str, dict[str, str]] = {
     "pt": _PT,
     "hi": _HI,
 }
+
+for _code, _lang_dict in _TRANSLATIONS.items():
+    if _code == "en":
+        continue
+    for _key, _value in _EN.items():
+        _lang_dict.setdefault(_key, _value)
 
 
 # ---------------------------------------------------------------------------

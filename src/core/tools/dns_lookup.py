@@ -3,6 +3,10 @@
 from typing import Optional, List
 
 from src.core.tools.base import BaseTool, ToolExecutionSignals
+from src.core.validators import InputValidator
+
+
+_ALLOWED_RECORD_TYPES = {"A", "AAAA", "CNAME", "MX", "NS", "PTR", "SOA", "SRV", "TXT"}
 
 
 class DnsLookupTool(BaseTool):
@@ -36,15 +40,17 @@ class DnsLookupTool(BaseTool):
         Returns:
             Command: ["nslookup", "-type=A", "example.com"]
         """
-        safe_domain = self.validate_target(domain, "domain")
-        safe_record_type = self.validate_enum(
-            str(record_type).upper(),
-            {"A", "AAAA", "MX", "NS", "TXT", "CNAME", "SOA", "PTR", "SRV"},
-            "record_type",
-        )
+        raw_domain = str(domain or "").strip().lower()
+        normalized_domain = InputValidator.sanitize(raw_domain)
+        if normalized_domain != raw_domain:
+            raise ValueError("Invalid domain")
+        if not InputValidator.validate_hostname(normalized_domain):
+            raise ValueError("Invalid domain")
 
-        cmd: List[str] = ["nslookup", f"-type={safe_record_type}", safe_domain]
+        normalized_record_type = str(record_type or "A").strip().upper()
+        if normalized_record_type not in _ALLOWED_RECORD_TYPES:
+            raise ValueError("Invalid DNS record type")
+        cmd: List[str] = ["nslookup", f"-type={normalized_record_type}", normalized_domain]
         if dns_server:
             cmd.append(self.validate_target(dns_server, "dns_server"))
-
         return cmd
