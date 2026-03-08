@@ -1,15 +1,24 @@
 #!/usr/bin/env python3
-"""Intent Benchmark Script — Sprint 3.2 Track C4 + Sprint 3.3 Hierarchical
+"""Intent Benchmark Script — Prompt Accuracy Benchmark
 
-30 ornek girdi ile IntentResolver / HierarchicalResolver dogruluk ve latency
-olcumu yapar. Sonuclari JSON ve ozet tablo olarak yazar.
+Bu script mevcut intent benchmark altyapisini genisletir ve sadece intent tipi
+dogrulugunu degil, prompt kalitesini etkileyen bilesenleri birlikte olcer:
+
+- intent dogrulugu
+- kategori dogrulugu
+- target extraction dogrulugu
+- params extraction dogrulugu
+- clarification davranisi
+- exact-match orani
+- weighted prompt quality skoru
+- per-intent precision / recall / F1
+- confusion matrix
+- prompt fingerprint'leri (hash, satir, karakter sayisi)
 
 Kullanim:
-    python scripts/intent_benchmark.py                          # Flat (varsayilan)
-    python scripts/intent_benchmark.py --model whiterabbitneo   # Farkli model
-    python scripts/intent_benchmark.py --hierarchical           # 2-asamali
-    python scripts/intent_benchmark.py --hierarchical --compare # Flat vs Hierarchical
-    python scripts/intent_benchmark.py --output results.json
+    python scripts/intent_benchmark.py
+    python scripts/intent_benchmark.py --dataset temp/custom_benchmark.json
+    python scripts/intent_benchmark.py --output temp/prompt_benchmark.json
 """
 
 import argparse
@@ -17,100 +26,232 @@ import json
 import logging
 import sys
 import time
-from dataclasses import dataclass, field, asdict
+from collections import defaultdict
+from dataclasses import asdict, dataclass, field
+from hashlib import sha256
 from pathlib import Path
-from typing import Optional
+from typing import Any, Optional
 
 # Proje kokunu path'e ekle
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(PROJECT_ROOT))
 
-from src.ai.intent_resolver import IntentResolver
+from src.ai.hierarchical_resolver import (
+    CATEGORY_PROMPT,
+    SUB_INTENT_PROMPT_TEMPLATE,
+    HierarchicalResolver,
+)
 from src.ai.keyword_filter import KeywordPreFilter
-from src.ai.schemas import IntentType, CategoryType, get_category_for_intent
-from src.ai.hierarchical_resolver import HierarchicalResolver
+from src.ai.schemas import CategoryType, Intent, IntentType, get_category_for_intent
 
 logging.basicConfig(level=logging.INFO, format="%(levelname)s | %(message)s")
 logger = logging.getLogger(__name__)
 
 
 # =============================================================================
-# TEST CASES — 30 ornek
+# BENCHMARK DATASET
 # =============================================================================
-# (kullanici_girdisi, beklenen_intent, beklenen_kategori)
 
-TEST_CASES: list[tuple[str, IntentType, CategoryType]] = [
-    # Host Discovery (3)
-    ("192.168.1.0/24 agindaki aktif cihazlari bul", IntentType.HOST_DISCOVERY, CategoryType.SCANNING),
-    ("yerel agda ping sweep yap", IntentType.HOST_DISCOVERY, CategoryType.SCANNING),
-    ("10.0.0.0/16 agindaki canli hostlari kesfet", IntentType.HOST_DISCOVERY, CategoryType.SCANNING),
 
-    # Port Scan (3)
-    ("192.168.1.5 uzerinde acik portlari tara", IntentType.PORT_SCAN, CategoryType.SCANNING),
-    ("hedef sunucunun port 1-1024 arasini tara", IntentType.PORT_SCAN, CategoryType.SCANNING),
-    ("SYN scan yap 10.0.0.1 adresine", IntentType.PORT_SCAN, CategoryType.SCANNING),
+@dataclass(frozen=True)
+class BenchmarkCase:
+    """Tek benchmark girdisi ve beklenen davranis."""
 
-    # Service Detection (2)
-    ("192.168.1.1 uzerindeki servislerin versiyonlarini tespit et", IntentType.SERVICE_DETECTION, CategoryType.SCANNING),
-    ("banner grab yap hedef sunucuya", IntentType.SERVICE_DETECTION, CategoryType.SCANNING),
+    input_text: str
+    expected_intent: IntentType
+    expected_category: CategoryType
+    expected_target: Optional[str] = None
+    expected_params: dict[str, Any] = field(default_factory=dict)
+    expected_needs_clarification: bool = False
+    expected_clarification_contains: Optional[str] = None
+    notes: Optional[str] = None
 
-    # OS Detection (2)
-    ("hedef makinenin isletim sistemini tespit et", IntentType.OS_DETECTION, CategoryType.SCANNING),
-    ("OS fingerprint yap 192.168.1.100 icin", IntentType.OS_DETECTION, CategoryType.SCANNING),
 
-    # Vuln Scan (3)
-    ("192.168.1.1 uzerinde zafiyet taramasi yap", IntentType.VULN_SCAN, CategoryType.SCANNING),
-    ("nmap nse scriptleriyle vulnerability scan baslat", IntentType.VULN_SCAN, CategoryType.SCANNING),
-    ("hedef sunucudaki guvenlik aciklarini tara", IntentType.VULN_SCAN, CategoryType.SCANNING),
-
-    # SSL Scan (2)
-    ("example.com icin SSL sertifika analizi yap", IntentType.SSL_SCAN, CategoryType.SCANNING),
-    ("TLS cipher konfigurasyonunu kontrol et", IntentType.SSL_SCAN, CategoryType.SCANNING),
-
-    # Web Dir Enum (2)
-    ("http://target.com uzerinde dizin taramasi yap", IntentType.WEB_DIR_ENUM, CategoryType.WEB),
-    ("gobuster ile gizli path ara", IntentType.WEB_DIR_ENUM, CategoryType.WEB),
-
-    # Web Vuln Scan (2)
-    ("nikto ile web zafiyet taramasi yap", IntentType.WEB_VULN_SCAN, CategoryType.WEB),
-    ("web sunucusundaki zafiyetleri tara", IntentType.WEB_VULN_SCAN, CategoryType.WEB),
-
-    # DNS Lookup (2)
-    ("example.com icin DNS sorgulama yap", IntentType.DNS_LOOKUP, CategoryType.RECON),
-    ("MX record kayitlarini sorgula", IntentType.DNS_LOOKUP, CategoryType.RECON),
-
-    # Whois (1)
-    ("example.com domain bilgilerini getir", IntentType.WHOIS_LOOKUP, CategoryType.RECON),
-
-    # Subdomain Enum (2)
-    ("example.com alt alanlarini kesfet", IntentType.SUBDOMAIN_ENUM, CategoryType.RECON),
-    ("subdomain enumeration yap hedef icin", IntentType.SUBDOMAIN_ENUM, CategoryType.RECON),
-
-    # Brute Force SSH (1)
-    ("SSH brute force saldirisi yap hedef sunucuya", IntentType.BRUTE_FORCE_SSH, CategoryType.ATTACK),
-
-    # Brute Force HTTP (1)
-    ("HTTP login formunu brute force ile test et", IntentType.BRUTE_FORCE_HTTP, CategoryType.ATTACK),
-
-    # SQL Injection (1)
-    ("hedef URL uzerinde sqlmap ile SQL injection testi yap", IntentType.SQL_INJECTION, CategoryType.ATTACK),
-
-    # Info Query (2)
-    ("nmap nedir ne ise yarar", IntentType.INFO_QUERY, CategoryType.INFO),
-    ("port tarama nasil calisir acikla", IntentType.INFO_QUERY, CategoryType.INFO),
-
-    # Unknown / Ambiguous (1)
-    ("merhaba bugun hava nasil", IntentType.UNKNOWN, CategoryType.INFO),
+DEFAULT_CASES: list[BenchmarkCase] = [
+    BenchmarkCase(
+        input_text="192.168.1.0/24 agindaki aktif cihazlari bul",
+        expected_intent=IntentType.HOST_DISCOVERY,
+        expected_category=CategoryType.SCANNING,
+        expected_target="192.168.1.0/24",
+    ),
+    BenchmarkCase(
+        input_text="yerel agda ping sweep yap",
+        expected_intent=IntentType.HOST_DISCOVERY,
+        expected_category=CategoryType.SCANNING,
+    ),
+    BenchmarkCase(
+        input_text="10.0.0.0/16 agindaki canli hostlari kesfet",
+        expected_intent=IntentType.HOST_DISCOVERY,
+        expected_category=CategoryType.SCANNING,
+        expected_target="10.0.0.0/16",
+    ),
+    BenchmarkCase(
+        input_text="192.168.1.5 uzerinde acik portlari tara",
+        expected_intent=IntentType.PORT_SCAN,
+        expected_category=CategoryType.SCANNING,
+        expected_target="192.168.1.5",
+    ),
+    BenchmarkCase(
+        input_text="hedef sunucunun port 1-1024 arasini tara",
+        expected_intent=IntentType.PORT_SCAN,
+        expected_category=CategoryType.SCANNING,
+        expected_params={"ports": "1-1024"},
+    ),
+    BenchmarkCase(
+        input_text="80 ve 443 portlarini kontrol et 10.0.0.1 de",
+        expected_intent=IntentType.PORT_SCAN,
+        expected_category=CategoryType.SCANNING,
+        expected_target="10.0.0.1",
+        expected_params={"ports": "80,443"},
+    ),
+    BenchmarkCase(
+        input_text="192.168.1.1 uzerindeki servislerin versiyonlarini tespit et",
+        expected_intent=IntentType.SERVICE_DETECTION,
+        expected_category=CategoryType.SCANNING,
+        expected_target="192.168.1.1",
+    ),
+    BenchmarkCase(
+        input_text="banner grab yap hedef sunucuya",
+        expected_intent=IntentType.SERVICE_DETECTION,
+        expected_category=CategoryType.SCANNING,
+    ),
+    BenchmarkCase(
+        input_text="hedef makinenin isletim sistemini tespit et",
+        expected_intent=IntentType.OS_DETECTION,
+        expected_category=CategoryType.SCANNING,
+    ),
+    BenchmarkCase(
+        input_text="OS fingerprint yap 192.168.1.100 icin",
+        expected_intent=IntentType.OS_DETECTION,
+        expected_category=CategoryType.SCANNING,
+        expected_target="192.168.1.100",
+    ),
+    BenchmarkCase(
+        input_text="192.168.1.1 uzerinde zafiyet taramasi yap",
+        expected_intent=IntentType.VULN_SCAN,
+        expected_category=CategoryType.SCANNING,
+        expected_target="192.168.1.1",
+    ),
+    BenchmarkCase(
+        input_text="nmap nse scriptleriyle vulnerability scan baslat",
+        expected_intent=IntentType.VULN_SCAN,
+        expected_category=CategoryType.SCANNING,
+    ),
+    BenchmarkCase(
+        input_text="hedef sunucudaki guvenlik aciklarini tara",
+        expected_intent=IntentType.VULN_SCAN,
+        expected_category=CategoryType.SCANNING,
+    ),
+    BenchmarkCase(
+        input_text="example.com icin SSL sertifika analizi yap",
+        expected_intent=IntentType.SSL_SCAN,
+        expected_category=CategoryType.SCANNING,
+        expected_target="example.com",
+    ),
+    BenchmarkCase(
+        input_text="TLS cipher konfigurasyonunu kontrol et",
+        expected_intent=IntentType.SSL_SCAN,
+        expected_category=CategoryType.SCANNING,
+    ),
+    BenchmarkCase(
+        input_text="http://target.com uzerinde dizin taramasi yap",
+        expected_intent=IntentType.WEB_DIR_ENUM,
+        expected_category=CategoryType.WEB,
+        expected_target="http://target.com",
+    ),
+    BenchmarkCase(
+        input_text="gobuster ile gizli path ara",
+        expected_intent=IntentType.WEB_DIR_ENUM,
+        expected_category=CategoryType.WEB,
+    ),
+    BenchmarkCase(
+        input_text="nikto ile web zafiyet taramasi yap",
+        expected_intent=IntentType.WEB_VULN_SCAN,
+        expected_category=CategoryType.WEB,
+    ),
+    BenchmarkCase(
+        input_text="web sunucusundaki zafiyetleri tara",
+        expected_intent=IntentType.WEB_VULN_SCAN,
+        expected_category=CategoryType.WEB,
+    ),
+    BenchmarkCase(
+        input_text="example.com icin DNS sorgulama yap",
+        expected_intent=IntentType.DNS_LOOKUP,
+        expected_category=CategoryType.RECON,
+        expected_target="example.com",
+    ),
+    BenchmarkCase(
+        input_text="MX record kayitlarini sorgula",
+        expected_intent=IntentType.DNS_LOOKUP,
+        expected_category=CategoryType.RECON,
+        expected_params={"record_type": "MX"},
+    ),
+    BenchmarkCase(
+        input_text="example.com domain bilgilerini getir",
+        expected_intent=IntentType.WHOIS_LOOKUP,
+        expected_category=CategoryType.RECON,
+        expected_target="example.com",
+    ),
+    BenchmarkCase(
+        input_text="example.com alt alanlarini kesfet",
+        expected_intent=IntentType.SUBDOMAIN_ENUM,
+        expected_category=CategoryType.RECON,
+        expected_target="example.com",
+    ),
+    BenchmarkCase(
+        input_text="subdomain enumeration yap hedef icin",
+        expected_intent=IntentType.SUBDOMAIN_ENUM,
+        expected_category=CategoryType.RECON,
+    ),
+    BenchmarkCase(
+        input_text="SSH brute force saldirisi yap hedef sunucuya",
+        expected_intent=IntentType.BRUTE_FORCE_SSH,
+        expected_category=CategoryType.ATTACK,
+    ),
+    BenchmarkCase(
+        input_text="HTTP login formunu brute force ile test et",
+        expected_intent=IntentType.BRUTE_FORCE_HTTP,
+        expected_category=CategoryType.ATTACK,
+    ),
+    BenchmarkCase(
+        input_text="hedef URL uzerinde sqlmap ile SQL injection testi yap",
+        expected_intent=IntentType.SQL_INJECTION,
+        expected_category=CategoryType.ATTACK,
+    ),
+    BenchmarkCase(
+        input_text="nmap nedir ne ise yarar",
+        expected_intent=IntentType.INFO_QUERY,
+        expected_category=CategoryType.INFO,
+    ),
+    BenchmarkCase(
+        input_text="port tarama nasil calisir acikla",
+        expected_intent=IntentType.INFO_QUERY,
+        expected_category=CategoryType.INFO,
+    ),
+    BenchmarkCase(
+        input_text="merhaba bugun hava nasil",
+        expected_intent=IntentType.UNKNOWN,
+        expected_category=CategoryType.INFO,
+        expected_needs_clarification=True,
+    ),
+    BenchmarkCase(
+        input_text="birseyler yap",
+        expected_intent=IntentType.UNKNOWN,
+        expected_category=CategoryType.INFO,
+        expected_needs_clarification=True,
+    ),
 ]
 
 
 # =============================================================================
-# RESULT DATA
+# RESULTS
 # =============================================================================
+
 
 @dataclass
 class CaseResult:
-    """Tek bir test case sonucu."""
+    """Tek benchmark case sonucunun ayrintili kaydi."""
+
     input_text: str
     expected: str
     actual: str
@@ -119,281 +260,539 @@ class CaseResult:
     correct: bool
     latency_ms: float
     error: Optional[str] = None
-    # Sprint 3.3: Hierarchical ek alanlari
     expected_category: Optional[str] = None
     actual_category: Optional[str] = None
     category_correct: Optional[bool] = None
     category_confidence: Optional[float] = None
     keyword_bypassed: bool = False
+    expected_target: Optional[str] = None
+    actual_target: Optional[str] = None
+    target_correct: bool = False
+    expected_params: dict[str, Any] = field(default_factory=dict)
+    actual_params: dict[str, Any] = field(default_factory=dict)
+    params_correct: bool = False
+    expected_needs_clarification: bool = False
+    actual_needs_clarification: bool = False
+    clarification_correct: bool = False
+    exact_match: bool = False
+    score_pct: float = 0.0
+    category_latency_ms: Optional[float] = None
+    sub_intent_latency_ms: Optional[float] = None
 
 
 @dataclass
 class BenchmarkSummary:
-    """Genel benchmark ozet metrikleri."""
+    """Benchmark ozet metrikleri."""
+
     total: int = 0
+    resolved: int = 0
     correct: int = 0
     incorrect: int = 0
     errors: int = 0
+    exact_match: int = 0
+    target_correct: int = 0
+    params_correct: int = 0
+    clarification_correct: int = 0
     accuracy_pct: float = 0.0
+    exact_match_pct: float = 0.0
+    target_accuracy_pct: float = 0.0
+    params_accuracy_pct: float = 0.0
+    clarification_accuracy_pct: float = 0.0
+    prompt_quality_pct: float = 0.0
     avg_latency_ms: float = 0.0
     max_latency_ms: float = 0.0
     min_latency_ms: float = 0.0
+    avg_category_latency_ms: float = 0.0
+    avg_sub_intent_latency_ms: float = 0.0
+    avg_confidence_pct: float = 0.0
+    avg_confidence_correct_pct: float = 0.0
+    avg_confidence_wrong_pct: float = 0.0
+    confidence_calibration_gap_pct: float = 0.0
     model: str = ""
-    mode: str = "flat"  # "flat" | "hierarchical"
-    # Sprint 3.3: Hierarchical ek metrikleri
+    category_model: Optional[str] = None
+    mode: str = "hierarchical"
+    dataset_name: str = "default"
     category_correct: int = 0
     category_accuracy_pct: float = 0.0
     keyword_bypass_count: int = 0
-    results: list[dict] = field(default_factory=list)
+    prompt_signatures: dict[str, dict[str, Any]] = field(default_factory=dict)
+    label_metrics: list[dict[str, Any]] = field(default_factory=list)
+    confusion_matrix: dict[str, dict[str, int]] = field(default_factory=dict)
+    results: list[dict[str, Any]] = field(default_factory=list)
+
+
+# =============================================================================
+# HELPERS
+# =============================================================================
+
+
+def _normalize_scalar(value: Any) -> Any:
+    if value is None:
+        return None
+    if isinstance(value, str):
+        return " ".join(value.strip().lower().split())
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, (int, float)):
+        return str(value)
+    if isinstance(value, list):
+        return [_normalize_scalar(item) for item in value]
+    if isinstance(value, dict):
+        return _normalize_mapping(value)
+    return str(value)
+
+
+def _normalize_mapping(data: dict[str, Any]) -> dict[str, Any]:
+    return {
+        str(key): _normalize_scalar(value)
+        for key, value in sorted(data.items(), key=lambda item: item[0])
+    }
+
+
+def _normalize_target(target: Optional[str]) -> Optional[str]:
+    return _normalize_scalar(target)
+
+
+def _prompt_signature(text: str) -> dict[str, Any]:
+    stripped = text.strip()
+    return {
+        "sha256_12": sha256(stripped.encode("utf-8")).hexdigest()[:12],
+        "chars": len(stripped),
+        "lines": stripped.count("\n") + 1 if stripped else 0,
+    }
+
+
+def build_prompt_signatures() -> dict[str, dict[str, Any]]:
+    return {
+        "category_prompt": _prompt_signature(CATEGORY_PROMPT),
+        "sub_intent_prompt_template": _prompt_signature(SUB_INTENT_PROMPT_TEMPLATE),
+    }
+
+
+def _case_from_dict(data: dict[str, Any]) -> BenchmarkCase:
+    return BenchmarkCase(
+        input_text=str(data["input_text"]),
+        expected_intent=IntentType(str(data["expected_intent"])),
+        expected_category=CategoryType(str(data["expected_category"])),
+        expected_target=data.get("expected_target"),
+        expected_params=dict(data.get("expected_params", {})),
+        expected_needs_clarification=bool(data.get("expected_needs_clarification", False)),
+        expected_clarification_contains=data.get("expected_clarification_contains"),
+        notes=data.get("notes"),
+    )
+
+
+def load_cases(dataset_path: Optional[str]) -> tuple[list[BenchmarkCase], str]:
+    if not dataset_path:
+        return (DEFAULT_CASES, "default")
+
+    file_path = (PROJECT_ROOT / dataset_path).resolve()
+    raw = json.loads(file_path.read_text(encoding="utf-8"))
+    if not isinstance(raw, list):
+        raise ValueError("Dataset JSON must be a list")
+
+    return ([_case_from_dict(item) for item in raw], file_path.name)
+
+
+def evaluate_case(
+    case: BenchmarkCase,
+    intent: Intent,
+    *,
+    latency_ms: float,
+    actual_category: Optional[CategoryType] = None,
+    category_confidence: Optional[float] = None,
+    keyword_suggestion: Optional[IntentType] = None,
+    keyword_bypassed: bool = False,
+    category_latency_ms: Optional[float] = None,
+    sub_intent_latency_ms: Optional[float] = None,
+) -> CaseResult:
+    expected_params = _normalize_mapping(case.expected_params)
+    actual_params = _normalize_mapping(intent.params)
+
+    target_correct = _normalize_target(intent.target) == _normalize_target(case.expected_target)
+    params_correct = actual_params == expected_params
+
+    clarification_correct = intent.needs_clarification == case.expected_needs_clarification
+    if case.expected_needs_clarification and case.expected_clarification_contains:
+        clarification_correct = clarification_correct and (
+            case.expected_clarification_contains.lower()
+            in (intent.clarification_reason or "").lower()
+        )
+    elif not case.expected_needs_clarification:
+        clarification_correct = clarification_correct and not bool(intent.clarification_reason)
+
+    correct = intent.intent_type == case.expected_intent
+    resolved_category = actual_category or get_category_for_intent(intent.intent_type)
+    category_correct = resolved_category == case.expected_category
+    exact_match = correct and target_correct and params_correct and clarification_correct
+
+    score = (
+        (0.55 if correct else 0.0)
+        + (0.15 if category_correct else 0.0)
+        + (0.15 if target_correct else 0.0)
+        + (0.10 if params_correct else 0.0)
+        + (0.05 if clarification_correct else 0.0)
+    ) * 100.0
+
+    return CaseResult(
+        input_text=case.input_text,
+        expected=case.expected_intent.value,
+        actual=intent.intent_type.value,
+        confidence=float(intent.confidence),
+        keyword_suggestion=keyword_suggestion.value if keyword_suggestion else None,
+        correct=correct,
+        latency_ms=round(latency_ms, 1),
+        expected_category=case.expected_category.value,
+        actual_category=resolved_category.value,
+        category_correct=category_correct,
+        category_confidence=category_confidence,
+        keyword_bypassed=keyword_bypassed,
+        expected_target=case.expected_target,
+        actual_target=intent.target,
+        target_correct=target_correct,
+        expected_params=case.expected_params,
+        actual_params=intent.params,
+        params_correct=params_correct,
+        expected_needs_clarification=case.expected_needs_clarification,
+        actual_needs_clarification=bool(intent.needs_clarification),
+        clarification_correct=clarification_correct,
+        exact_match=exact_match,
+        score_pct=round(score, 1),
+        category_latency_ms=round(category_latency_ms, 1) if category_latency_ms is not None else None,
+        sub_intent_latency_ms=round(sub_intent_latency_ms, 1) if sub_intent_latency_ms is not None else None,
+    )
+
+
+def _build_label_metrics(results: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    labels = sorted(
+        {row["expected"] for row in results if row.get("error") is None}
+        | {row["actual"] for row in results if row.get("error") is None}
+    )
+    metrics: list[dict[str, Any]] = []
+
+    for label in labels:
+        tp = sum(
+            1
+            for row in results
+            if row.get("error") is None and row["expected"] == label and row["actual"] == label
+        )
+        fp = sum(
+            1
+            for row in results
+            if row.get("error") is None and row["expected"] != label and row["actual"] == label
+        )
+        fn = sum(
+            1
+            for row in results
+            if row.get("error") is None and row["expected"] == label and row["actual"] != label
+        )
+        support = sum(1 for row in results if row.get("error") is None and row["expected"] == label)
+        predicted = sum(1 for row in results if row.get("error") is None and row["actual"] == label)
+
+        precision = (tp / (tp + fp) * 100.0) if (tp + fp) > 0 else 0.0
+        recall = (tp / (tp + fn) * 100.0) if (tp + fn) > 0 else 0.0
+        f1 = (2 * precision * recall / (precision + recall)) if (precision + recall) > 0 else 0.0
+
+        metrics.append(
+            {
+                "label": label,
+                "support": support,
+                "predicted": predicted,
+                "tp": tp,
+                "fp": fp,
+                "fn": fn,
+                "precision_pct": round(precision, 1),
+                "recall_pct": round(recall, 1),
+                "f1_pct": round(f1, 1),
+            }
+        )
+
+    return metrics
+
+
+def _build_confusion_matrix(results: list[dict[str, Any]]) -> dict[str, dict[str, int]]:
+    matrix: dict[str, dict[str, int]] = defaultdict(dict)
+    labels = sorted(
+        {row["expected"] for row in results if row.get("error") is None}
+        | {row["actual"] for row in results if row.get("error") is None}
+    )
+
+    for expected in labels:
+        for actual in labels:
+            count = sum(
+                1
+                for row in results
+                if row.get("error") is None and row["expected"] == expected and row["actual"] == actual
+            )
+            if count:
+                matrix[expected][actual] = count
+
+    return dict(matrix)
+
+
+def finalize_summary(summary: BenchmarkSummary) -> BenchmarkSummary:
+    resolved = [row for row in summary.results if row.get("error") is None]
+    failed = [row for row in summary.results if row.get("error") is not None]
+
+    summary.resolved = len(resolved)
+    summary.errors = len(failed)
+    summary.correct = sum(1 for row in resolved if row["correct"])
+    summary.incorrect = sum(1 for row in resolved if not row["correct"])
+    summary.exact_match = sum(1 for row in resolved if row["exact_match"])
+    summary.target_correct = sum(1 for row in resolved if row["target_correct"])
+    summary.params_correct = sum(1 for row in resolved if row["params_correct"])
+    summary.clarification_correct = sum(1 for row in resolved if row["clarification_correct"])
+    summary.category_correct = sum(1 for row in resolved if row.get("category_correct"))
+    summary.keyword_bypass_count = sum(1 for row in resolved if row.get("keyword_bypassed"))
+
+    if resolved:
+        summary.accuracy_pct = round(summary.correct / len(resolved) * 100.0, 1)
+        summary.exact_match_pct = round(summary.exact_match / len(resolved) * 100.0, 1)
+        summary.target_accuracy_pct = round(summary.target_correct / len(resolved) * 100.0, 1)
+        summary.params_accuracy_pct = round(summary.params_correct / len(resolved) * 100.0, 1)
+        summary.clarification_accuracy_pct = round(summary.clarification_correct / len(resolved) * 100.0, 1)
+        summary.category_accuracy_pct = round(summary.category_correct / len(resolved) * 100.0, 1)
+        summary.prompt_quality_pct = round(sum(row["score_pct"] for row in resolved) / len(resolved), 1)
+
+        latencies = [float(row["latency_ms"]) for row in resolved]
+        summary.avg_latency_ms = round(sum(latencies) / len(latencies), 1)
+        summary.max_latency_ms = round(max(latencies), 1)
+        summary.min_latency_ms = round(min(latencies), 1)
+
+        category_latencies = [
+            float(row["category_latency_ms"])
+            for row in resolved
+            if row.get("category_latency_ms") is not None
+        ]
+        if category_latencies:
+            summary.avg_category_latency_ms = round(sum(category_latencies) / len(category_latencies), 1)
+
+        sub_latencies = [
+            float(row["sub_intent_latency_ms"])
+            for row in resolved
+            if row.get("sub_intent_latency_ms") is not None
+        ]
+        if sub_latencies:
+            summary.avg_sub_intent_latency_ms = round(sum(sub_latencies) / len(sub_latencies), 1)
+
+        confidences = [float(row["confidence"]) for row in resolved]
+        summary.avg_confidence_pct = round(sum(confidences) / len(confidences) * 100.0, 1)
+
+        correct_conf = [float(row["confidence"]) for row in resolved if row["correct"]]
+        wrong_conf = [float(row["confidence"]) for row in resolved if not row["correct"]]
+        if correct_conf:
+            summary.avg_confidence_correct_pct = round(sum(correct_conf) / len(correct_conf) * 100.0, 1)
+        if wrong_conf:
+            summary.avg_confidence_wrong_pct = round(sum(wrong_conf) / len(wrong_conf) * 100.0, 1)
+
+        summary.confidence_calibration_gap_pct = round(abs(summary.avg_confidence_pct - summary.accuracy_pct), 1)
+
+    summary.label_metrics = _build_label_metrics(summary.results)
+    summary.confusion_matrix = _build_confusion_matrix(summary.results)
+    return summary
 
 
 # =============================================================================
 # BENCHMARK RUNNER
 # =============================================================================
 
-def run_benchmark(model: str = "qwen2.5:3b", hierarchical: bool = False,
-                   category_model: str = "qwen2.5:3b") -> BenchmarkSummary:
-    """Benchmark'i calistir ve sonuclari dondur.
-    
-    Args:
-        model: Ana LLM model (flat mod icin ve hierarchical Stage 2 icin)
-        hierarchical: True ise HierarchicalResolver kullanilir
-        category_model: Hierarchical Stage 1 icin hafif model
-    """
 
+def run_benchmark(
+    model: str = "qwen2.5:3b",
+    category_model: Optional[str] = None,
+    dataset_path: Optional[str] = None,
+) -> BenchmarkSummary:
+    cases, dataset_name = load_cases(dataset_path)
     kf = KeywordPreFilter()
-    mode = "hierarchical" if hierarchical else "flat"
-    summary = BenchmarkSummary(model=model, total=len(TEST_CASES), mode=mode)
 
-    if hierarchical:
-        resolver = HierarchicalResolver(
-            category_model=category_model,
-            sub_intent_model=model,
-        )
-        logger.info("Mod: HIERARCHICAL (Stage1=%s, Stage2=%s)", category_model, model)
-    else:
-        resolver = IntentResolver(model=model)
-        logger.info("Mod: FLAT (model=%s)", model)
+    summary = BenchmarkSummary(
+        model=model,
+        category_model=category_model,
+        total=len(cases),
+        mode="hierarchical",
+        dataset_name=dataset_name,
+        prompt_signatures=build_prompt_signatures(),
+    )
 
-    latencies: list[float] = []
+    resolver = HierarchicalResolver(
+        category_model=category_model,
+        sub_intent_model=model,
+    )
+    logger.info("Mod: HIERARCHICAL (Stage1=%s, Stage2=%s)", category_model or model, model)
 
-    for idx, (input_text, expected, expected_cat) in enumerate(TEST_CASES, 1):
-        logger.info("  [%02d/%02d] %s", idx, summary.total, input_text[:60])
-
-        result = CaseResult(
-            input_text=input_text,
-            expected=expected.value,
-            actual="",
-            confidence=0.0,
-            keyword_suggestion=None,
-            correct=False,
-            latency_ms=0.0,
-            expected_category=expected_cat.value,
-        )
-
-        # Keyword pre-filter
-        kw_suggest = kf.suggest(input_text)
-        result.keyword_suggestion = kw_suggest.value if kw_suggest else None
+    for idx, case in enumerate(cases, 1):
+        logger.info("  [%02d/%02d] %s", idx, len(cases), case.input_text[:80])
+        kw_suggest = kf.suggest(case.input_text)
 
         try:
-            t0 = time.monotonic()
+            keyword_bypassed = kw_suggest is not None
+            category_latency_ms = 0.0
 
-            if hierarchical:
-                # Stage 1 — category
-                kw_bypass = kw_suggest is not None
-                result.keyword_bypassed = kw_bypass
-
-                if kw_bypass:
-                    actual_cat = get_category_for_intent(kw_suggest)
-                    result.category_confidence = 1.0
-                    summary.keyword_bypass_count += 1
-                else:
-                    cat_result = resolver.resolve_category(input_text)
-                    actual_cat = cat_result.category
-                    result.category_confidence = cat_result.confidence
-
-                result.actual_category = actual_cat.value
-                result.category_correct = (actual_cat == expected_cat)
-                if result.category_correct:
-                    summary.category_correct += 1
-
-                # Full pipeline
-                intent = resolver.resolve(input_text)
+            if keyword_bypassed:
+                resolved_category = get_category_for_intent(kw_suggest)
+                category_confidence = 1.0
             else:
-                intent = resolver.resolve(input_text)
-                # Flat modda da kategori bilgisi turet
-                result.actual_category = get_category_for_intent(intent.intent_type).value
-                result.category_correct = (result.actual_category == expected_cat.value)
+                t0_category = time.monotonic()
+                category_result = resolver.resolve_category(case.input_text)
+                category_latency_ms = (time.monotonic() - t0_category) * 1000
+                resolved_category = category_result.category
+                category_confidence = category_result.confidence
 
-            elapsed_ms = (time.monotonic() - t0) * 1000
+            t0_sub = time.monotonic()
+            intent = resolver.resolve_sub_intent(case.input_text, resolved_category)
+            sub_intent_latency_ms = (time.monotonic() - t0_sub) * 1000
+            latency_ms = category_latency_ms + sub_intent_latency_ms
 
-            result.actual = intent.intent_type.value
-            result.confidence = intent.confidence
-            result.latency_ms = round(elapsed_ms, 1)
-            result.correct = (intent.intent_type == expected)
+            result = evaluate_case(
+                case,
+                intent,
+                latency_ms=latency_ms,
+                actual_category=resolved_category,
+                category_confidence=category_confidence,
+                keyword_suggestion=kw_suggest,
+                keyword_bypassed=keyword_bypassed,
+                category_latency_ms=category_latency_ms,
+                sub_intent_latency_ms=sub_intent_latency_ms,
+            )
 
-            latencies.append(elapsed_ms)
-
-            if result.correct:
-                summary.correct += 1
-            else:
-                summary.incorrect += 1
+            if not result.correct:
                 logger.warning(
-                    "    YANLIS: beklenen=%s, gerceklesen=%s (conf=%.2f)",
-                    expected.value, intent.intent_type.value, intent.confidence,
+                    "    YANLIS: beklenen=%s, gerceklesen=%s | target_ok=%s params_ok=%s clarification_ok=%s",
+                    result.expected,
+                    result.actual,
+                    result.target_correct,
+                    result.params_correct,
+                    result.clarification_correct,
                 )
 
+            summary.results.append(asdict(result))
+
         except Exception as exc:
-            result.error = str(exc)
-            summary.errors += 1
+            summary.results.append(
+                asdict(
+                    CaseResult(
+                        input_text=case.input_text,
+                        expected=case.expected_intent.value,
+                        actual="",
+                        confidence=0.0,
+                        keyword_suggestion=kw_suggest.value if kw_suggest else None,
+                        correct=False,
+                        latency_ms=0.0,
+                        error=str(exc),
+                        expected_category=case.expected_category.value,
+                        expected_target=case.expected_target,
+                        expected_params=case.expected_params,
+                        expected_needs_clarification=case.expected_needs_clarification,
+                    )
+                )
+            )
             logger.error("    HATA: %s", exc)
 
-        summary.results.append(asdict(result))
-
-    # Ozet metrikleri hesapla
-    if latencies:
-        summary.avg_latency_ms = round(sum(latencies) / len(latencies), 1)
-        summary.max_latency_ms = round(max(latencies), 1)
-        summary.min_latency_ms = round(min(latencies), 1)
-
-    assessed = summary.correct + summary.incorrect
-    summary.accuracy_pct = round(
-        (summary.correct / assessed * 100) if assessed > 0 else 0.0, 1,
-    )
-    summary.category_accuracy_pct = round(
-        (summary.category_correct / summary.total * 100) if summary.total > 0 else 0.0, 1,
-    )
-
-    return summary
+    return finalize_summary(summary)
 
 
-def print_summary(s: BenchmarkSummary) -> None:
-    """Tablo formatinda ozet yazdir."""
-    print("\n" + "=" * 60)
-    print(f"  INTENT BENCHMARK SONUCLARI ({s.mode.upper()})")
-    print("=" * 60)
-    print(f"  Model          : {s.model}")
-    print(f"  Mod            : {s.mode}")
-    print(f"  Toplam Test    : {s.total}")
-    print(f"  Dogru          : {s.correct}")
-    print(f"  Yanlis         : {s.incorrect}")
-    print(f"  Hata           : {s.errors}")
-    print(f"  Dogruluk       : {s.accuracy_pct}%")
-    print(f"  Ort. Latency   : {s.avg_latency_ms} ms")
-    print(f"  Min Latency    : {s.min_latency_ms} ms")
-    print(f"  Max Latency    : {s.max_latency_ms} ms")
+# =============================================================================
+# REPORTING
+# =============================================================================
 
-    if s.mode == "hierarchical":
-        print(f"  --- Stage 1 (Category) ---")
-        print(f"  Kategori Dogru : {s.category_correct}/{s.total}")
-        print(f"  Kategori Dogruluk: {s.category_accuracy_pct}%")
-        print(f"  Keyword Bypass : {s.keyword_bypass_count}/{s.total}")
 
-    print("=" * 60)
+def print_summary(summary: BenchmarkSummary) -> None:
+    print("\n" + "=" * 76)
+    print(f"  INTENT / PROMPT BENCHMARK SONUCLARI ({summary.mode.upper()})")
+    print("=" * 76)
+    print(f"  Model                     : {summary.model}")
+    if summary.category_model:
+        print(f"  Category Model            : {summary.category_model}")
+    print(f"  Dataset                   : {summary.dataset_name}")
+    print(f"  Toplam Test               : {summary.total}")
+    print(f"  Cozulen Test              : {summary.resolved}")
+    print(f"  Hata                      : {summary.errors}")
+    print(f"  Intent Dogruluk           : {summary.accuracy_pct}%")
+    print(f"  Exact Match               : {summary.exact_match_pct}%")
+    print(f"  Target Dogruluk           : {summary.target_accuracy_pct}%")
+    print(f"  Params Dogruluk           : {summary.params_accuracy_pct}%")
+    print(f"  Clarification Dogruluk    : {summary.clarification_accuracy_pct}%")
+    print(f"  Prompt Quality Skoru      : {summary.prompt_quality_pct}%")
+    print(f"  Ort. Latency              : {summary.avg_latency_ms} ms")
+    print(f"  Min / Max Latency         : {summary.min_latency_ms} / {summary.max_latency_ms} ms")
+    print(f"  Stage1 Ort. Latency       : {summary.avg_category_latency_ms} ms")
+    print(f"  Stage2 Ort. Latency       : {summary.avg_sub_intent_latency_ms} ms")
+    print(f"  Kategori Dogruluk         : {summary.category_accuracy_pct}%")
+    print(f"  Keyword Bypass            : {summary.keyword_bypass_count}")
+    print(f"  Ort. Confidence           : {summary.avg_confidence_pct}%")
+    print(f"  Confidence Gap            : {summary.confidence_calibration_gap_pct}%")
+    print("=" * 76)
 
-    # Yanlis sonuclari listele
-    incorrect = [r for r in s.results if not r["correct"] and r["error"] is None]
+    if summary.prompt_signatures:
+        print("\n  PROMPT FINGERPRINTS:")
+        for name, sig in summary.prompt_signatures.items():
+            print(
+                f"    - {name}: sha={sig['sha256_12']} chars={sig['chars']} lines={sig['lines']}"
+            )
+
+    incorrect = [row for row in summary.results if row.get("error") is None and not row["correct"]]
     if incorrect:
-        print("\n  YANLIS SONUCLAR:")
-        for r in incorrect:
-            cat_info = ""
-            if r.get("actual_category"):
-                cat_ok = "OK" if r.get("category_correct") else "MISS"
-                cat_info = f" [cat:{r['actual_category']}({cat_ok})]"
-            print(f"    - [{r['expected']}] -> [{r['actual']}] "
-                  f"(conf={r['confidence']:.2f}){cat_info}: {r['input_text'][:50]}")
+        print("\n  YANLIS INTENT SONUCLARI:")
+        for row in incorrect[:10]:
+            print(
+                f"    - [{row['expected']}] -> [{row['actual']}] "
+                f"target_ok={row['target_correct']} params_ok={row['params_correct']} "
+                f"clar_ok={row['clarification_correct']} conf={row['confidence']:.2f} :: "
+                f"{row['input_text'][:70]}"
+            )
 
-    errors = [r for r in s.results if r["error"] is not None]
+    non_exact = [row for row in summary.results if row.get("error") is None and not row["exact_match"]]
+    if non_exact:
+        print("\n  EXACT-MATCH KACAKLARI:")
+        for row in non_exact[:10]:
+            print(
+                f"    - {row['input_text'][:70]} | intent={row['correct']} target={row['target_correct']} "
+                f"params={row['params_correct']} clar={row['clarification_correct']} score={row['score_pct']}"
+            )
+
+    if summary.label_metrics:
+        print("\n  PER-INTENT METRICS:")
+        for row in summary.label_metrics:
+            print(
+                f"    - {row['label']}: P={row['precision_pct']}% "
+                f"R={row['recall_pct']}% F1={row['f1_pct']}% support={row['support']}"
+            )
+
+    errors = [row for row in summary.results if row.get("error") is not None]
     if errors:
         print("\n  HATALAR:")
-        for r in errors:
-            print(f"    - {r['error']}: {r['input_text'][:50]}")
-
-
-def print_comparison(flat: BenchmarkSummary, hier: BenchmarkSummary) -> None:
-    """Flat vs Hierarchical karsilastirma tablosu."""
-    print("\n" + "=" * 70)
-    print("  FLAT vs HIERARCHICAL KARSILASTIRMA")
-    print("=" * 70)
-    print(f"  {'Metrik':<28} {'Flat':>15} {'Hierarchical':>15}")
-    print(f"  {'-' * 28} {'-' * 15} {'-' * 15}")
-    print(f"  {'Model':<28} {flat.model:>15} {hier.model:>15}")
-    print(f"  {'Dogruluk (%)':<28} {flat.accuracy_pct:>14.1f}% {hier.accuracy_pct:>14.1f}%")
-    print(f"  {'Dogru / Toplam':<28} {flat.correct:>10}/{flat.total:<4} {hier.correct:>10}/{hier.total:<4}")
-    print(f"  {'Ort. Latency (ms)':<28} {flat.avg_latency_ms:>15.1f} {hier.avg_latency_ms:>15.1f}")
-    print(f"  {'Min Latency (ms)':<28} {flat.min_latency_ms:>15.1f} {hier.min_latency_ms:>15.1f}")
-    print(f"  {'Max Latency (ms)':<28} {flat.max_latency_ms:>15.1f} {hier.max_latency_ms:>15.1f}")
-    print(f"  {'Kategori Dogruluk (%)':<28} {'N/A':>15} {hier.category_accuracy_pct:>14.1f}%")
-    print(f"  {'Keyword Bypass':<28} {'N/A':>15} {hier.keyword_bypass_count:>15}")
-    print("=" * 70)
-
-    delta = hier.accuracy_pct - flat.accuracy_pct
-    sign = "+" if delta >= 0 else ""
-    print(f"\n  Dogruluk farki: {sign}{delta:.1f}%")
-
-    if flat.avg_latency_ms > 0:
-        speed = hier.avg_latency_ms / flat.avg_latency_ms
-        print(f"  Latency orani: {speed:.2f}x ({'yavas' if speed > 1 else 'hizli'})")
-
+        for row in errors:
+            print(f"    - {row['error']}: {row['input_text'][:70]}")
 
 # =============================================================================
 # MAIN
 # =============================================================================
 
+
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Intent Benchmark Runner")
-    parser.add_argument("--model", default="qwen2.5:3b", help="Ollama model adi (flat & Stage 2)")
-    parser.add_argument("--category-model", default=None,
-                        help="Hierarchical Stage 1 icin model (default: SENTINEL_CATEGORY_MODEL env veya qwen2.5:3b)")
-    parser.add_argument("--hierarchical", action="store_true",
-                        help="2-asamali HierarchicalResolver kullan")
-    parser.add_argument("--compare", action="store_true",
-                        help="Flat ve Hierarchical sonuclarini karsilastir")
-    parser.add_argument("--output", default=None, help="Sonuc JSON dosya yolu")
+    parser = argparse.ArgumentParser(description="Hierarchical intent / prompt benchmark runner")
+    parser.add_argument("--model", default="qwen2.5:3b", help="Ollama Stage 2 model adi")
+    parser.add_argument(
+        "--category-model",
+        default=None,
+        help="Hierarchical Stage 1 modeli (default: ana model veya env)",
+    )
+    parser.add_argument("--dataset", default=None, help="Opsiyonel benchmark dataset JSON yolu")
+    parser.add_argument("--output", default=None, help="JSON cikti yolu")
     args = parser.parse_args()
 
-    logger.info("Benchmark baslatiliyor (model=%s, %d test)...", args.model, len(TEST_CASES))
+    summary = run_benchmark(
+        model=args.model,
+        category_model=args.category_model,
+        dataset_path=args.dataset,
+    )
+    print_summary(summary)
 
-    if args.compare:
-        logger.info(">>> FLAT mod calistiriliyor...")
-        flat_summary = run_benchmark(model=args.model, hierarchical=False)
-        print_summary(flat_summary)
-
-        logger.info(">>> HIERARCHICAL mod calistiriliyor...")
-        hier_summary = run_benchmark(
-            model=args.model,
-            hierarchical=True,
-            category_model=args.category_model,
-        )
-        print_summary(hier_summary)
-
-        print_comparison(flat_summary, hier_summary)
-
-        # JSON cikti (her ikisini de kaydet)
-        output_path = args.output or f"temp/benchmark_compare_{int(time.time())}.json"
-        out = Path(PROJECT_ROOT) / output_path
-        out.parent.mkdir(parents=True, exist_ok=True)
-        combined = {
-            "flat": asdict(flat_summary),
-            "hierarchical": asdict(hier_summary),
-        }
-        out.write_text(json.dumps(combined, ensure_ascii=False, indent=2), encoding="utf-8")
-        logger.info("Sonuclar yazildi: %s", out)
-
-    else:
-        summary = run_benchmark(
-            model=args.model,
-            hierarchical=args.hierarchical,
-            category_model=args.category_model,
-        )
-        print_summary(summary)
-
-        mode_tag = "hier" if args.hierarchical else "flat"
-        output_path = args.output or f"temp/benchmark_{mode_tag}_{args.model}_{int(time.time())}.json"
-        out = Path(PROJECT_ROOT) / output_path
-        out.parent.mkdir(parents=True, exist_ok=True)
-        out.write_text(json.dumps(asdict(summary), ensure_ascii=False, indent=2), encoding="utf-8")
-        logger.info("Sonuclar yazildi: %s", out)
+    output_path = args.output or f"temp/prompt_benchmark_hier_{int(time.time())}.json"
+    output_file = PROJECT_ROOT / output_path
+    output_file.parent.mkdir(parents=True, exist_ok=True)
+    output_file.write_text(json.dumps(asdict(summary), ensure_ascii=False, indent=2), encoding="utf-8")
+    logger.info("Sonuclar yazildi: %s", output_file)
 
 
 if __name__ == "__main__":
