@@ -10,13 +10,15 @@ from PyQt6.QtCore import QObject, pyqtSignal
 from src.core.tool_integration import ToolManager, IntegratedToolResult
 from src.core.tool_base import (
     PingTool, NmapPingSweepTool, NmapPortScanTool,
-    NmapServiceDetectionTool, NmapVulnScanTool, DnsLookupTool,
-    SslScanTool, GobusterDirTool, SubdomainEnumTool, WebAppScanTool
+    NmapServiceDetectionTool, NmapOsDetectionTool, NmapVulnScanTool,
+    DnsLookupTool, WhoisLookupTool, SslScanTool, GobusterDirTool,
+    SubdomainEnumTool, WebAppScanTool
 )
 from src.core.parser_framework import (
     PingParser, NmapPingSweepParser, NmapPortScanParser,
-    NmapServiceDetectionParser, NmapVulnScanParser, DnsLookupParser,
-    SslScanParser, GobusterDirParser, SubdomainEnumParser, WebAppScanParser
+    NmapServiceDetectionParser, NmapOsDetectionParser, NmapVulnScanParser,
+    DnsLookupParser, WhoisLookupParser, SslScanParser, GobusterDirParser,
+    SubdomainEnumParser, WebAppScanParser
 )
 from src.core.sqlite_backend import SQLiteBackend
 from src.ai.tool_registry import validate_execution_registry
@@ -27,8 +29,10 @@ DEFAULT_TOOL_CATALOG = [
     (NmapPingSweepTool, NmapPingSweepParser, 30, 1),
     (NmapPortScanTool, NmapPortScanParser, 120, 1),
     (NmapServiceDetectionTool, NmapServiceDetectionParser, 180, 1),
+    (NmapOsDetectionTool, NmapOsDetectionParser, 180, 1),
     (NmapVulnScanTool, NmapVulnScanParser, 300, 1),
     (DnsLookupTool, DnsLookupParser, 30, 2),
+    (WhoisLookupTool, WhoisLookupParser, 45, 2),
     (SslScanTool, SslScanParser, 60, 2),
     (GobusterDirTool, GobusterDirParser, 300, 1),
     (SubdomainEnumTool, SubdomainEnumParser, 120, 1),
@@ -184,6 +188,21 @@ class SentinelCoordinator(QObject):
             callback=None,
             **kwargs
         )
+
+    def execute_os_detection(self, target: str, ports: Optional[str] = None, aggressive: bool = False) -> bool:
+        kwargs = {
+            "target": target,
+            "aggressive": aggressive,
+        }
+
+        if ports:
+            kwargs["ports"] = ports
+
+        return self.manager.execute_tool(
+            "nmap_os_detection",
+            callback=None,
+            **kwargs
+        )
     
     def execute_vuln_scan(self, target: str, ports: Optional[str] = None, scripts: str = "vuln") -> bool:
         """
@@ -227,6 +246,13 @@ class SentinelCoordinator(QObject):
             callback=None,
             domain=domain,
             record_type=record_type
+        )
+
+    def execute_whois_lookup(self, domain: str) -> bool:
+        return self.manager.execute_tool(
+            "whois_lookup",
+            callback=None,
+            domain=domain
         )
     
     def execute_ssl_scan(self, target: str, port: int = 443) -> bool:

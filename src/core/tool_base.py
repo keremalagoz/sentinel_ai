@@ -16,11 +16,13 @@ from src.core.tools import (  # noqa: F401
     NmapPingSweepTool,
     NmapPortScanTool,
     NmapServiceDetectionTool,
+    NmapOsDetectionTool,
     NmapVulnScanTool,
     SslScanTool,
     GobusterDirTool,
     SubdomainEnumTool,
     DnsLookupTool,
+    WhoisLookupTool,
     WebAppScanTool,
 )
 
@@ -33,10 +35,12 @@ __all__ = [
     "NmapPingSweepTool",
     "NmapPortScanTool",
     "NmapServiceDetectionTool",
+    "NmapOsDetectionTool",
     "NmapVulnScanTool",
     "SslScanTool",
     "GobusterDirTool",
     "SubdomainEnumTool",
     "DnsLookupTool",
+    "WhoisLookupTool",
     "WebAppScanTool",
 ]

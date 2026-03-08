@@ -1195,6 +1195,102 @@ class DnsLookupParser(BaseParser):
         return entities
 
 
+class WhoisLookupParser(BaseParser):
+    """Parser for whois output."""
+
+    def parse(self, output: str) -> List[BaseEntity]:
+        entities = []
+        domain = None
+
+        for raw_line in output.split('\n'):
+            line = raw_line.strip()
+            line_lower = line.lower()
+
+            if not line or ':' not in line:
+                continue
+
+            key, value = line.split(':', 1)
+            key = key.strip().lower()
+            value = value.strip()
+
+            if not value:
+                continue
+
+            if key in {"domain name", "domain"} and not domain:
+                domain = value.lower().rstrip('.')
+                continue
+
+            if domain is None:
+                continue
+
+            if key == "registrar":
+                entities.append(self._create_dns_entity(domain, "TXT", value, source="whois", field="registrar"))
+            elif key in {"creation date", "created", "registered on"}:
+                entities.append(self._create_dns_entity(domain, "TXT", value, source="whois", field="creation_date"))
+            elif key in {"registry expiry date", "expiry date", "expires on", "paid-till"}:
+                entities.append(self._create_dns_entity(domain, "TXT", value, source="whois", field="expiry_date"))
+            elif key in {"name server", "nserver"}:
+                entities.append(self._create_dns_entity(domain, "NS", value.split()[0].rstrip('.'), source="whois"))
+
+        if not entities:
+            raise ParserException("No structured WHOIS fields found in output")
+
+        return entities
+
+
+class NmapOsDetectionParser(BaseParser):
+    """Parser for nmap OS detection output."""
+
+    def parse(self, output: str) -> List[BaseEntity]:
+        entities = []
+        current_ip = None
+        os_type = None
+        accuracy = None
+
+        for raw_line in output.split('\n'):
+            line = raw_line.strip()
+
+            if 'Nmap scan report for' in line:
+                parts = line.split()
+                if len(parts) >= 5:
+                    current_ip = parts[-1]
+
+            elif line.startswith('OS details:'):
+                os_type = line.split(':', 1)[1].strip()
+
+            elif line.startswith('Aggressive OS guesses:') and not os_type:
+                os_type = line.split(':', 1)[1].split(',', 1)[0].strip()
+
+            elif line.startswith('Running:') and not os_type:
+                os_type = line.split(':', 1)[1].strip()
+
+            elif line.startswith('OS CPE:') and not os_type:
+                os_type = line.split(':', 1)[1].strip()
+
+            elif 'accuracy' in line.lower() and '%' in line and accuracy is None:
+                for token in line.replace('(', ' ').replace(')', ' ').split():
+                    if token.endswith('%'):
+                        try:
+                            accuracy = max(0.0, min(1.0, float(token.rstrip('%')) / 100.0))
+                            break
+                        except ValueError:
+                            continue
+
+        if not current_ip or not os_type:
+            raise ParserException('No OS detection results found in nmap output')
+
+        entities.append(
+            self._create_host_entity(
+                ip=current_ip,
+                is_alive=True,
+                os_type=os_type,
+                confidence=accuracy or 0.8,
+            )
+        )
+
+        return entities
+
+
 class SslScanParser(BaseParser):
     """
     Parser for OpenSSL s_client output.
