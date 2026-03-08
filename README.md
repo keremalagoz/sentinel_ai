@@ -4,7 +4,7 @@
 
 <div align="center">
 
-![Python](https://img.shields.io/badge/Python-3.11+-3776AB?style=for-the-badge&logo=python&logoColor=white)
+![Python](https://img.shields.io/badge/Python-3.10+-3776AB?style=for-the-badge&logo=python&logoColor=white)
 ![PyQt6](https://img.shields.io/badge/PyQt6-GUI-41CD52?style=for-the-badge&logo=qt&logoColor=white)
 ![Docker](https://img.shields.io/badge/Docker-Container-2496ED?style=for-the-badge&logo=docker&logoColor=white)
 ![Qwen 2.5](https://img.shields.io/badge/Qwen_2.5_3B-Local_AI-FF6F00?style=for-the-badge&logo=huggingface&logoColor=white)
@@ -43,7 +43,7 @@ SENTINEL AI, siber güvenlik testlerini yapay zeka destekli komutlarla otomatikl
 - **Structured AI Command Execution** - AI komutları structured payload olarak çalıştırılır; raw terminal komutları ayrı güvenlik kapısından geçer
 - **Backend-Owned Session Flow** - Chat history id ile backend session id ayrılmıştır; yeni sohbet, geri yükleme ve multi-turn akışları aynı backend session ile sürer
 - **Typed Validation + Windows Native Execution** - URL/query/form payload argümanları typed validation ile korunur; Windows native yürütmede merkezi executable resolution ve subprocess fallback kullanılır
-- **Kapsamlı Test Altyapısı** - 1579 test koleksiyonu; 7 Mart 2026 tam yerel koşusunda 1578 test geçti, 1 canlı LLM exact-match testi oynak kaldı
+- **Kompakt Test Altyapısı** - Çekirdek AI ve backend kontratlarını doğrulayan hızlı regression paketi
 
 ### Planlanan Özellikler
 
@@ -144,7 +144,7 @@ sentinel_root/
 │   │   ├── i18n.py           # 11 dil çeviri sistemi
 │   │   └── settings_dialog.py # Ayarlar diyalogu
 │   ├── plugins/              # Harici araç eklentileri
-│   └── tests/                # 1451 test (UI, i18n, optimizasyon, accuracy)
+│   └── tests/                # Odakli regression ve kontrat testleri
 ├── scripts/                  # Yardımcı scriptler
 │   └── validate_ui.py
 ├── temp/                     # Geçici dosyalar
@@ -163,7 +163,7 @@ SENTINEL AI production modda çalışır:
 ### Gereksinimler
 
 - **İşletim Sistemi:** Linux (Ubuntu 20.04+ önerilir)
-- **Python:** 3.11+
+- **Python:** 3.10+
 - **Docker:** 20.10+ & Docker Compose
 - **RAM:** Minimum 4GB (8GB önerilir)
 - **Disk:** ~3GB (Qwen 2.5 3B model + bağımlılıklar)
@@ -203,6 +203,21 @@ docker-compose logs -f ollama-service
 ```bash
 python main.py
 ```
+
+## CI
+
+Repo artık GitHub Actions ile temel doğrulamayı otomatik çalıştıracak şekilde yapılandırıldı.
+
+CI akışı şunları yapar:
+
+- Python 3.10 kurar
+- `requirements.txt` bağımlılıklarını yükler
+- Headless PyQt test ortamını hazırlar
+- `python -m pytest src/tests -q` komutunu çalıştırır
+
+Workflow dosyası:
+
+- `.github/workflows/ci.yml`
 
 ---
 
