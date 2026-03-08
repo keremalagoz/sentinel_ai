@@ -5,6 +5,7 @@ PyQt6>=6.6.0
 pydantic>=2.5.0
 openai>=1.6.0
 defusedxml>=0.7.1
+pytest>=8.0.0
 
 # API Server (Öncelik 5)
 fastapi>=0.109.0
