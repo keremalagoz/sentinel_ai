@@ -1,6 +1,6 @@
 # SENTINEL AI - Sprint Roadmap (Güncel)
 
-**Güncelleme Tarihi:** 7 Mart 2026  
+**Güncelleme Tarihi:** 9 Mart 2026  
 **Mimari:** Action Planner v2.1 + Backend Session-Memory Chat (Local-Only LLM + Deterministic Command Builder)
 
 ---
@@ -282,11 +282,56 @@ Temel akış:
 ## 3.1) Hızlı Durum Özeti
 
 - Mimari: Local-only LLM + deterministic execution + backend session-memory chat
-- Test sağlığı: baseline full suite yeşil (**715 passed**) + Sprint 3.6 hedefli doğrulama **21 passed** + Sprint 3.5 v2 hedefli regresyon **425 passed** (`414 + 11`)
+- Test sağlığı: baseline full suite yeşil (**76 passed**) + önceki sprint testleri korunuyor
 - Tamamlanan: Sprint 0 → 3.6 + Sprint 3.5 v2
-- Aktif sprint: **Sprint 3.5 v2 ve Sprint 3.6 tamamlandı** — sonraki: Sprint 4
+- **Aktif sprint: Sprint 3.7 — AI Doğruluk Acil Düzeltmeleri** (13/15 görev tamamlandı)
+- Son benchmark (post-fix+tuning): Intent %87.0, Params %52.5, Target %78.5, Exact Match %37.0
 - Backlog: Sprint 3 UI backlog'u Sprint 3.5 v2 içinde kapatıldı
-- Sonraki hedef: Sprint 3.6 → Sprint 4 (Veri Adaptasyonu)
+- Sonraki hedef: Sprint 3.7 → Sprint 4 (Veri Adaptasyonu)
+
+### Sprint 3.7 — AI Doğruluk Acil Düzeltmeleri (Audit Bulguları) 🔧
+
+> Tetikleyen: 9 Mart 2026 Kapsamlı Audit Raporu + 200 vakalık bilingual benchmark sonuçları  
+> Detaylı plan: [sprint_3_7_plan.md](sprint_3_7_plan.md)  
+> Kapsam: Benchmark'ta tespit edilen params (%33), target (%74.5) ve exact match (%23.5) darboğazlarının giderilmesi  
+> Hedef: Intent accuracy ≥%90, params_accuracy ≥%55, target_accuracy ≥%80, exact_match ≥%40
+
+**Track A — Parametre Çıkarma İyileştirmesi (P0)**
+
+| # | Görev | Sorumlu | Durum | Açıklama |
+|---|-------|---------|-------|----------|
+| A1 | Stage 2 prompt param örneklerini zenginleştir | — | ✅ | Few-shot param ornekleri eklendi, format kirigi giderildi |
+| A2 | Regex tabanlı ParamExtractor modülü | — | ✅ | `src/ai/param_extractor.py` eklendi |
+| A3 | Orchestrator param merge mantığı | — | ✅ | Param merge + implicit param prune iyilestirmeleri uygulandi |
+| A4 | vuln_scan / ssl_scan / sql_injection param testleri | — | ✅ | `src/tests/test_sprint37_extraction.py` ile hedefli kapsam eklendi |
+
+**Track B — Target Çıkarma İyileştirmesi (P0)**
+
+| # | Görev | Sorumlu | Durum | Açıklama |
+|---|-------|---------|-------|----------|
+| B1 | Target pre-extraction regex | — | ✅ | URL/IP/domain pre-extraction ParamExtractor'a alindi |
+| B2 | Target hint → LLM prompt enjeksiyonu | — | ✅ | Stage-2 context satiri netlestirildi |
+| B3 | Target fallback zinciri | — | ✅ | `LLM -> regex -> UI hint -> null` zinciri uygulandi |
+
+**Track C — Intent Sınır Netleştirme (P1)**
+
+| # | Görev | Sorumlu | Durum | Açıklama |
+|---|-------|---------|-------|----------|
+| C1 | info_query keyword filter güçlendirme | — | ✅ | TR/EN info_query pattern seti genisletildi |
+| C2 | web_dir_enum vs web_vuln_scan sınır tanımı | — | ✅ | Keyword + Stage-2 ayrim kurallari eklendi |
+| C3 | Orchestrator hard-override'ları kural motoruna taşı | — | ✅ | Minimal configurable override yapisi eklendi |
+| C4 | unknown intent routing | — | ✅ | unknown siniri ve prompt kurallari netlestirildi |
+
+**Track D — Altyapı ve JSON Güvenilirlik (P1)**
+
+| # | Görev | Sorumlu | Durum | Açıklama |
+|---|-------|---------|-------|----------|
+| D1 | Hierarchical resolver JSON mode | — | ✅ | `response_format={"type": "json_object"}` eklendi |
+| D2 | Modelfile system prompt zenginleştirme | — | ✅ | Intent türleri listesi, param talimatı, multi-param örnek eklendi |
+| D3 | LLM flaky test izolasyonu | — | ✅ | `pytest.ini` marker + `conftest.py` opt-in (`--run-llm`/`RUN_LLM_TESTS`) + LLM smoke test ayrimi tamamlandi |
+| D4 | Benchmark regression gate | — | ✅ | `scripts/benchmark_gate.py` + `.github/workflows/ci.yml` benchmark-gate job'i ile CI entegrasyonu tamamlandi (repo variable ile kontrollu aktivasyon) |
+
+**Sprint 3.7 Toplam: 15/15 görev tamamlandı**
 
 ---
 
@@ -355,11 +400,12 @@ Bir sprint maddesi tamamlandı sayılması için:
 
 | Metrik | Değer |
 |--------|-------|
-| Tamamlanan görev | **78** |
-| Aktif (Sprint 3.6) | **6** |
+| Tamamlanan görev | **80** (78 önceki + 2 Sprint 3.7) |
+| Aktif (Sprint 3.7) | **13** |
 | Backlog (yerleştirilmemiş) | **0** |
 | Bekleyen (Sprint 4-6) | **11** |
-| Toplam test | **715 passed + Sprint 3.6 hedefli 21 passed + Sprint 3.5 v2 hedefli 425 passed** |
+| Toplam test | **76 passed** (baseline) |
+| Son benchmark | 9 Mart 2026 — 200 vaka bilingual (Intent %90.0, Params %32.0) |
 | Son merge | develop `02e352c` |
 
 

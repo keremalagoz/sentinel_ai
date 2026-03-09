@@ -36,12 +36,23 @@ from src.ai.tool_registry import (
     get_missing_required_params,
 )
 from src.ai.command_builder import CommandBuilder, get_command_builder
+from src.ai.param_extractor import ParamExtractor
 from src.core.conversation_memory import ConversationMemoryStore
 from src.ui.i18n import t
 from src.ai.schemas import get_category_for_intent
 
 # Root gerektiren komut flag'leri — dinamik risk hesaplama icin
 _ROOT_FLAGS: frozenset = frozenset({"-sS", "-sU", "-O", "-A", "--privileged"})
+
+INTENT_OVERRIDE_RULES = [
+    {
+        "name": "dns_record_vs_whois",
+        "pattern": re.compile(r"\b(kay[iı]t|record|mx|aaaa|ns|txt|cname|soa|ptr|srv)\b", re.IGNORECASE),
+        "from_intent": IntentType.WHOIS_LOOKUP,
+        "to_intent": IntentType.DNS_LOOKUP,
+        "keyword_must_match": IntentType.DNS_LOOKUP,
+    },
+]
 
 logger = logging.getLogger(__name__)
 
@@ -109,112 +120,13 @@ class AIOrchestrator:
 
     # ── Helpers ──
 
-    _IP_OR_HOST_RE = re.compile(
-        r"((?:https?://)?\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}(?::\d{1,5})?(?:/\d{1,2})?)"
-        r"|"
-        r"((?:https?://)?(?:[a-zA-Z0-9](?:[a-zA-Z0-9\-]{0,61}[a-zA-Z0-9])?\.)+[a-zA-Z]{2,}(?::\d{1,5})?)"
-    )
-
     def _extract_target_from_input(self, user_input: str) -> Optional[str]:
         """Try to extract an IP address or hostname from raw user text."""
-        # Find all matches, avoid matching well-known DNS servers as primary targets
-        matches = list(self._IP_OR_HOST_RE.finditer(user_input))
-        for m in matches:
-            val = m.group(0)
-            if val in ["8.8.8.8", "8.8.4.4", "1.1.1.1", "1.0.0.1"]:
-                 continue
-            return val
-        return None
+        return ParamExtractor.extract_target(user_input)
 
     def _extract_target_from_context(self, context_text: str) -> Optional[str]:
         """Conversation context'inden onceki turlardaki target'i cikar."""
-        # En son target'i bul (sagdan tara)
-        matches = list(self._IP_OR_HOST_RE.finditer(context_text))
-        for m in reversed(matches):
-            val = m.group(0)
-            if val in ["8.8.8.8", "8.8.4.4", "1.1.1.1", "1.0.0.1"]:
-                 continue
-            return val
-        return None
-
-    # Regex patterns for param extraction (Fix 3: keyword fallback param cikma)
-    _PORT_RE = re.compile(
-        r"(?:-p\s*|port[u\s]*\s*)(\d[\d,\-]+)", re.IGNORECASE
-    )
-    _TOP_PORTS_RE = re.compile(
-        r"(?:ilk|top|en\s+pop[u\xfc]ler)\s+(\d+)\s+port[u\xfc]?"
-        r"|--top-ports\s+(\d+)"
-        r"|(\d+)\s+(?:pop[u\xfc]ler|\xf6nemli|yayg[i\u0131]n)\s+port[u\xfc]?",
-        re.IGNORECASE,
-    )
-    _TIMING_RE = re.compile(
-        r"(?:T(\d)|timing\s+(\d)|h[i\u0131]z\s+(\d))", re.IGNORECASE
-    )
-    _NO_DNS_RE = re.compile(
-        r"(dns\s*(yapma|[c\xe7][o\xf6]z[u\xfc]mleme\s*(yap|kapat)|yok|kapat|olmadan)|-n\b|no.?dns)",
-        re.IGNORECASE,
-    )
-    _SVC_DETECT_RE = re.compile(
-        r"(versiyon|version|servis\s+tespit|servis\s+versiyon|-sV\b)",
-        re.IGNORECASE,
-    )
-    _AGGRESSIVE_RE = re.compile(
-        r"(agresif|aggressive|-A\b|full\s+scan|tam\s+tarama)", re.IGNORECASE
-    )
-    _TRACEROUTE_RE = re.compile(
-        r"(traceroute|--traceroute)", re.IGNORECASE
-    )
-    _SYN_RE = re.compile(r"(SYN|-sS)\b", re.IGNORECASE)
-    _UDP_RE = re.compile(r"(UDP|-sU)\b", re.IGNORECASE)
-    _NO_PING_RE = re.compile(
-        r"(ping\s*(atma|olmadan|yok)|no.?ping|-Pn\b)", re.IGNORECASE
-    )
-    _VERBOSE_RE = re.compile(
-        r"(verbose|detayl[i\u0131]|ayr[i\u0131]nt[i\u0131]l[i\u0131]|-v\b)",
-        re.IGNORECASE,
-    )
-    _OSSCAN_RE = re.compile(
-        r"(osscan.?guess|os\s+tahmin|--osscan-guess)", re.IGNORECASE
-    )
-
-    # -- Gobuster patterns --
-    _EXT_RE = re.compile(
-        r"(?:uzant[i\u0131]|extension|ext|-x)\s*[:\s]?\s*([a-zA-Z0-9,]+)",
-        re.IGNORECASE,
-    )
-    _THREADS_RE = re.compile(
-        r"(?:thread|i[s\u015f][c\xe7]i|paralel|-t)\s*(\d+)", re.IGNORECASE
-    )
-    _WORDLIST_RE = re.compile(
-        r"(?:wordlist|s[o\xf6]zl[u\xfc]k|kelime\s*liste)\s*[:\s]?\s*(\S+)",
-        re.IGNORECASE,
-    )
-    # -- DNS patterns --
-    _RECORD_TYPE_RE = re.compile(
-        r"\b(MX|AAAA|NS|TXT|CNAME|SOA|PTR|SRV|A)\b\s*(?:kay[i\u0131]t|record)?",
-        re.IGNORECASE,
-    )
-    # -- SSL patterns --
-    _SSL_PORT_RE = re.compile(
-        r"(?:port|:)(\d{2,5})", re.IGNORECASE
-    )
-    _TLS_VER_RE = re.compile(
-        r"tls\s*1\.?(2|3)|tls1_(2|3)", re.IGNORECASE
-    )
-    # -- SQLMap patterns --
-    _LEVEL_RE = re.compile(
-        r"(?:level|seviye)\s*(\d)", re.IGNORECASE
-    )
-    _RISK_RE = re.compile(
-        r"(?:risk|risk)\s*(\d)", re.IGNORECASE
-    )
-
-    # Intent groups for param extraction routing
-    _NMAP_INTENTS = frozenset({
-        IntentType.HOST_DISCOVERY, IntentType.PORT_SCAN,
-        IntentType.SERVICE_DETECTION, IntentType.OS_DETECTION,
-        IntentType.VULN_SCAN,
-    })
+        return ParamExtractor.extract_target(context_text)
 
     def _extract_params_from_input(
         self, text: str, intent_type: IntentType
@@ -223,109 +135,78 @@ class AIOrchestrator:
 
         Intent tipine gore farkli parametreler cikarilir.
         """
-        params: Dict[str, Any] = {}
+        return ParamExtractor.extract(text, intent_type)
 
-        # ── Nmap ailesi ──
-        if intent_type in self._NMAP_INTENTS:
-            m = self._PORT_RE.search(text)
-            if m:
-                params["ports"] = m.group(1)
+    def _merge_params_with_regex(
+        self,
+        user_input: str,
+        intent_type: IntentType,
+        llm_params: Optional[Dict[str, Any]],
+    ) -> Dict[str, Any]:
+        """Merge deterministic regex params with LLM params (LLM wins) and prune implicit noise."""
+        regex_params = self._extract_params_from_input(user_input, intent_type)
+        merged = dict(regex_params)
+        if llm_params:
+            merged.update(llm_params)
+        return self._prune_implicit_params(intent_type, merged, regex_params)
 
-            m = self._TOP_PORTS_RE.search(text)
-            if m:
-                val = m.group(1) or m.group(2) or m.group(3)
-                if val:
-                    params["top_ports"] = int(val)
-                    params.pop("ports", None)
+    def _prune_implicit_params(
+        self,
+        intent_type: IntentType,
+        merged_params: Dict[str, Any],
+        regex_params: Dict[str, Any],
+    ) -> Dict[str, Any]:
+        """Drop non-explicit params for intents where defaults are frequently hallucinated."""
+        strict_regex_intents = {
+            IntentType.HOST_DISCOVERY,
+            IntentType.SERVICE_DETECTION,
+            IntentType.VULN_SCAN,
+            IntentType.SSL_SCAN,
+            IntentType.SQL_INJECTION,
+        }
 
-            m = self._TIMING_RE.search(text)
-            if m:
-                val = m.group(1) or m.group(2) or m.group(3)
-                if val:
-                    params["timing"] = int(val)
+        if intent_type in strict_regex_intents:
+            return dict(regex_params)
 
-            if self._NO_DNS_RE.search(text):
-                params["no_dns"] = True
-            if self._SVC_DETECT_RE.search(text):
-                params["service_detection"] = True
-            if self._AGGRESSIVE_RE.search(text):
-                params["aggressive"] = True
-            if self._TRACEROUTE_RE.search(text):
-                params["traceroute"] = True
-            if self._NO_PING_RE.search(text):
-                params["no_ping"] = True
-            if self._VERBOSE_RE.search(text):
-                params["verbose"] = True
-            if self._OSSCAN_RE.search(text):
-                params["osscan_guess"] = True
+        cleaned = dict(merged_params)
 
-            if self._SYN_RE.search(text):
-                params["scan_type"] = "sS"
-            elif self._UDP_RE.search(text):
-                params["scan_type"] = "sU"
+        # HTTP brute-force prompts sometimes inherit SQLMap defaults from LLM context.
+        if intent_type == IntentType.BRUTE_FORCE_HTTP:
+            cleaned.pop("level", None)
+            cleaned.pop("risk", None)
 
-        # ── Gobuster ──
-        elif intent_type == IntentType.WEB_DIR_ENUM:
-            m = self._EXT_RE.search(text)
-            if m:
-                params["extensions"] = m.group(1).strip()
-            m = self._WORDLIST_RE.search(text)
-            if m:
-                params["wordlist"] = m.group(1).strip()
-            m = self._THREADS_RE.search(text)
-            if m:
-                params["threads"] = int(m.group(1))
-            if re.search(r"(tls\s*(do[g\u011f]rulama|validation)\s*(yapma|kapat|yok)|no.?tls|-k\b)",
-                         text, re.IGNORECASE):
-                params["no_tls_validation"] = True
-            if re.search(r"(redirect|y[o\xf6]nlendir|takip\s+et|-r\b)",
-                         text, re.IGNORECASE):
-                params["follow_redirect"] = True
+        return cleaned
 
-        # ── DNS Lookup ──
-        elif intent_type == IntentType.DNS_LOOKUP:
-            m = self._RECORD_TYPE_RE.search(text)
-            if m:
-                params["record_type"] = m.group(1).upper()
+    def _apply_intent_overrides(
+        self,
+        intent: Intent,
+        user_input: str,
+        keyword_suggestion: Optional[IntentType],
+    ) -> Intent:
+        """Apply minimal, configurable intent override rules for known LLM confusions."""
+        for rule in INTENT_OVERRIDE_RULES:
+            if keyword_suggestion != rule["keyword_must_match"]:
+                continue
+            if intent.intent_type != rule["from_intent"]:
+                continue
+            if not rule["pattern"].search(user_input):
+                continue
 
-        # ── SSL Scan ──
-        elif intent_type == IntentType.SSL_SCAN:
-            m = self._SSL_PORT_RE.search(text)
-            if m:
-                params["port"] = int(m.group(1))
-            m = self._TLS_VER_RE.search(text)
-            if m:
-                val = m.group(1) or m.group(2)
-                if val:
-                    params["tls_version"] = f"1.{val}"
+            logger.info(
+                "Intent override applied (%s): %s -> %s",
+                rule["name"],
+                rule["from_intent"].value,
+                rule["to_intent"].value,
+            )
+            intent.intent_type = rule["to_intent"]
+            intent.params = self._merge_params_with_regex(
+                user_input,
+                intent.intent_type,
+                intent.params,
+            )
+            return intent
 
-        # ── Hydra SSH/HTTP ──
-        elif intent_type in (IntentType.BRUTE_FORCE_SSH, IntentType.BRUTE_FORCE_HTTP):
-            m = re.search(r"(?:kullan[i\u0131]c[i\u0131]|user(?:name)?|login)[:\s]+([\w.-]+)",
-                          text, re.IGNORECASE)
-            if m:
-                params["username"] = m.group(1)
-            m = self._WORDLIST_RE.search(text)
-            if m:
-                params["wordlist"] = m.group(1)
-            m = self._THREADS_RE.search(text)
-            if m:
-                params["threads"] = int(m.group(1))
-
-        # ── SQLMap ──
-        elif intent_type == IntentType.SQL_INJECTION:
-            m = self._LEVEL_RE.search(text)
-            if m:
-                params["level"] = int(m.group(1))
-            m = self._RISK_RE.search(text)
-            if m:
-                params["risk"] = int(m.group(1))
-            if re.search(r"(form|--forms)", text, re.IGNORECASE):
-                params["forms"] = True
-            if re.search(r"(veritaban|database|--dbs)", text, re.IGNORECASE):
-                params["dbs"] = True
-
-        return params
+        return intent
 
     # =========================================================================
     # V2 API - Yeni Katmanli Mimari
@@ -418,15 +299,14 @@ class AIOrchestrator:
         )
         if not kf_ok:
             logger.info("Keyword cross-validation mismatch: %s", kf_msg)
-            
-            # --- HARD OVERRIDE FOR KNOWN LLM HALLUCINATIONS ---
-            # 3B models rigidly associate "kayit" (record) with WHOIS and ignore few-shots.
-            if kf_suggestion == IntentType.DNS_LOOKUP and intent.intent_type == IntentType.WHOIS_LOOKUP:
-                 logger.info("Hard override: Forcing DNS_LOOKUP over WHOIS_LOOKUP due to known LLM hallucination.")
-                 intent.intent_type = IntentType.DNS_LOOKUP
-                 # Re-extract params since LLM missed it
-                 fallback_params = self._extract_params_from_input(user_input, intent.intent_type)
-                 intent.params.update(fallback_params)
+            intent = self._apply_intent_overrides(intent, user_input, kf_suggestion)
+
+        # Sprint 3.7 A3: Deterministic param enrichment for all resolved intents.
+        intent.params = self._merge_params_with_regex(
+            user_input,
+            intent.intent_type,
+            intent.params,
+        )
 
         # ── Keyword fallback: LLM parse başarısızsa keyword önerisini kullan ──
         if (
@@ -440,14 +320,17 @@ class AIOrchestrator:
                 intent.clarification_reason,
                 kf_suggestion.value,
             )
-            # Keyword eşleşmesinden target çıkarmaya çalış
-            fallback_target = target or intent.target or intent.params.get("target")
+            # Sprint 3.7 B3: target fallback chain
+            fallback_target = intent.target
             if not fallback_target:
                 fallback_target = self._extract_target_from_input(user_input)
+            if not fallback_target:
+                fallback_target = target
 
-            # Fix 3: Regex ile temel parametreleri user input'tan cikar
-            fallback_params = self._extract_params_from_input(
-                user_input, kf_suggestion
+            fallback_params = self._merge_params_with_regex(
+                user_input,
+                kf_suggestion,
+                {},
             )
 
             intent = Intent(
@@ -498,6 +381,8 @@ class AIOrchestrator:
         
         # Bilgi sorusu mu?
         if intent.intent_type == IntentType.INFO_QUERY:
+            intent.target = None
+            intent.params = {}
             result["success"] = True
             result["message"] = t("ai.info_query")
             result["agent_observation"] = "info_query"
@@ -512,6 +397,8 @@ class AIOrchestrator:
         
         # Unknown intent
         if intent.intent_type == IntentType.UNKNOWN:
+            intent.target = None
+            intent.params = {}
             result["message"] = t("ai.unknown_intent")
             result["needs_clarification"] = True
             result["agent_observation"] = "unknown_intent"
@@ -528,7 +415,12 @@ class AIOrchestrator:
         # 2. TOOL REGISTRY - Intent -> ToolSpec
         # =====================================================================
         # Target: Mesajdan/intent'ten cikan veya params'tan
-        final_target = target or intent.target or intent.params.get("target")
+        # Sprint 3.7 B3: LLM target -> regex extract -> UI target_hint -> null
+        final_target = intent.target or intent.params.get("target")
+        if not final_target:
+            final_target = self._extract_target_from_input(user_input)
+        if not final_target:
+            final_target = target
         
         # Debug logging
         logger.debug(

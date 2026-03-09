@@ -7,6 +7,7 @@ Provides:
 """
 
 import sys
+import os
 import pytest
 
 # ---------------------------------------------------------------------------
@@ -34,3 +35,25 @@ def _reset_i18n():
     set_language("en")
     yield
     set_language("en")
+
+
+def pytest_addoption(parser):
+    """Add explicit opt-in switch for live LLM tests."""
+    parser.addoption(
+        "--run-llm",
+        action="store_true",
+        default=False,
+        help="run tests marked with @pytest.mark.llm",
+    )
+
+
+def pytest_collection_modifyitems(config, items):
+    """Skip LLM tests by default to keep CI deterministic and fast."""
+    run_llm = config.getoption("--run-llm") or os.getenv("RUN_LLM_TESTS") == "1"
+    if run_llm:
+        return
+
+    skip_llm = pytest.mark.skip(reason="LLM tests are skipped by default. Use --run-llm or RUN_LLM_TESTS=1.")
+    for item in items:
+        if "llm" in item.keywords:
+            item.add_marker(skip_llm)

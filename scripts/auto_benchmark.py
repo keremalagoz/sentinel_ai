@@ -130,7 +130,6 @@ def _run_once(model: str, category_model: Optional[str], run_index: int) -> RunS
     try:
         summary = run_benchmark(
             model=model,
-            hierarchical=True,
             category_model=category_model,
         )
         total = summary.total

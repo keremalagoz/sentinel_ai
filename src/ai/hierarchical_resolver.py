@@ -115,6 +115,8 @@ ONEMLI KURALLAR:
 3. SADECE yukaridaki intent turlerinden birini sec
 4. Kullanici SPESIFIK IP/domain verdiyse target doldur, aksi halde null birak
 5. confidence degerini 0.0-1.0 arasinda ver
+6. web_dir_enum = dizin/dosya kesfi (gobuster/dirb/dirsearch), web_vuln_scan = web zafiyet taramasi (nikto)
+7. Bilgi sorusuysa info_query, siber guvenlikle ilgisiz/asiri belirsizse unknown sec
 
 CIKTI FORMATI (STRICT JSON):
 {{
@@ -145,6 +147,18 @@ CIKTI FORMATI (STRICT JSON):
 
 NOT: params icinde sadece kullanicinin BELIRTTIGI parametreleri ekle.
 Belirtilmeyen parametreleri EKLEME, bos birak.
+
+PARAMETRE ORNEKLERI:
+- Girdi: "192.168.1.1 portlarini T4 hizinda SYN taramasi ile tara"
+    Cikti: {{"intent_type": "port_scan", "target": "192.168.1.1", "params": {{"timing": 4, "scan_type": "sS"}}, "needs_clarification": false, "clarification_reason": null, "confidence": 0.95}}
+- Girdi: "example.com MX kayitlarini sorgula"
+    Cikti: {{"intent_type": "dns_lookup", "target": "example.com", "params": {{"record_type": "MX"}}, "needs_clarification": false, "clarification_reason": null, "confidence": 0.95}}
+- Girdi: "192.168.1.1 zafiyet taramasi yap vuln scriptleri ile"
+    Cikti: {{"intent_type": "vuln_scan", "target": "192.168.1.1", "params": {{"scripts": "vuln"}}, "needs_clarification": false, "clarification_reason": null, "confidence": 0.95}}
+- Girdi: "example.com SSL sertifikasini kontrol et port 8443"
+    Cikti: {{"intent_type": "ssl_scan", "target": "example.com", "params": {{"port": 8443}}, "needs_clarification": false, "clarification_reason": null, "confidence": 0.95}}
+- Girdi: "http://target.com/login SQL injection testi level 3 risk 2"
+    Cikti: {{"intent_type": "sql_injection", "target": "http://target.com/login", "params": {{"level": 3, "risk": 2}}, "needs_clarification": false, "clarification_reason": null, "confidence": 0.95}}
 
 CONFIDENCE KURALLARI:
 - 0.9-1.0: Niyet cok net
@@ -326,7 +340,7 @@ class HierarchicalResolver(HierarchicalResolverBase):
 
         context = user_input
         if target_hint:
-            context = f"[Hedef: {target_hint}]\n{user_input}"
+            context = f"[Kullanicidan gelen hedef ipucu: {target_hint}]\n{user_input}"
 
         messages = [
             {"role": "system", "content": prompt},
@@ -441,6 +455,16 @@ class HierarchicalResolver(HierarchicalResolverBase):
                         clarification_reason=intent.clarification_reason,
                         confidence=max(intent.confidence, 0.9),
                     )
+            elif kw_suggestion == IntentType.INFO_QUERY and intent.intent_type != IntentType.UNKNOWN:
+                # Sprint 3.7: Explicit question-style inputs should not drift into action intents.
+                intent = Intent(
+                    intent_type=IntentType.INFO_QUERY,
+                    target=None,
+                    params={},
+                    needs_clarification=False,
+                    clarification_reason=None,
+                    confidence=max(intent.confidence, 0.9),
+                )
             elif intent.confidence < 0.7:
                 logger.warning(
                     "Keyword override (low confidence): LLM='%s'(%.2f) -> keyword='%s'",
@@ -515,6 +539,7 @@ class HierarchicalResolver(HierarchicalResolverBase):
                     messages=messages,
                     temperature=0.1,
                     max_tokens=300,
+                    response_format={"type": "json_object"},
                     timeout=self._request_timeout,
                 )
                 return response.choices[0].message.content
