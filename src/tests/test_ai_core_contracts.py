@@ -53,7 +53,7 @@ def test_orchestrator_builds_port_scan_command_from_execution_tool() -> None:
     )
     orchestrator._hierarchical_resolver = None
 
-    result = orchestrator.process_v2("hedefin portlarini tara")
+    result = orchestrator.process_v2("10.10.10.10 hedefinde -p 22,443 portlarini T4 hizinda tara")
 
     assert result["success"] is True
     assert result["requires_approval"] is True
@@ -76,7 +76,7 @@ def test_orchestrator_marks_os_detection_as_high_risk_when_root_flags_exist() ->
     )
     orchestrator._hierarchical_resolver = None
 
-    result = orchestrator.process_v2("isletim sistemini tespit et")
+    result = orchestrator.process_v2("192.168.1.15 isletim sistemini tespit et --osscan-guess")
 
     assert result["success"] is True
     assert result["command"] is not None

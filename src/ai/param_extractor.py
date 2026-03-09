@@ -23,6 +23,12 @@ class ParamExtractor:
     )
 
     _PORT_RE = re.compile(r"(?:-p\s*|ports?\s*[:=]?\s*)(\d[\d,\-]+)", re.IGNORECASE)
+    # Natural-language port patterns: "80 ve 443 portlarini", "port 1-1024 arasini", "22 portunun"
+    _NL_PORT_RE = re.compile(
+        r"(?:(\d[\d,]+(?:\s+ve\s+\d+)*)\s+port(?:lar(?:in)?[i\u0131]|unu|unun)?)"
+        r"|(?:port\s+(\d[\d,\-]+)(?:\s+aras[i\u0131]n?[i\u0131]?)?)",
+        re.IGNORECASE,
+    )
     _TOP_PORTS_RE = re.compile(
         r"(?:ilk|top|en\s+pop[u\xfc]ler)\s+(\d+)\s+port[u\xfc]?"
         r"|--top-ports\s+(\d+)"
@@ -42,7 +48,8 @@ class ParamExtractor:
     _NO_PING_RE = re.compile(r"(ping\s*(atma|olmadan|yok)|no.?ping|-Pn\b)", re.IGNORECASE)
     _VERBOSE_RE = re.compile(r"(verbose|detayl[i\u0131]|ayr[i\u0131]nt[i\u0131]l[i\u0131]|-v\b)", re.IGNORECASE)
     _OSSCAN_RE = re.compile(r"(osscan.?guess|os\s+tahmin|--osscan-guess)", re.IGNORECASE)
-    _SCRIPTS_RE = re.compile(r"(?:script|nse|scripts?)\s*[:=]?\s*([\w,\-]+)", re.IGNORECASE)
+    # Require separator (: = or --) after keyword to avoid loose "nse nextword" matches
+    _SCRIPTS_RE = re.compile(r"(?:--script|scripts?|nse)\s*[:=]\s*([\w,\-]+)", re.IGNORECASE)
     _SCRIPTS_PREFIX_RE = re.compile(r"\b([\w\-]+)\s+script(?:ler(?:i)?)?\b", re.IGNORECASE)
 
     _EXT_RE = re.compile(
@@ -51,7 +58,12 @@ class ParamExtractor:
     )
     _THREADS_RE = re.compile(r"(?:thread|i[s\u015f][c\xe7]i|paralel|-t)\s*(\d+)", re.IGNORECASE)
     _WORDLIST_RE = re.compile(r"(?:wordlist|s[o\xf6]zl[u\xfc]k|kelime\s*liste)\s*[:\s]?\s*(\S+)", re.IGNORECASE)
-    _RECORD_TYPE_RE = re.compile(r"\b(MX|AAAA|NS|TXT|CNAME|SOA|PTR|SRV|A)\b\s*(?:kay[i\u0131]t|record)?", re.IGNORECASE)
+    _RECORD_TYPE_RE = re.compile(
+        r"\b(MX|AAAA|NS|TXT|CNAME|SOA|PTR|SRV)\b"
+        r"\s*(?:kay[i\u0131]t|kayd[i\u0131](?:n[i\u0131])?|record)?"
+        r"|\b(A)\b\s+(?:kay[i\u0131]t|kayd[i\u0131](?:n[i\u0131])?|record)",
+        re.IGNORECASE,
+    )
 
     _SSL_PORT_RE = re.compile(r"(?:port\s*[:=]?\s*|:)(\d{2,5})", re.IGNORECASE)
     _TLS_VER_RE = re.compile(r"tls\s*1\.?(2|3)|tls1_(2|3)", re.IGNORECASE)
@@ -100,12 +112,15 @@ class ParamExtractor:
 
         if intent_type in cls._NMAP_INTENTS:
             cls._extract_nmap_params(text, params)
+            # Remove self-referential params that duplicate the intent itself
+            if intent_type == IntentType.SERVICE_DETECTION:
+                params.pop("service_detection", None)
         elif intent_type == IntentType.WEB_DIR_ENUM:
             cls._extract_web_dir_params(text, params)
         elif intent_type == IntentType.DNS_LOOKUP:
             m = cls._RECORD_TYPE_RE.search(text)
             if m:
-                params["record_type"] = m.group(1).upper()
+                params["record_type"] = (m.group(1) or m.group(2)).upper()
         elif intent_type == IntentType.SSL_SCAN:
             m = cls._SSL_PORT_RE.search(text)
             if m:
@@ -117,7 +132,7 @@ class ParamExtractor:
                     params["tls_version"] = f"1.{val}"
         elif intent_type in (IntentType.BRUTE_FORCE_SSH, IntentType.BRUTE_FORCE_HTTP):
             m = re.search(
-                r"(?:kullan[i\u0131]c[i\u0131]|user(?:name)?|login)[:\s]+([\w.-]+)",
+                r"(?:kullan[i\u0131]c[i\u0131]|user(?:name)?|login)\s*[:=]\s*([\w.-]+)",
                 text,
                 re.IGNORECASE,
             )
@@ -148,6 +163,13 @@ class ParamExtractor:
         m = cls._PORT_RE.search(text)
         if m:
             params["ports"] = m.group(1)
+        else:
+            # Natural language port extraction fallback
+            m = cls._NL_PORT_RE.search(text)
+            if m:
+                raw = (m.group(1) or m.group(2) or "").strip()
+                # Normalize "80 ve 443" -> "80,443"
+                params["ports"] = re.sub(r"\s+ve\s+", ",", raw)
 
         m = cls._TOP_PORTS_RE.search(text)
         if m:

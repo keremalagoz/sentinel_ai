@@ -61,10 +61,13 @@ _KEYWORD_PATTERNS: list[Tuple[re.Pattern, IntentType]] = [
     # Info query (soru isaretli, "nedir", "nasil calisir", "acikla" iceren)
     # ONCELIKLI: "port tarama nasil calisir" gibi sorular action'dan once yakalanmali
     (re.compile(
-        r"(nedir\??|ne\s+ise?\s+yarar|nas[i\u0131]l\s+(calisir|kullanilir|yapilir)|"
+        r"(nedir\??|ne\s+ise?\s+yarar|ne\s+demek|ne\s+anlama\s+gel|"
+        r"nas[i\u0131]l\s+(calisir|kullanilir|yapilir)|neden\s+(yapilir|kullanilir|calistirilir|gerekli)|"
         r"fark[i\u0131]\s+nedir|aras[i\u0131]ndaki\s+fark|avantaj[i\u0131]|dezavantaj[i\u0131]|"
-        r"what\s+is|how\s+to\s+use|how\s+does|difference\s+between|"
-        r"purpose\s+of|explain|describe|compare|acikla\b)",
+        r"what\s+is\b.*\bused\s+for|what\s+does\b.*\b(check|scan|detect|do|mean|work)|"
+        r"what\s+is\b|how\s+to\s+use|how\s+does|difference\s+between|"
+        r"why\s+do|why\s+is|why\s+are|why\s+would|purpose\s+of|what\s+are\s+the\s+benefits|"
+        r"explain|describe|compare|acikla\b)",
         re.IGNORECASE,
     ), IntentType.INFO_QUERY),
 
@@ -92,6 +95,7 @@ _KEYWORD_PATTERNS: list[Tuple[re.Pattern, IntentType]] = [
     # Web vuln scan (vuln_scan'den ONCE gelmeli — "nikto", "web zafiyet" burada yakalar)
     (re.compile(
         r"(nikto|web\s+vuln|web\s+zafiyet|web\s+scan|"
+        r"web\s+application.*(security|vuln|scan|check|test)|"
         r"web\s+sunucu.*(tara|test|zafiyet))(?!.*(dizin|directory|gobuster|dirb|dirsearch))",
         re.IGNORECASE,
     ), IntentType.WEB_VULN_SCAN),
@@ -106,7 +110,7 @@ _KEYWORD_PATTERNS: list[Tuple[re.Pattern, IntentType]] = [
     # Service detection
     (re.compile(
         r"(servis\s+tespit|service\s+detect|version\s+detect|"
-        r"servis\s+versiyon|banner\s+grab|-sV)",
+        r"servis\s+versiyon|banner\s+grab|grab\s+banner|-sV)",
         re.IGNORECASE,
     ), IntentType.SERVICE_DETECTION),
 
@@ -135,9 +139,11 @@ _KEYWORD_PATTERNS: list[Tuple[re.Pattern, IntentType]] = [
 
     # Web directory enumeration
     (re.compile(
-        r"(dizin\s+(ara|tara|kesfet|enum)|dir\s*(ectory)?\s*(enum|scan|buster)|"
-        r"gobuster|dirb|dirsearch|web\s+dizin|hidden\s+(path|dir)|"
-        r"directory\s+(enumeration|scan|find|discover))",
+        r"(dizin\s+(ara|tara|kesfet|enum|brute)|dir\s*(ectory)?\s*(enum|scan|buster|brute|fuzz)|"
+        r"gobuster|dirb|dirsearch|web\s+dizin|hidden\s+(path|dir|file|page)|"
+        r"gizli\s+(path|dizin|dosya|sayfa)|discover\s+hidden|"
+        r"path\s+(ara|bul|kesfet|tara|enum)|dizin\s+(kesfet|bul)|"
+        r"directory\s+(enumeration|scan|find|discover|brute))",
         re.IGNORECASE,
     ), IntentType.WEB_DIR_ENUM),
 
@@ -172,7 +178,8 @@ _KEYWORD_PATTERNS: list[Tuple[re.Pattern, IntentType]] = [
     # Brute force HTTP
     (re.compile(
         r"(http\s+brute|brute\s*force\s+http|login\s+brute|"
-        r"form\s+brute|hydra\s+http|web\s+login\s+kir)",
+        r"form\s+brute|hydra\s+http|web\s+login\s+kir|"
+        r"credential\s+attack|login\s+attack)",
         re.IGNORECASE,
     ), IntentType.BRUTE_FORCE_HTTP),
 
@@ -183,12 +190,14 @@ _KEYWORD_PATTERNS: list[Tuple[re.Pattern, IntentType]] = [
         re.IGNORECASE,
     ), IntentType.SQL_INJECTION),
 
-    # Selamlama / chitchat -> UNKNOWN
-    # Aksiyon pattern'lari eslesmediyse ve selamlama geciyorsa unknown
+    # Selamlama / chitchat / vague -> UNKNOWN
+    # Aksiyon pattern'lari eslesmediyse ve selamlama/belirsiz talep geciyorsa unknown
     (re.compile(
         r"^(merhaba|selam|hey\b|hi\b|hello|gunayd[i\u0131]n|"
         r"iyi\s+(gunler|aksamlar|geceler))|"
-        r"\b(random|nonsense|anlamsiz|sacma|lorem\s+ipsum|asdf|xyz123)\b",
+        r"\b(random|nonsense|anlamsiz|sacma|lorem\s+ipsum|asdf|xyz123)\b|"
+        r"(not\s+sure\s+what|don'?t\s+know\s+what|ne\s+yapacag[i\u0131]m[i\u0131]?\s+(bilmiyorum|emin\s+degilim)|"
+        r"help\s+me\s+with\s+a\s+task|bir\s+sey(ler)?\s+yap|somehow\b|something\b)",
         re.IGNORECASE,
     ), IntentType.UNKNOWN),
 ]

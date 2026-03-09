@@ -150,6 +150,25 @@ class AIOrchestrator:
             merged.update(llm_params)
         return self._prune_implicit_params(intent_type, merged, regex_params)
 
+    # All action intents use strict-regex: only regex-extracted params are kept.
+    # This eliminates LLM param hallucination which is the #1 cause of benchmark failures.
+    _STRICT_REGEX_INTENTS: frozenset = frozenset({
+        IntentType.HOST_DISCOVERY,
+        IntentType.PORT_SCAN,
+        IntentType.SERVICE_DETECTION,
+        IntentType.OS_DETECTION,
+        IntentType.VULN_SCAN,
+        IntentType.SSL_SCAN,
+        IntentType.WEB_DIR_ENUM,
+        IntentType.WEB_VULN_SCAN,
+        IntentType.DNS_LOOKUP,
+        IntentType.WHOIS_LOOKUP,
+        IntentType.SUBDOMAIN_ENUM,
+        IntentType.BRUTE_FORCE_SSH,
+        IntentType.BRUTE_FORCE_HTTP,
+        IntentType.SQL_INJECTION,
+    })
+
     def _prune_implicit_params(
         self,
         intent_type: IntentType,
@@ -157,25 +176,9 @@ class AIOrchestrator:
         regex_params: Dict[str, Any],
     ) -> Dict[str, Any]:
         """Drop non-explicit params for intents where defaults are frequently hallucinated."""
-        strict_regex_intents = {
-            IntentType.HOST_DISCOVERY,
-            IntentType.SERVICE_DETECTION,
-            IntentType.VULN_SCAN,
-            IntentType.SSL_SCAN,
-            IntentType.SQL_INJECTION,
-        }
-
-        if intent_type in strict_regex_intents:
+        if intent_type in self._STRICT_REGEX_INTENTS:
             return dict(regex_params)
-
-        cleaned = dict(merged_params)
-
-        # HTTP brute-force prompts sometimes inherit SQLMap defaults from LLM context.
-        if intent_type == IntentType.BRUTE_FORCE_HTTP:
-            cleaned.pop("level", None)
-            cleaned.pop("risk", None)
-
-        return cleaned
+        return dict(merged_params)
 
     def _apply_intent_overrides(
         self,
@@ -416,9 +419,17 @@ class AIOrchestrator:
         # =====================================================================
         # Target: Mesajdan/intent'ten cikan veya params'tan
         # Sprint 3.7 B3: LLM target -> regex extract -> UI target_hint -> null
-        final_target = intent.target or intent.params.get("target")
+        # Sprint 3.7.1: Regex URL preferred over LLM target (LLM truncates paths/queries)
+        regex_target = self._extract_target_from_input(user_input)
+        llm_target = intent.target or intent.params.get("target")
+
+        # Prefer regex URL when LLM would lose path/query/protocol
+        if regex_target and regex_target.startswith(("http://", "https://")):
+            final_target = regex_target
+        else:
+            final_target = llm_target
         if not final_target:
-            final_target = self._extract_target_from_input(user_input)
+            final_target = regex_target
         if not final_target:
             final_target = target
         
