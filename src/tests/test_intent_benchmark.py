@@ -80,6 +80,18 @@ def test_build_prompt_signatures_is_hierarchical_only():
     assert set(signatures) == {"category_prompt", "sub_intent_prompt_template"}
 
 
+def test_default_dataset_expands_to_200_unique_prompts():
+    assert len(intent_benchmark.DEFAULT_CASES) == 200
+    assert len({case.input_text for case in intent_benchmark.DEFAULT_CASES}) == 200
+    assert intent_benchmark.TEST_CASES == intent_benchmark.DEFAULT_CASES
+
+    turkish_cases = [case for case in intent_benchmark.DEFAULT_CASES if "locale:tr" in (case.notes or "")]
+    english_cases = [case for case in intent_benchmark.DEFAULT_CASES if "locale:en" in (case.notes or "")]
+
+    assert len(turkish_cases) == 100
+    assert len(english_cases) == 100
+
+
 def test_finalize_summary_computes_prompt_metrics():
     summary = intent_benchmark.BenchmarkSummary(total=2, mode="hierarchical", model="test-model")
     summary.results = [

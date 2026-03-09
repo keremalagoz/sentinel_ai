@@ -1,6 +1,6 @@
 # SENTINEL AI - Sprint Roadmap (Güncel)
 
-**Güncelleme Tarihi:** 9 Mart 2026  
+**Guncelleme Tarihi:** 10 Mart 2026  
 **Mimari:** Action Planner v2.1 + Backend Session-Memory Chat (Local-Only LLM + Deterministic Command Builder)
 
 ---
@@ -284,12 +284,12 @@ Temel akış:
 - Mimari: Local-only LLM + deterministic execution + backend session-memory chat
 - Test sağlığı: baseline full suite yeşil (**76 passed**) + önceki sprint testleri korunuyor
 - Tamamlanan: Sprint 0 → 3.6 + Sprint 3.5 v2
-- **Aktif sprint: Sprint 3.7 — AI Doğruluk Acil Düzeltmeleri** (13/15 görev tamamlandı)
-- Son benchmark (post-fix+tuning): Intent %87.0, Params %52.5, Target %78.5, Exact Match %37.0
+- **Aktif sprint: Sprint 4 — Veri Adaptasyonu ve Sonuç Modelleri** (beklemede)
+- Son benchmark (Sprint 3.7.1): Intent %95.0, Params %96.0, Target %86.0, Exact Match %76.0
 - Backlog: Sprint 3 UI backlog'u Sprint 3.5 v2 içinde kapatıldı
 - Sonraki hedef: Sprint 3.7 → Sprint 4 (Veri Adaptasyonu)
 
-### Sprint 3.7 — AI Doğruluk Acil Düzeltmeleri (Audit Bulguları) 🔧
+### Sprint 3.7 — AI Doğruluk Acil Düzeltmeleri (Audit Bulguları) ✅
 
 > Tetikleyen: 9 Mart 2026 Kapsamlı Audit Raporu + 200 vakalık bilingual benchmark sonuçları  
 > Detaylı plan: [sprint_3_7_plan.md](sprint_3_7_plan.md)  
@@ -331,7 +331,34 @@ Temel akış:
 | D3 | LLM flaky test izolasyonu | — | ✅ | `pytest.ini` marker + `conftest.py` opt-in (`--run-llm`/`RUN_LLM_TESTS`) + LLM smoke test ayrimi tamamlandi |
 | D4 | Benchmark regression gate | — | ✅ | `scripts/benchmark_gate.py` + `.github/workflows/ci.yml` benchmark-gate job'i ile CI entegrasyonu tamamlandi (repo variable ile kontrollu aktivasyon) |
 
-**Sprint 3.7 Toplam: 15/15 görev tamamlandı**
+**Sprint 3.7 Toplam: 15/15 görev ✅**
+
+---
+
+### Sprint 3.7.1 — Benchmark Accuracy Hardening ✅
+
+> Tetikleyen: Sprint 3.7 sonrasi benchmark skorlarinin Sprint 4 hazirligi icin yeterli olmamasi
+> Detayli rapor: [sprint_371_report.md](sprint_371_report.md)
+> Kapsam: Benchmark pipeline'inin production (process_v2) ile senkronizasyonu, regex false positive duzeltmeleri, keyword pattern genisletmeleri
+> Hedef: Intent >=90%, Params >=55%, Target >=80%, Exact >=40%
+
+| # | Gorev | Sorumlu | Durum | Aciklama |
+|---|-------|---------|-------|----------|
+| 3.7.1.1 | Benchmark post-processing | Kerem | ✅ | Strict-regex param pruning, regex target resolution, keyword fallback, INFO_QUERY override eklendi |
+| 3.7.1.2 | ParamExtractor regex duzeltmeleri | Kerem | ✅ | service_detection self-ref, _SCRIPTS_RE sikilation, username false positive, DNS A record context |
+| 3.7.1.3 | KeywordFilter pattern genisletme | Kerem | ✅ | grab+banner, credential attack, what does X check, web application security |
+| 3.7.1.4 | Test ve benchmark dogrulama | Kerem | ✅ | 98 test gecti, 3 benchmark run, tum hedefler asildi |
+
+**Sprint 3.7.1 Toplam: 4/4 gorev ✅**
+
+**Final Benchmark Sonuclari (10 Mart 2026):**
+
+| Metrik | Baseline | Hedef | Final | Iyilestirme |
+|--------|----------|-------|-------|-------------|
+| Intent | %87.0 | >=90% | **%95.0** | +8pp |
+| Params | %52.5 | >=55% | **%96.0** | +43.5pp |
+| Target | %78.5 | >=80% | **%86.0** | +7.5pp |
+| Exact  | %37.0 | >=40% | **%76.0** | +39pp |
 
 ---
 
@@ -400,12 +427,13 @@ Bir sprint maddesi tamamlandı sayılması için:
 
 | Metrik | Değer |
 |--------|-------|
-| Tamamlanan görev | **80** (78 önceki + 2 Sprint 3.7) |
-| Aktif (Sprint 3.7) | **13** |
-| Backlog (yerleştirilmemiş) | **0** |
+| Tamamlanan gorev | **99** (95 onceki + 4 Sprint 3.7.1) |
+| Aktif | Sprint 4 (beklemede) |
+| Backlog (yerlestirilmemis) | **0** |
 | Bekleyen (Sprint 4-6) | **11** |
-| Toplam test | **76 passed** (baseline) |
-| Son benchmark | 9 Mart 2026 — 200 vaka bilingual (Intent %90.0, Params %32.0) |
+| Toplam test | **98 passed** (baseline) |
+| Son benchmark | 10 Mart 2026 — 200 vaka bilingual (Intent %95.0, Params %96.0, Target %86.0, Exact %76.0) |
 | Son merge | develop `02e352c` |
+| Son commit (dev_kerem) | `e7b70e6` Sprint 3.7.1 |
 
 
