@@ -6,9 +6,20 @@
 
 import subprocess
 from typing import List, Tuple, Optional
+import time
 
 
 CONTAINER_NAME = "sentinel-tools"
+
+# Cache for list_available_tools (container basladiginda bir kez kontrol edilir)
+_tools_cache = None
+_tools_cache_valid = False
+
+# Cache for is_container_running (kısa TTL + hata backoff)
+_container_running_cache: Optional[bool] = None
+_container_cache_time = 0.0
+_container_cache_ttl = 1.5
+_container_backoff_until = 0.0
 
 
 def is_container_running() -> bool:
@@ -19,14 +30,39 @@ def is_container_running() -> bool:
         True: Container çalışıyor
         False: Container çalışmıyor veya yok
     """
+    global _container_running_cache, _container_cache_time, _container_backoff_until
+
+    now = time.time()
+
+    # Backoff penceresinde tekrar docker çağrısı yapma
+    if now < _container_backoff_until:
+        return bool(_container_running_cache)
+
+    # TTL içindeyse cache dön
+    if _container_running_cache is not None and (now - _container_cache_time) < _container_cache_ttl:
+        return _container_running_cache
+
     try:
+        # Timeout ekle: Docker daemon yanıt vermezse UI donmasın (2 sn yeterli)
         result = subprocess.run(
             ["docker", "inspect", "-f", "{{.State.Running}}", CONTAINER_NAME],
             capture_output=True,
-            text=True
+            text=True,
+            timeout=2
         )
-        return result.stdout.strip() == "true"
+        is_running = result.stdout.strip() == "true"
+        _container_running_cache = is_running
+        _container_cache_time = now
+        return is_running
+    except subprocess.TimeoutExpired:
+        _container_running_cache = False
+        _container_cache_time = now
+        _container_backoff_until = now + 2.0
+        return False
     except Exception:
+        _container_running_cache = False
+        _container_cache_time = now
+        _container_backoff_until = now + 2.0
         return False
 
 
@@ -79,13 +115,22 @@ def run_command_sync(tool: str, args: List[str], timeout: int = 300) -> Tuple[in
         return (-1, "", f"Hata: {str(e)}")
 
 
-def list_available_tools() -> List[str]:
+def list_available_tools(force_refresh: bool = False) -> List[str]:
     """
-    Container'da mevcut araçları listele.
+    Container'da mevcut araçları listele (cache mekanizmalı).
+    
+    Args:
+        force_refresh: True ise cache'i atla ve yeniden kontrol et
     
     Returns:
         Araç isimleri listesi
     """
+    global _tools_cache, _tools_cache_valid
+    
+    # Cache gecerli mi?
+    if _tools_cache_valid and not force_refresh and _tools_cache is not None:
+        return _tools_cache
+    
     tools = ["nmap", "gobuster", "nikto", "hydra", "sqlmap", "dirb", "whois", "dig"]
     available = []
     
@@ -94,14 +139,28 @@ def list_available_tools() -> List[str]:
             result = subprocess.run(
                 ["docker", "exec", CONTAINER_NAME, "which", tool],
                 capture_output=True,
-                text=True
+                text=True,
+                timeout=2  # Hızlı kontrol
             )
             if result.returncode == 0:
                 available.append(tool)
         except Exception:
             pass
     
+    # Cache guncelle
+    _tools_cache = available
+    _tools_cache_valid = True
+    
     return available
+
+
+def invalidate_tools_cache():
+    """Container yeniden basladiginda cache'i sifirla."""
+    global _tools_cache_valid, _container_running_cache, _container_cache_time, _container_backoff_until
+    _tools_cache_valid = False
+    _container_running_cache = None
+    _container_cache_time = 0.0
+    _container_backoff_until = 0.0
 
 
 # =============================================================================

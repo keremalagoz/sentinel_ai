@@ -1,108 +1,103 @@
-# 🛡️ SENTINEL AI
+# SENTINEL AI
+
+> Versiyon: v0.4.0-alpha | 11 Mart 2026
 
 <div align="center">
 
-![Python](https://img.shields.io/badge/Python-3.11+-3776AB?style=for-the-badge&logo=python&logoColor=white)
+![Python](https://img.shields.io/badge/Python-3.10+-3776AB?style=for-the-badge&logo=python&logoColor=white)
 ![PyQt6](https://img.shields.io/badge/PyQt6-GUI-41CD52?style=for-the-badge&logo=qt&logoColor=white)
 ![Docker](https://img.shields.io/badge/Docker-Container-2496ED?style=for-the-badge&logo=docker&logoColor=white)
-![Llama](https://img.shields.io/badge/Llama_3-Local_AI-FF6F00?style=for-the-badge&logo=meta&logoColor=white)
-![License](https://img.shields.io/badge/License-MIT-green?style=for-the-badge)
+![Qwen 2.5](https://img.shields.io/badge/Qwen_2.5_3B-Local_AI-FF6F00?style=for-the-badge&logo=huggingface&logoColor=white)
+![License](https://img.shields.io/badge/License-Source--Available-orange?style=for-the-badge)
 
-**Hibrit AI Destekli Güvenlik Test Aracı**
+**Local AI Destekli Guvenlik Test Araci**
 
-*Local + Cloud AI | PyQt6 GUI | Docker Backend | Linux Target*
+*Local AI | PyQt6 GUI | Docker Backend | Cross-Platform*
 
 </div>
 
 ---
 
-## 📖 Proje Hakkında
+## Proje Hakkında
 
-SENTINEL AI, siber güvenlik testlerini yapay zeka destekli komutlarla otomatikleştiren bir masaüstü uygulamasıdır. Hibrit AI mimarisi sayesinde hem yerel (Llama 3) hem de bulut (OpenAI GPT-4) yapay zeka modellerini kullanarak güvenlik taramalarını yönetir.
+SENTINEL AI, siber güvenlik testlerini yapay zeka destekli komutlarla otomatikleştiren bir masaüstü uygulamasıdır. Local AI motoru olarak Qwen 2.5 3B (Ollama) kullanır ve 2 aşamalı hierarchical intent resolution pipeline ile yüksek doğruluk sağlar.
 
-### ✨ Özellikler
+### Özellikler
 
-- 🤖 **Hibrit AI Motoru** - Basit görevler için Local Llama 3, karmaşık senaryolar için Cloud AI
-- 🖥️ **Modern PyQt6 Arayüzü** - Donmayan, responsive terminal ve sonuç görüntüleme
-- 🐳 **Docker Altyapısı** - İzole ve taşınabilir servis mimarisi
-- 🔒 **Güvenli Yetki Yönetimi** - Pkexec ile şifresiz root işlemleri
-- 📊 **Akıllı Parsing** - Nmap XML çıktılarını otomatik parse ve tablo görüntüleme
-- 💡 **Öneri Motoru** - Bulgulara göre sonraki adım önerileri
-- 🔌 **Plugin Sistemi** - Genişletilebilir araç desteği
+- **Local AI Motoru** - Qwen 2.5 3B / Ollama tabanlı intent çözümleme (1.9 GB, 29+ dil)
+- **2 Aşamalı Intent Resolution** - Keyword pre-filter → Kategori → Alt-intent pipeline
+- **Modern PyQt6 Arayüzü** - Donmayan, responsive terminal ve sonuç görüntüleme
+- **11 Dil Desteği (i18n)** - EN, TR, ES, ZH, JA, AR, DE, RU, FR, PT, HI — 97 çeviri anahtarı
+- **Ayarlar Diyalogu** - Dil seçimi, font boyutu, oturum temizleme, güvenlik politikası
+- **Esnek Yerleşim (Layout Swap)** - Chat/Terminal pozisyon değiştirme (yatay/dikey)
+- **Performans Optimizasyonları** - Debounce I/O, in-memory cache, QFont cache, regex pre-compile, QSS sabitleri
+- **Docker Altyapısı** - İzole ve taşınabilir servis mimarisi
+- **Güvenli Yetki Yönetimi** - Pkexec ile şifresiz root işlemleri
+- **Deterministik Çalıştırma** - Intent → Tool → Command zinciri
+- **Tek Kaynak Komut Üretimi** - Çalıştırmada `BaseTool.build_command()` öncelikli, legacy fallback kontrollü
+- **Tool Registry Metadata-Only** - Registry UI/planlama metadatası taşır, yürütme argümanları execution katmanında üretilir
+- **Çalışma Zamanı Sertleştirme** - Queue/backpressure, per-tool limit, timeout/retry
+- **Telemetry Görünürlüğü** - Status bar üzerinde kuyruk/bekleme/çalıştırma metrikleri
+- **Güvenli Temizlik Akışı** - Ayarlardaki `secure_delete` bayrağı backend cleaner katmanına iletilir
+- **Sprint 3.6 Backend Chat Hafızası** - Session/turn tabanlı multi-turn context (UI değişikliği olmadan)
+- **Structured AI Command Execution** - AI komutları structured payload olarak çalıştırılır; raw terminal komutları ayrı güvenlik kapısından geçer
+- **Backend-Owned Session Flow** - Chat history id ile backend session id ayrılmıştır; yeni sohbet, geri yükleme ve multi-turn akışları aynı backend session ile sürer
+- **Typed Validation + Windows Native Execution** - URL/query/form payload argümanları typed validation ile korunur; Windows native yürütmede merkezi executable resolution ve subprocess fallback kullanılır
+- **Kompakt Test Altyapısı** - Çekirdek AI ve backend kontratlarını doğrulayan hızlı regression paketi
+
+### Planlanan Özellikler
+
+- Sonuç modelleme + adapter katmanı (Sprint 4)
+- Öneri motoru (Sprint 5)
+- Plugin sistemi (Sprint 6)
 
 ---
 
-## 🏗️ Mimari
+## Mimari
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
-│                        SENTINEL AI                               │
+│                        SENTINEL AI                              │
 ├─────────────────────────────────────────────────────────────────┤
 │  ┌─────────────┐    ┌─────────────┐    ┌─────────────┐          │
 │  │   PyQt6     │    │   AI        │    │   Process   │          │
 │  │   GUI       │◄──►│ Orchestrator│◄──►│   Manager   │          │
 │  └─────────────┘    └──────┬──────┘    └──────┬──────┘          │
-│                            │                   │                 │
-│         ┌──────────────────┼───────────────────┤                 │
-│         ▼                  ▼                   ▼                 │
-│  ┌─────────────┐    ┌─────────────┐    ┌─────────────┐          │
-│  │ Local LLM   │    │ Cloud API   │    │ Linux       │          │
-│  │ (Llama 3)   │    │ (OpenAI)    │    │ Tools       │          │
-│  │ Port: 8001  │    │             │    │ (nmap, etc) │          │
-│  └─────────────┘    └─────────────┘    └─────────────┘          │
+│                            │                   │                │
+│         ┌──────────────────┼───────────────────┤                │
+│         ▼                  ▼                   ▼                │
+│  ┌─────────────┐  ┌───────────────┐   ┌─────────────┐          │
+│  │ Qwen 2.5 3B │  │ Keyword       │   │ Linux       │          │
+│  │ (Ollama)    │  │ Pre-Filter    │   │ Tools       │          │
+│  │ Port: 11434 │  │ (Regex)       │   │ (nmap, etc) │          │
+│  └─────────────┘  └───────────────┘   └─────────────┘          │
 └─────────────────────────────────────────────────────────────────┘
+
+Intent Pipeline:
+  User Input → KeywordPreFilter → [Stage 1: Category] → [Stage 2: Sub-Intent] → Tool
+
+Benchmark Politikası:
+  Intent benchmark raporlaması hierarchical (2 aşamalı) mod üzerinden sürdürülür.
+
+Backend Chat Pipeline (Sprint 3.6):
+  Session Create → Chat Turn → Context Enrichment → Intent Resolution → Safe Command Suggestion
 ```
 
 ---
 
-## 📁 Proje Yapısı
+## Kurulum
 
-```
-sentinel_root/
-├── 📂 src/                      # Kaynak kodlar
-│   ├── 📂 core/                 # Backend mantığı
-│   │   ├── 📂 adapters/         # Araç çıktı parserleri
-│   │   │   └── nmap_adapter.py  # Nmap XML parser
-│   │   ├── process_manager.py   # QProcess wrapper
-│   │   ├── models.py            # Pydantic veri modelleri
-│   │   ├── cleaner.py           # Güvenli dosya temizleyici
-│   │   ├── interfaces.py        # Plugin arayüzleri
-│   │   └── plugin_manager.py    # Plugin yükleyici
-│   ├── 📂 ui/                   # PyQt6 arayüz dosyaları
-│   │   ├── terminal_view.py     # Terminal widget
-│   │   └── results_view.py      # Sonuç tablosu
-│   ├── 📂 ai/                   # Yapay zeka modülleri
-│   │   ├── schemas.py           # JSON şemaları
-│   │   ├── orchestrator.py      # AI karar motoru
-│   │   └── masking.py           # Veri maskeleme
-│   ├── 📂 plugins/              # Harici araç eklentileri
-│   └── 📂 tests/                # Unit testler
-├── 📂 docker/                   # Docker yapılandırmaları
-│   ├── 📂 llama/                # Llama 3 servisi
-│   │   ├── Dockerfile
-│   │   └── pull_model.sh
-│   └── 📂 api/                  # API servisi
-│       └── Dockerfile
-├── 📂 docs/                     # Dokümantasyon
-├── 📂 temp/                     # Session logları (gitignore)
-├── main.py                      # Uygulama giriş noktası
-├── requirements.txt             # Python bağımlılıkları
-├── docker-compose.yml           # Docker servis tanımları
-├── .env.example                 # Ortam değişkenleri şablonu
-└── README.md                    # Bu dosya
-```
+### Çalışma Modu
 
----
-
-## 🚀 Kurulum
+SENTINEL AI production modda çalışır:
 
 ### Gereksinimler
 
-- **İşletim Sistemi:** Linux (Ubuntu 20.04+ önerilir)
-- **Python:** 3.11+
-- **Docker:** 20.10+ & Docker Compose
-- **RAM:** Minimum 8GB (Llama 3 için 16GB önerilir)
-- **Disk:** 10GB+ (Model indirme için)
+- **Isletim Sistemi:** Windows 10+ veya Linux (Ubuntu 20.04+ onerilir)
+- **Python:** 3.10+
+- **Docker:** 20.10+ ve Docker Compose (guvenlik araclari icin zorunlu)
+- **RAM:** Minimum 4GB (8GB onerilir)
+- **Disk:** ~3GB (Qwen 2.5 3B model + bagimliliklar)
 
 ### 1. Projeyi Klonlayın
 
@@ -122,41 +117,39 @@ source venv/bin/activate
 pip install -r requirements.txt
 ```
 
-### 3. Ortam Değişkenlerini Ayarlayın
-
-```bash
-# .env dosyasını oluştur
-cp .env.example .env
-
-# API anahtarını düzenle
-nano .env
-```
-
-### 4. Docker Servislerini Başlatın
+### 3. Docker Servislerini Başlatın
 
 ```bash
 # Servisleri arka planda başlat
 docker-compose up -d
 
-# İlk çalıştırmada Llama 3 modeli indirilecek (~4.7GB)
+# İlk çalıştırmada Qwen 2.5 3B modeli indirilecek (~1.9 GB)
 # İndirme durumunu izle:
-docker-compose logs -f llama-service
+docker-compose logs -f ollama-service
 ```
 
-### 5. Uygulamayı Başlatın
+### 4. Uygulamayı Başlatın
 
+**Çalıştırma:**
 ```bash
 python main.py
 ```
 
----
-
-## 🐳 Docker Servisleri
+## Docker Servisleri
 
 | Servis | Port | Açıklama |
 |--------|------|----------|
-| `llama-service` | 8001 | Local Llama 3 LLM API |
+| `ollama-service` | 11434 | Qwen 2.5 3B LLM API (Ollama) |
 | `api-service` | 8000 | Backend API (Orchestrator) |
+| `tools-service` | - | Security tools (nmap, gobuster, nikto, hydra) |
+
+### Backend Chat API (Sprint 3.6)
+
+| Endpoint | Method | Açıklama |
+|----------|--------|----------|
+| `/api/chat/session` | POST | Session oluşturur veya var olanı döndürür |
+| `/api/chat/turn` | POST | Session-aware tek chat turunu işler |
+| `/api/chat/history/{session_id}` | GET | Session geçmişini döndürür |
 
 ### Docker Komutları
 
@@ -179,7 +172,7 @@ docker-compose down -v
 
 ---
 
-## 💻 Kullanım
+## Kullanım
 
 ### Temel Akış
 
@@ -190,19 +183,25 @@ docker-compose down -v
 4. **Sonuçları İncele** - Parse edilmiş sonuçları tabloda gör
 5. **Önerileri Takip Et** - AI'ın sonraki adım önerilerini değerlendir
 
+### Çalıştırma Akışı
+
+- Chat üzerinden gelen AI komutları: `AI -> structured command payload -> BackendGateway.prepare_structured_command() -> TerminalView -> ProcessManager`
+- Terminale elle yazılan komutlar: `User raw command -> BackendGateway.parse_command_with_risk() -> TerminalView -> ProcessManager`
+- Sohbet geçmişi: UI chat id yalnızca history/display için tutulur, backend tarafındaki kalıcı bağlam `session_id` ile sürer
+
 ### Örnek Komutlar
 
 ```
 Kullanıcı: "192.168.1.0/24 ağını tara"
-AI → {"tool": "nmap", "arguments": ["-sn", "192.168.1.0/24"]}
+AI → {"intent_type": "host_discovery", "target": "192.168.1.0/24", "params": {}}
 
 Kullanıcı: "80 portundaki web sunucusunun dizinlerini bul"
-AI → {"tool": "gobuster", "arguments": ["dir", "-u", "http://target", "-w", "wordlist.txt"]}
+AI → {"intent_type": "web_dir_enum", "target": "http://target", "params": {"port": "80"}}
 ```
 
 ---
 
-## 🔒 Güvenlik
+## Güvenlik
 
 ### Yetki Yönetimi
 
@@ -212,7 +211,9 @@ AI → {"tool": "gobuster", "arguments": ["dir", "-u", "http://target", "-w", "w
 
 ### Veri Maskeleme
 
-Cloud AI'ya gönderilen verilerde:
+Mevcut sürümde sistem local-only çalışır ve varsayılan akışta veri dış servise gönderilmez.
+
+İleride opsiyonel cloud mode açılırsa:
 - IP adresleri → `[HOST_X]`
 - Domain adları → `[DOMAIN_Y]`
 - Hassas bilgiler otomatik maskelenir
@@ -224,33 +225,52 @@ Cloud AI'ya gönderilen verilerde:
 
 ---
 
-## 🧪 Test
+## Test
 
 ```bash
 # Tüm testleri çalıştır
-pytest src/tests/
+PYTHONPATH=. pytest -q
 
 # Belirli bir modülü test et
-pytest src/tests/test_process_manager.py -v
+PYTHONPATH=. pytest src/tests/test_sprint1.py -v
+
+# UI + i18n + optimizasyon testleri
+PYTHONPATH=. pytest src/tests/test_i18n.py src/tests/test_ui_widgets.py src/tests/test_ui_features.py src/tests/test_optimizations.py -q
 
 # Coverage raporu
-pytest --cov=src src/tests/
+PYTHONPATH=. pytest --cov=src src/tests/
 ```
+
+Not: `src/tests/test_action_planner_v2.py::test_intent_resolver` canlı LLM exact-match testi olduğu için yerel modele göre oynak olabilir. 7 Mart 2026 tam koşusunda kalan tek kırık bu testti; deterministic Yiğit stabilizasyon regresyon paketi yeşil geçti.
+
+### Test Dağılımı
+
+| Test Dosyası | Test Sayısı | Kapsam |
+|---|---|---|
+| test_i18n.py | 156 | 11 dil çeviri doğruluğu |
+| test_ui_widgets.py | 144 | Widget oluşturma ve davranış |
+| test_ui_features.py | 245 | UI özellikleri (settings, swap, history) |
+| test_optimizations.py | 91 | Performans ve anti-pattern taraması |
+| test_sprint35_audit.py | 296 | Sprint 3.5 E2E audit testleri |
+| test_tool_commands.py | 112 | Tool komut üretim testleri |
+| test_pipeline_integration.py | 79 | Pipeline entegrasyon testleri |
+| test_command_accuracy.py | 76 | Komut üretim doğruluk benchmarkı |
+| Diğer test dosyaları | 262 | Backend, parser, AI, resolver, entegrasyon |
 
 ---
 
-## 📦 Build (Linux)
+## Build (Linux)
 
 ```bash
 # Tek dosya executable oluştur
-pyinstaller --onefile --name sentinel-ai --windowed src/main.py
+pyinstaller --onefile --name sentinel-ai --windowed main.py
 
 # Çıktı: dist/sentinel-ai
 ```
 
 ---
 
-## 🤝 Katkıda Bulunma
+## Katkıda Bulunma
 
 ### Branch Yapısı
 
@@ -271,7 +291,7 @@ dev_yigit   ← Yiğit'in geliştirme branch'ı
 
 ---
 
-## 👥 Ekip
+## Ekip
 
 | İsim | Rol | Sorumluluklar |
 |------|-----|---------------|
@@ -280,13 +300,23 @@ dev_yigit   ← Yiğit'in geliştirme branch'ı
 
 ---
 
-## 📄 Lisans
+## Lisans
 
-Bu proje MIT lisansı altında lisanslanmıştır. Detaylar için [LICENSE](LICENSE) dosyasına bakın.
+Bu proje, kaynak kodu görünür (source-available) bir lisans modeli ile dağıtılır.
+
+- Ticari kullanım **yasaktır**
+- Değiştirilmiş sürümlerin dağıtımı **yasaktır**
+- Kodun değiştirilmeden paylaşımı, lisans metni korunarak **serbesttir**
+
+Detaylar için [LICENSE](LICENSE) dosyasına bakın.
+
+Model lisansları için: [MODEL_LICENSES.md](MODEL_LICENSES.md)
+
+Üçüncü taraf bileşenler için: [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)
 
 ---
 
-## 📞 İletişim
+## Iletisim
 
 - **GitHub:** [macsclub/sentinel_ai](https://github.com/macsclub/sentinel_ai)
 - **Issues:** [GitHub Issues](https://github.com/macsclub/sentinel_ai/issues)
@@ -295,7 +325,7 @@ Bu proje MIT lisansı altında lisanslanmıştır. Detaylar için [LICENSE](LICE
 
 <div align="center">
 
-**⚔️ SENTINEL AI - Güvenlik Testlerinizde Yapay Zeka Desteği ⚔️**
+**SENTINEL AI - Güvenlik Testlerinizde Yapay Zeka Desteği**
 
 </div>
 

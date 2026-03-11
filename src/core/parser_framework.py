@@ -1,0 +1,1846 @@
+"""Parser Framework - Base Parser and Tool Integration
+
+Sprint 1 Week 1 Implementation
+Locked Design: docs/execution_history_model.md
+
+All parsers inherit BaseParser.
+Parser'lar EntityIDGenerator kullanır, override yasak.
+"""
+
+from abc import ABC, abstractmethod
+from typing import List, Dict, Any, Optional
+from pydantic import BaseModel
+import time
+import uuid
+import re
+
+from src.core.entity_id_generator import EntityIDGenerator
+from src.core.sqlite_backend import (
+    BaseEntity, ToolExecutionResult,
+    EntityType, ExecutionStatus, ParseStatus
+)
+
+# Pre-compiled regex patterns (M7 optimization)
+_CVE_RE = re.compile(r'CVE-\d{4}-\d{4,7}', re.IGNORECASE)
+_CVSS_RE = re.compile(r'(?:CVSS|cvss)[:\s]+(\d+\.?\d*)')
+_VERSION_RE = re.compile(r'\d+\.\d+[\w\.\-]*')
+
+
+class ParserException(Exception):
+    """Parser exception - raised when parsing fails"""
+    pass
+
+
+# Advanced Parser Utilities (Öncelik 4)
+
+def calculate_risk_score(confidence: float, severity: str) -> float:
+    """
+    Calculate risk score based on confidence and severity.
+    
+    Risk Score Formula: confidence * severity_weight
+    
+    Args:
+        confidence: Detection confidence (0.0 - 1.0)
+        severity: Severity level (low, medium, high, critical)
+        
+    Returns:
+        Risk score (0.0 - 10.0)
+    """
+    severity_weights = {
+        "info": 1.0,
+        "low": 3.0,
+        "medium": 6.0,
+        "high": 8.5,
+        "critical": 10.0
+    }
+    
+    severity_weight = severity_weights.get(severity.lower(), 5.0)
+    return round(confidence * severity_weight, 2)
+
+
+def extract_cve_info(text: str) -> Dict[str, Any]:
+    """
+    Extract CVE information from text.
+    
+    Extracts CVE IDs, CVSS scores, and severity levels.
+    
+    Args:
+        text: Text containing CVE information
+        
+    Returns:
+        Dict with cve_ids, cvss_score, severity
+    """
+    result = {
+        "cve_ids": [],
+        "cvss_score": None,
+        "severity": "medium"
+    }
+    
+    # Extract CVE IDs (CVE-YYYY-NNNNN)
+    cve_matches = _CVE_RE.findall(text)
+    result["cve_ids"] = list(set(cve_matches))
+    
+    # Extract CVSS score (0.0 - 10.0)
+    cvss_match = _CVSS_RE.search(text)
+    if cvss_match:
+        try:
+            score = float(cvss_match.group(1))
+            result["cvss_score"] = min(10.0, max(0.0, score))
+            
+            # Map CVSS to severity
+            if score >= 9.0:
+                result["severity"] = "critical"
+            elif score >= 7.0:
+                result["severity"] = "high"
+            elif score >= 4.0:
+                result["severity"] = "medium"
+            else:
+                result["severity"] = "low"
+        except ValueError:
+            pass
+    
+    # Fallback: detect severity keywords
+    if not result["cvss_score"]:
+        text_lower = text.lower()
+        if "critical" in text_lower or "severe" in text_lower:
+            result["severity"] = "critical"
+        elif "high" in text_lower:
+            result["severity"] = "high"
+        elif "medium" in text_lower or "moderate" in text_lower:
+            result["severity"] = "medium"
+        elif "low" in text_lower:
+            result["severity"] = "low"
+    
+    return result
+
+
+def parse_service_version(version_string: str) -> Dict[str, Any]:
+    """
+    Parse service version string into components.
+    
+    Args:
+        version_string: Version string (e.g., "Apache httpd 2.4.41")
+        
+    Returns:
+        Dict with product, version, extra_info
+    """
+    result = {
+        "product": None,
+        "version": None,
+        "extra_info": None
+    }
+    
+    if not version_string:
+        return result
+    
+    # Common patterns
+    # Example: "OpenSSH 8.2p1 Ubuntu 4ubuntu0.5"
+    # Example: "Apache httpd 2.4.41"
+    # Example: "nginx 1.18.0"
+    
+    parts = version_string.strip().split()
+    
+    if len(parts) >= 1:
+        result["product"] = parts[0]
+    
+    # Find version number (digits with dots)
+    for part in parts:
+        if _VERSION_RE.match(part):
+            result["version"] = part
+            break
+    
+    # Remaining parts = extra info
+    if result["version"] and len(parts) > 2:
+        version_idx = parts.index(result["version"])
+        if version_idx + 1 < len(parts):
+            result["extra_info"] = ' '.join(parts[version_idx + 1:])
+    
+    return result
+
+
+def analyze_banner(banner: str) -> Dict[str, Any]:
+    """
+    Analyze service banner for useful information.
+    
+    Extracts: service type, version, OS hints, security flags
+    
+    Args:
+        banner: Service banner text
+        
+    Returns:
+        Dict with service_type, version_hints, os_hints, security_flags
+    """
+    result = {
+        "service_type": None,
+        "version_hints": [],
+        "os_hints": [],
+        "security_flags": []
+    }
+    
+    if not banner:
+        return result
+    
+    banner_lower = banner.lower()
+    
+    # Detect service type
+    service_keywords = {
+        "ssh": "ssh",
+        "ftp": "ftp",
+        "smtp": "smtp",
+        "http": "http",
+        "mysql": "mysql",
+        "postgresql": "postgresql",
+        "redis": "redis",
+        "mongodb": "mongodb"
+    }
+    
+    for keyword, service in service_keywords.items():
+        if keyword in banner_lower:
+            result["service_type"] = service
+            break
+    
+    # Extract version hints
+    versions = _VERSION_RE.findall(banner)
+    result["version_hints"] = versions[:3]  # Limit to 3
+    
+    # OS hints
+    os_keywords = {
+        "ubuntu": "Ubuntu",
+        "debian": "Debian",
+        "centos": "CentOS",
+        "redhat": "RedHat",
+        "windows": "Windows",
+        "unix": "Unix",
+        "linux": "Linux"
+    }
+    
+    for keyword, os_name in os_keywords.items():
+        if keyword in banner_lower:
+            result["os_hints"].append(os_name)
+    
+    # Security flags
+    if "ssl" in banner_lower or "tls" in banner_lower:
+        result["security_flags"].append("encryption")
+    if "auth" in banner_lower or "login" in banner_lower:
+        result["security_flags"].append("authentication")
+    
+    return result
+
+
+class BaseParser(ABC):
+    """
+    Base parser for all tool output parsers.
+    
+    All parsers inherit this class and implement parse() method.
+    
+    Features:
+    - EntityIDGenerator integration (canonical IDs)
+    - Helper methods for entity creation
+    - Parser failure handling
+    
+    Design: docs/execution_history_model.md
+    """
+    
+    def __init__(self):
+        """Initialize parser with ID generator"""
+        self.id_generator = EntityIDGenerator()
+    
+    @abstractmethod
+    def parse(self, output: str) -> List[BaseEntity]:
+        """
+        Parse tool output into entities.
+        
+        Args:
+            output: Tool stdout/stderr output
+            
+        Returns:
+            List of parsed entities
+            
+        Raises:
+            ParserException: If parsing fails
+            
+        Note: Subclass implements this method
+        """
+        pass
+    
+    def _create_host_entity(
+        self,
+        ip: str,
+        is_alive: bool = True,
+        hostname: Optional[str] = None,
+        os_type: Optional[str] = None,
+        confidence: float = 1.0,
+        **kwargs
+    ) -> BaseEntity:
+        """
+        Helper: Create host entity with correct canonical ID.
+        
+        Args:
+            ip: IP address
+            is_alive: Whether host is alive
+            hostname: Optional hostname
+            os_type: Optional OS type
+            confidence: Confidence score (0.0 - 1.0)
+            **kwargs: Additional data fields
+            
+        Returns:
+            Host entity with canonical ID
+        """
+        host_id = self.id_generator.host_id(ip)
+        
+        data = {
+            "ip_address": ip,
+            "is_alive": is_alive
+        }
+        
+        if hostname:
+            data["hostname"] = hostname
+        if os_type:
+            data["os_type"] = os_type
+        
+        # Add any additional fields
+        data.update(kwargs)
+        
+        return BaseEntity(
+            id=host_id,
+            entity_type=EntityType.HOST,
+            created_at=time.time(),
+            updated_at=time.time(),
+            confidence=confidence,
+            data=data
+        )
+    
+    def _create_port_entity(
+        self,
+        ip: str,
+        port: int,
+        protocol: str,
+        state: str = "open",
+        confidence: float = 1.0,
+        **kwargs
+    ) -> BaseEntity:
+        """
+        Helper: Create port entity with correct canonical ID.
+        
+        Args:
+            ip: Host IP address
+            port: Port number
+            protocol: Protocol (tcp, udp)
+            state: Port state (open, closed, filtered)
+            confidence: Confidence score
+            **kwargs: Additional data fields
+            
+        Returns:
+            Port entity with canonical ID
+        """
+        port_id = self.id_generator.port_id(ip, port, protocol)
+        host_id = self.id_generator.host_id(ip)
+        
+        data = {
+            "host_id": host_id,
+            "port": port,
+            "protocol": protocol.lower(),
+            "state": state
+        }
+        
+        data.update(kwargs)
+        
+        return BaseEntity(
+            id=port_id,
+            entity_type=EntityType.PORT,
+            created_at=time.time(),
+            updated_at=time.time(),
+            confidence=confidence,
+            data=data
+        )
+    
+    def _create_service_entity(
+        self,
+        port_id: str,
+        service_name: str,
+        version: Optional[str] = None,
+        banner: Optional[str] = None,
+        confidence: float = 1.0,
+        **kwargs
+    ) -> BaseEntity:
+        """
+        Helper: Create service entity with correct canonical ID.
+        
+        Args:
+            port_id: Port ID (from _create_port_entity)
+            service_name: Service name (http, ssh, etc.)
+            version: Optional version string
+            banner: Optional service banner
+            confidence: Confidence score
+            **kwargs: Additional data fields
+            
+        Returns:
+            Service entity with canonical ID
+        """
+        service_id = self.id_generator.service_id(port_id, service_name)
+        
+        data = {
+            "port_id": port_id,
+            "service_name": service_name.lower()
+        }
+        
+        if version:
+            data["version"] = version
+        if banner:
+            data["banner"] = banner
+        
+        data.update(kwargs)
+        
+        return BaseEntity(
+            id=service_id,
+            entity_type=EntityType.SERVICE,
+            created_at=time.time(),
+            updated_at=time.time(),
+            confidence=confidence,
+            data=data
+        )
+    
+    def _create_vulnerability_entity(
+        self,
+        target_id: Optional[str] = None,
+        vuln_type: Optional[str] = None,
+        severity: str = "medium",
+        description: Optional[str] = None,
+        exploitable: bool = False,
+        confidence: float = 1.0,
+        **kwargs
+    ) -> BaseEntity:
+        """
+        Helper: Create vulnerability entity with correct canonical ID.
+        
+        Args:
+            target_id: Target ID (service_id or port_id)
+            vuln_type: CVE ID or vulnerability type
+            severity: Severity (info, low, medium, high, critical)
+            description: Optional description
+            exploitable: Whether vulnerability is exploitable
+            confidence: Confidence score
+            **kwargs: Additional data fields (cve_ids, cvss_score, risk_score)
+            
+        Returns:
+            Vulnerability entity with canonical ID
+        """
+        # Backward compatibility:
+        # legacy callers may pass service_id/vuln_id instead of target_id/vuln_type
+        if target_id is None:
+            target_id = kwargs.pop("service_id", None)
+        if vuln_type is None:
+            vuln_type = kwargs.pop("vuln_id", None)
+
+        if not target_id:
+            raise ValueError("target_id (or service_id) is required")
+        if not vuln_type:
+            raise ValueError("vuln_type (or vuln_id) is required")
+
+        vuln_entity_id = self.id_generator.vuln_id(target_id, vuln_type)
+        
+        data = {
+            "target_id": target_id,
+            "vuln_type": vuln_type,
+            # Legacy alias fields (test/backward compatibility)
+            "vuln_id": vuln_type,
+            "service_id": target_id,
+            "severity": severity.lower(),
+            "exploitable": exploitable
+        }
+        
+        if description:
+            data["description"] = description
+        
+        # Advanced fields (Öncelik 4)
+        data.update(kwargs)
+        
+        return BaseEntity(
+            id=vuln_entity_id,
+            entity_type=EntityType.VULNERABILITY,
+            created_at=time.time(),
+            updated_at=time.time(),
+            confidence=confidence,
+            data=data
+        )
+    
+    def _create_dns_entity(
+        self,
+        domain: str,
+        record_type: str,
+        value: str,
+        confidence: float = 1.0,
+        **kwargs
+    ) -> BaseEntity:
+        """
+        Helper: Create DNS entity with correct canonical ID.
+        
+        Args:
+            domain: Domain name
+            record_type: DNS record type (A, AAAA, MX, etc.)
+            value: Record value
+            confidence: Confidence score
+            **kwargs: Additional data fields
+            
+        Returns:
+            DNS entity with canonical ID
+        """
+        dns_id = self.id_generator.dns_id(domain)
+        
+        data = {
+            "domain": domain.lower(),
+            "record_type": record_type.upper(),
+            "value": value
+        }
+        
+        data.update(kwargs)
+        
+        return BaseEntity(
+            id=dns_id,
+            entity_type=EntityType.DNS,
+            created_at=time.time(),
+            updated_at=time.time(),
+            confidence=confidence,
+            data=data
+        )
+
+
+class ToolExecutor:
+    """
+    Tool executor with parser integration and execution history tracking.
+    
+    Handles:
+    - Tool execution
+    - Output parsing
+    - PARTIAL_SUCCESS on parse failure
+    - Execution history recording
+    
+    Design: docs/execution_history_model.md
+    """
+    
+    def __init__(self, backend):
+        """
+        Initialize tool executor.
+        
+        Args:
+            backend: SQLiteBackend instance
+        """
+        self.backend = backend
+    
+    def execute_and_parse(
+        self,
+        tool_id: str,
+        parser: BaseParser,
+        output: str,
+        stage_id: Optional[int] = None
+    ) -> ToolExecutionResult:
+        """
+        Execute parser and record execution result.
+        
+        Args:
+            tool_id: Tool ID (nmap_ping_sweep, etc.)
+            parser: Parser instance
+            output: Tool output to parse
+            stage_id: Optional stage ID
+            
+        Returns:
+            Tool execution result
+            
+        Note: Parser failure = PARTIAL_SUCCESS, not FAILED
+        """
+        execution_id = f"exec_{uuid.uuid4().hex[:8]}"
+        started_at = time.time()
+        
+        entities_created = 0
+        status = ExecutionStatus.SUCCESS
+        parse_status = ParseStatus.PARSED
+        error_message = None
+        
+        try:
+            # Parse output
+            entities = parser.parse(output)
+            
+            if not entities:
+                # Tool ran but no data found
+                parse_status = ParseStatus.EMPTY_OUTPUT
+            else:
+                # Add entities to state (atomic transaction)
+                entities_created = self.backend.add_entities_batch(entities)
+                
+        except ParserException as e:
+            # Parser failed = PARTIAL_SUCCESS (tool ran, parse failed)
+            status = ExecutionStatus.PARTIAL_SUCCESS
+            parse_status = ParseStatus.PARSE_FAILED
+            error_message = f"Parser exception: {str(e)}"
+            
+        except Exception as e:
+            # Unexpected exception = PARTIAL_SUCCESS
+            status = ExecutionStatus.PARTIAL_SUCCESS
+            parse_status = ParseStatus.PARSE_FAILED
+            error_message = f"Unexpected error: {str(e)}"
+        
+        completed_at = time.time()
+        
+        # Create execution result
+        result = ToolExecutionResult(
+            execution_id=execution_id,
+            tool_id=tool_id,
+            stage_id=stage_id,
+            status=status,
+            parse_status=parse_status,
+            raw_output=output,
+            started_at=started_at,
+            completed_at=completed_at,
+            entities_created=entities_created,
+            error_message=error_message
+        )
+        
+        # Record execution in history
+        self.backend.record_execution(result)
+        
+        return result
+    
+    def has_successful_parse(self, tool_id: str) -> bool:
+        """
+        Check if tool has successful parse execution.
+        
+        Args:
+            tool_id: Tool ID
+            
+        Returns:
+            True if tool executed and parsed successfully
+        """
+        last_exec = self.backend.get_last_execution(tool_id)
+        
+        if last_exec is None:
+            return False
+        
+        return (
+            last_exec.status == ExecutionStatus.SUCCESS and
+            last_exec.parse_status == ParseStatus.PARSED
+        )
+
+
+# Example parser implementations (for testing)
+
+class PingParser(BaseParser):
+    """
+    Simple ping parser.
+    
+    Parses ping output to detect alive hosts.
+    """
+    
+    def parse(self, output: str) -> List[BaseEntity]:
+        """
+        Parse ping output.
+        
+        Args:
+            output: Ping command output
+            
+        Returns:
+            List with single host entity if successful
+            
+        Example output:
+            Pinging 192.168.1.10 with 32 bytes of data:
+            Reply from 192.168.1.10: bytes=32 time<1ms TTL=64
+        """
+        found_ips = set()
+        
+        # Look for "Reply from" or "from" in output
+        for line in output.split('\n'):
+            line_lower = line.lower()
+            
+            if 'reply from' in line_lower or 'from' in line_lower:
+                # Extract IP address
+                # Simple extraction: look for pattern "from X.X.X.X"
+                parts = line.split()
+                
+                for i, part in enumerate(parts):
+                    if part.lower() in ['from', 'from:']:
+                        if i + 1 < len(parts):
+                            ip = parts[i + 1].rstrip(':')
+                            found_ips.add(ip)
+                            break
+        
+        if not found_ips:
+            raise ParserException("No reply found in ping output")
+        
+        # Create one host entity per unique IP
+        entities = []
+        for ip in found_ips:
+            host = self._create_host_entity(
+                ip=ip,
+                is_alive=True,
+                confidence=0.95
+            )
+            entities.append(host)
+        
+        return entities
+
+
+class NmapPingSweepParser(BaseParser):
+    """
+    Nmap ping sweep parser.
+    
+    Parses nmap -sn output to detect alive hosts.
+    """
+    
+    def parse(self, output: str) -> List[BaseEntity]:
+        """
+        Parse nmap ping sweep output.
+        
+        Args:
+            output: Nmap -sn output
+            
+        Returns:
+            List of host entities
+            
+        Example output:
+            Nmap scan report for 192.168.1.10
+            Host is up (0.00050s latency).
+        """
+        entities = []
+        current_ip = None
+        
+        for line in output.split('\n'):
+            line = line.strip()
+            
+            # Look for "Nmap scan report for"
+            if 'Nmap scan report for' in line:
+                # Extract IP
+                parts = line.split()
+                if len(parts) >= 5:
+                    current_ip = parts[-1]
+            
+            # Look for "Host is up"
+            elif 'Host is up' in line and current_ip:
+                # Create host entity
+                host = self._create_host_entity(
+                    ip=current_ip,
+                    is_alive=True,
+                    confidence=1.0
+                )
+                entities.append(host)
+                current_ip = None
+        
+        if not entities:
+            raise ParserException("No alive hosts found in nmap output")
+        
+        return entities
+
+
+class NmapPortScanParser(BaseParser):
+    """
+    Nmap port scan parser.
+    
+    Parses nmap -sS/-sT output to detect open ports.
+    """
+    
+    def parse(self, output: str) -> List[BaseEntity]:
+        """
+        Parse nmap port scan output.
+        
+        Args:
+            output: Nmap port scan output
+            
+        Returns:
+            List of host and port entities
+            
+        Example output:
+            Nmap scan report for 192.168.1.10
+            PORT     STATE SERVICE
+            22/tcp   open  ssh
+            80/tcp   open  http
+        """
+        entities = []
+        current_ip = None
+        found_ports = False
+        
+        for line in output.split('\n'):
+            line = line.strip()
+            
+            # Look for "Nmap scan report for"
+            if 'Nmap scan report for' in line:
+                parts = line.split()
+                if len(parts) >= 5:
+                    current_ip = parts[-1]
+            
+            # Look for port lines (format: "80/tcp open http")
+            elif current_ip and '/' in line and 'open' in line:
+                parts = line.split()
+                
+                if len(parts) >= 3:
+                    port_proto = parts[0]
+                    state = parts[1]
+                    service_name = parts[2] if len(parts) > 2 else "unknown"
+                    
+                    # Parse port/protocol
+                    if '/' in port_proto:
+                        port_num, protocol = port_proto.split('/')
+                        
+                        try:
+                            port_num = int(port_num)
+                            
+                            # First open port: create host entity
+                            if not found_ports:
+                                host = self._create_host_entity(
+                                    ip=current_ip,
+                                    is_alive=True
+                                )
+                                entities.append(host)
+                                found_ports = True
+                            
+                            # Create port entity
+                            port = self._create_port_entity(
+                                ip=current_ip,
+                                port=port_num,
+                                protocol=protocol,
+                                state=state
+                            )
+                            entities.append(port)
+                            
+                            # Create service entity if service detected
+                            if service_name != "unknown":
+                                service = self._create_service_entity(
+                                    port_id=port.id,
+                                    service_name=service_name
+                                )
+                                entities.append(service)
+                        
+                        except ValueError:
+                            # Invalid port number, skip
+                            pass
+        
+        if not entities or not found_ports:
+            raise ParserException("No ports found in nmap output")
+        
+        return entities
+
+
+class NmapServiceDetectionParser(BaseParser):
+    """
+    Nmap service detection parser.
+    
+    Parses nmap -sV output to detect service versions.
+    Creates host, port, and service entities with version information.
+    """
+    
+    def parse(self, output: str) -> List[BaseEntity]:
+        """
+        Parse nmap service detection output.
+        
+        Args:
+            output: Nmap -sV output
+            
+        Returns:
+            List of host, port, and service entities
+            
+        Example output:
+            Nmap scan report for 192.168.1.10
+            PORT     STATE SERVICE VERSION
+            22/tcp   open  ssh     OpenSSH 8.2p1 Ubuntu 4ubuntu0.5
+            80/tcp   open  http    Apache httpd 2.4.41
+            443/tcp  open  ssl/http nginx 1.18.0
+        """
+        entities = []
+        current_ip = None
+        found_services = False
+        
+        for line in output.split('\n'):
+            line = line.strip()
+            
+            # Look for "Nmap scan report for"
+            if 'Nmap scan report for' in line:
+                parts = line.split()
+                if len(parts) >= 5:
+                    current_ip = parts[-1]
+            
+            # Look for port/service lines
+            elif current_ip and '/' in line and ('open' in line or 'filtered' in line):
+                parts = line.split(None, 3)  # Split into max 4 parts
+                
+                if len(parts) >= 3:
+                    port_proto = parts[0]
+                    state = parts[1]
+                    service_info = parts[2] if len(parts) > 2 else ""
+                    version_info = parts[3] if len(parts) > 3 else ""
+                    
+                    # Parse port/protocol
+                    if '/' in port_proto:
+                        try:
+                            port_num_str, protocol = port_proto.split('/')
+                            port_num = int(port_num_str)
+                            
+                            # First service: create host entity
+                            if not found_services:
+                                host = self._create_host_entity(
+                                    ip=current_ip,
+                                    is_alive=True
+                                )
+                                entities.append(host)
+                                found_services = True
+                            
+                            # Create port entity
+                            port = self._create_port_entity(
+                                ip=current_ip,
+                                port=port_num,
+                                protocol=protocol,
+                                state=state
+                            )
+                            entities.append(port)
+                            
+                            # Create service entity with version if available
+                            if service_info:
+                                service_data = {
+                                    "service_name": service_info
+                                }
+                                
+                                if version_info:
+                                    service_data["version"] = version_info
+                                    
+                                    # Advanced: Parse version components (Öncelik 4)
+                                    parsed_version = parse_service_version(version_info)
+                                    if parsed_version["product"]:
+                                        service_data["product"] = parsed_version["product"]
+                                    if parsed_version["version"]:
+                                        service_data["product_version"] = parsed_version["version"]
+                                    if parsed_version["extra_info"]:
+                                        service_data["extra_info"] = parsed_version["extra_info"]
+                                    
+                                    # Banner analysis if version string is long enough
+                                    if len(version_info) > 20:
+                                        banner_info = analyze_banner(version_info)
+                                        if banner_info["os_hints"]:
+                                            service_data["os_hints"] = banner_info["os_hints"]
+                                        if banner_info["security_flags"]:
+                                            service_data["security_flags"] = banner_info["security_flags"]
+                                
+                                service = self._create_service_entity(
+                                    port_id=port.id,
+                                    service_name=service_info,
+                                    **service_data
+                                )
+                                entities.append(service)
+                        
+                        except ValueError:
+                            # Invalid port number, skip
+                            pass
+        
+        if not entities or not found_services:
+            raise ParserException("No services found in nmap -sV output")
+        
+        return entities
+
+
+class NmapVulnScanParser(BaseParser):
+    """
+    Nmap vulnerability scan parser.
+    
+    Parses nmap --script vuln output to detect vulnerabilities.
+    Creates host, port, service, and vulnerability entities.
+    """
+    
+    def parse(self, output: str) -> List[BaseEntity]:
+        """
+        Parse nmap vulnerability scan output.
+        
+        Args:
+            output: Nmap --script vuln output
+            
+        Returns:
+            List of host, port, service, and vulnerability entities
+            
+        Example output:
+            Nmap scan report for 192.168.1.10
+            PORT     STATE SERVICE
+            80/tcp   open  http
+            |_http-csrf: Couldn't find any CSRF vulnerabilities.
+            |_http-dombased-xss: Couldn't find any DOM based XSS.
+            | http-enum:
+            |_  /admin/: Admin area
+            443/tcp  open  https
+            | ssl-heartbleed:
+            |   VULNERABLE:
+            |   The Heartbleed Bug is a serious vulnerability
+        """
+        entities = []
+        current_ip = None
+        current_port = None
+        current_port_entity = None
+        found_vulns = False
+        in_vuln_block = False
+        vuln_buffer = []
+        
+        for line in output.split('\n'):
+            stripped = line.strip()
+            
+            # Look for "Nmap scan report for"
+            if 'Nmap scan report for' in stripped:
+                parts = stripped.split()
+                if len(parts) >= 5:
+                    current_ip = parts[-1]
+                    current_port = None
+                    current_port_entity = None
+            
+            # Look for port lines
+            elif current_ip and '/' in stripped and ('open' in stripped or 'filtered' in stripped):
+                # Flush previous vulnerability if exists
+                if vuln_buffer and current_port_entity:
+                    vuln_text = '\n'.join(vuln_buffer)
+                    
+                    # Advanced: Extract CVE info and calculate risk (Öncelik 4)
+                    cve_info = extract_cve_info(vuln_text)
+                    confidence = 0.9 if cve_info["cve_ids"] else 0.7
+                    risk_score = calculate_risk_score(confidence, cve_info["severity"])
+                    
+                    vuln_entity = self._create_vulnerability_entity(
+                        target_id=current_port_entity.id,
+                        vuln_type="nmap_script",
+                        description=vuln_text,
+                        severity=cve_info["severity"],
+                        cve_ids=cve_info["cve_ids"],
+                        cvss_score=cve_info["cvss_score"],
+                        risk_score=risk_score,
+                        confidence=confidence
+                    )
+                    entities.append(vuln_entity)
+                    vuln_buffer = []
+                    in_vuln_block = False
+                
+                parts = stripped.split(None, 2)
+                if len(parts) >= 2:
+                    port_proto = parts[0]
+                    state = parts[1]
+                    
+                    if '/' in port_proto:
+                        try:
+                            port_num_str, protocol = port_proto.split('/')
+                            port_num = int(port_num_str)
+                            current_port = port_num
+                            
+                            # First port: create host entity
+                            if not found_vulns:
+                                host = self._create_host_entity(
+                                    ip=current_ip,
+                                    is_alive=True
+                                )
+                                entities.append(host)
+                                found_vulns = True
+                            
+                            # Create port entity
+                            port_entity = self._create_port_entity(
+                                ip=current_ip,
+                                port=port_num,
+                                protocol=protocol,
+                                state=state
+                            )
+                            entities.append(port_entity)
+                            current_port_entity = port_entity
+                        
+                        except ValueError:
+                            pass
+            
+            # Look for vulnerability indicators in script output
+            elif current_port_entity and (stripped.startswith('|') or stripped.startswith('_')):
+                # Script output line
+                if 'VULNERABLE' in stripped.upper() or 'CVE-' in stripped:
+                    in_vuln_block = True
+                    vuln_buffer.append(stripped)
+                elif in_vuln_block:
+                    vuln_buffer.append(stripped)
+                    # End of vuln block detection (heuristic)
+                    if stripped and not stripped.startswith('|') and not stripped.startswith('_'):
+                        in_vuln_block = False
+        
+        # Flush last vulnerability if exists
+        if vuln_buffer and current_port_entity:
+            vuln_text = '\n'.join(vuln_buffer)
+            
+            # Advanced: Extract CVE info and calculate risk (Öncelik 4)
+            cve_info = extract_cve_info(vuln_text)
+            
+            # Determine confidence based on CVE presence
+            confidence = 0.9 if cve_info["cve_ids"] else 0.7
+            
+            # Calculate risk score
+            risk_score = calculate_risk_score(confidence, cve_info["severity"])
+            
+            vuln_entity = self._create_vulnerability_entity(
+                target_id=current_port_entity.id,
+                vuln_type="nmap_script",
+                description=vuln_text,
+                severity=cve_info["severity"],
+                cve_ids=cve_info["cve_ids"],
+                cvss_score=cve_info["cvss_score"],
+                risk_score=risk_score,
+                confidence=confidence
+            )
+            entities.append(vuln_entity)
+        
+        if not entities:
+            raise ParserException("No scan results found in nmap --script vuln output")
+        
+        return entities
+
+
+class DnsLookupParser(BaseParser):
+    """
+    DNS lookup parser for nslookup output.
+    
+    Parses nslookup output and creates DNS entities.
+    """
+    
+    def parse(self, output: str) -> List[BaseEntity]:
+        """
+        Parse nslookup output.
+        
+        Args:
+            output: nslookup output
+            
+        Returns:
+            List of DNS entities
+            
+        Example output:
+            Server:  UnKnown
+            Address:  192.168.1.1
+            
+            Non-authoritative answer:
+            Name:    example.com
+            Addresses:  93.184.216.34
+                        2606:2800:220:1:248:1893:25c8:1946
+        """
+        entities = []
+        domain = None
+        record_type = "A"  # Default
+        
+        # Extract domain and record type from output
+        for line in output.split('\n'):
+            line = line.strip()
+            
+            # Look for "Name:" line
+            if line.startswith('Name:'):
+                domain = line.split(':', 1)[1].strip()
+            
+            # Look for "Addresses:" or "Address:" lines
+            elif domain and ('Addresses:' in line or 'Address:' in line):
+                # Parse addresses
+                if ':' in line:
+                    addr_part = line.split(':', 1)[1].strip()
+                    if addr_part and not any(x in addr_part for x in ['UnKnown', 'Server']):
+                        # This is an IP address
+                        if '.' in addr_part and not '::' in addr_part:
+                            # IPv4
+                            dns_entity = self._create_dns_entity(
+                                domain=domain,
+                                record_type="A",
+                                value=addr_part
+                            )
+                            entities.append(dns_entity)
+                        elif '::' in addr_part or addr_part.count(':') > 1:
+                            # IPv6
+                            dns_entity = self._create_dns_entity(
+                                domain=domain,
+                                record_type="AAAA",
+                                value=addr_part
+                            )
+                            entities.append(dns_entity)
+            
+            # Look for standalone IP addresses (after Addresses:)
+            elif domain and line and not line.startswith(('Server', 'Address', 'Non-authoritative')):
+                # Check if it's an IP address
+                if '.' in line and not ' ' in line.strip():
+                    # Likely IPv4
+                    dns_entity = self._create_dns_entity(
+                        domain=domain,
+                        record_type="A",
+                        value=line.strip()
+                    )
+                    entities.append(dns_entity)
+                elif '::' in line or line.count(':') > 2:
+                    # Likely IPv6
+                    dns_entity = self._create_dns_entity(
+                        domain=domain,
+                        record_type="AAAA",
+                        value=line.strip()
+                    )
+                    entities.append(dns_entity)
+            
+            # Look for MX records
+            elif 'mail exchanger' in line.lower() or 'MX preference' in line:
+                parts = line.split()
+                if len(parts) >= 2:
+                    mx_server = parts[-1].rstrip('.')
+                    if domain and mx_server:
+                        dns_entity = self._create_dns_entity(
+                            domain=domain,
+                            record_type="MX",
+                            value=mx_server
+                        )
+                        entities.append(dns_entity)
+            
+            # Look for NS records
+            elif 'nameserver' in line.lower() and '=' in line:
+                ns_server = line.split('=')[1].strip().rstrip('.')
+                if domain and ns_server:
+                    dns_entity = self._create_dns_entity(
+                        domain=domain,
+                        record_type="NS",
+                        value=ns_server
+                    )
+                    entities.append(dns_entity)
+        
+        if not entities:
+            raise ParserException("No DNS records found in nslookup output")
+        
+        return entities
+
+
+class WhoisLookupParser(BaseParser):
+    """Parser for whois output."""
+
+    def parse(self, output: str) -> List[BaseEntity]:
+        entities = []
+        domain = None
+
+        for raw_line in output.split('\n'):
+            line = raw_line.strip()
+            line_lower = line.lower()
+
+            if not line or ':' not in line:
+                continue
+
+            key, value = line.split(':', 1)
+            key = key.strip().lower()
+            value = value.strip()
+
+            if not value:
+                continue
+
+            if key in {"domain name", "domain"} and not domain:
+                domain = value.lower().rstrip('.')
+                continue
+
+            if domain is None:
+                continue
+
+            if key == "registrar":
+                entities.append(self._create_dns_entity(domain, "TXT", value, source="whois", field="registrar"))
+            elif key in {"creation date", "created", "registered on"}:
+                entities.append(self._create_dns_entity(domain, "TXT", value, source="whois", field="creation_date"))
+            elif key in {"registry expiry date", "expiry date", "expires on", "paid-till"}:
+                entities.append(self._create_dns_entity(domain, "TXT", value, source="whois", field="expiry_date"))
+            elif key in {"name server", "nserver"}:
+                entities.append(self._create_dns_entity(domain, "NS", value.split()[0].rstrip('.'), source="whois"))
+
+        if not entities:
+            raise ParserException("No structured WHOIS fields found in output")
+
+        return entities
+
+
+class NmapOsDetectionParser(BaseParser):
+    """Parser for nmap OS detection output."""
+
+    def parse(self, output: str) -> List[BaseEntity]:
+        entities = []
+        current_ip = None
+        os_type = None
+        accuracy = None
+
+        for raw_line in output.split('\n'):
+            line = raw_line.strip()
+
+            if 'Nmap scan report for' in line:
+                parts = line.split()
+                if len(parts) >= 5:
+                    current_ip = parts[-1]
+
+            elif line.startswith('OS details:'):
+                os_type = line.split(':', 1)[1].strip()
+
+            elif line.startswith('Aggressive OS guesses:') and not os_type:
+                os_type = line.split(':', 1)[1].split(',', 1)[0].strip()
+
+            elif line.startswith('Running:') and not os_type:
+                os_type = line.split(':', 1)[1].strip()
+
+            elif line.startswith('OS CPE:') and not os_type:
+                os_type = line.split(':', 1)[1].strip()
+
+            elif 'accuracy' in line.lower() and '%' in line and accuracy is None:
+                for token in line.replace('(', ' ').replace(')', ' ').split():
+                    if token.endswith('%'):
+                        try:
+                            accuracy = max(0.0, min(1.0, float(token.rstrip('%')) / 100.0))
+                            break
+                        except ValueError:
+                            continue
+
+        if not current_ip or not os_type:
+            raise ParserException('No OS detection results found in nmap output')
+
+        entities.append(
+            self._create_host_entity(
+                ip=current_ip,
+                is_alive=True,
+                os_type=os_type,
+                confidence=accuracy or 0.8,
+            )
+        )
+
+        return entities
+
+
+class SslScanParser(BaseParser):
+    """
+    Parser for OpenSSL s_client output.
+    Extracts certificate info, cipher details, and protocol versions.
+    """
+    
+    def __init__(self):
+        super().__init__()
+    
+    def parse(self, output: str) -> List[BaseEntity]:
+        """
+        Parse OpenSSL s_client output.
+        
+        Expected output format:
+            CONNECTED(...)
+            depth=2 ...
+            verify return:1
+            ---
+            Certificate chain
+             0 s:CN = example.com
+               i:CN = Let's Encrypt Authority X3
+            ...
+            Server certificate
+            -----BEGIN CERTIFICATE-----
+            ...
+            subject=CN = example.com
+            issuer=CN = Let's Encrypt Authority X3
+            ---
+            No client certificate CA names sent
+            ---
+            SSL handshake has read 4345 bytes
+            ...
+            New, TLSv1.3, Cipher is TLS_AES_256_GCM_SHA384
+            ...
+            
+        Args:
+            output: OpenSSL s_client output
+            
+        Returns:
+            List of BaseEntity (ssl_cert entities with certificate and cipher info)
+        """
+        entities = []
+        lines = output.split('\n')
+        
+        # Extract certificate info
+        subject = None
+        issuer = None
+        cert_start_date = None
+        cert_end_date = None
+        protocol = None
+        cipher = None
+        
+        for line in lines:
+            line = line.strip()
+            
+            # Extract subject (certificate owner)
+            if line.startswith('subject='):
+                subject = line.split('subject=')[1].strip()
+            
+            # Extract issuer (CA)
+            elif line.startswith('issuer='):
+                issuer = line.split('issuer=')[1].strip()
+            
+            # Extract protocol and cipher (e.g., "New, TLSv1.3, Cipher is TLS_AES_256_GCM_SHA384")
+            elif 'Cipher is' in line:
+                parts = line.split(',')
+                for part in parts:
+                    if 'TLS' in part or 'SSL' in part:
+                        # Extract protocol version
+                        if '=' not in part and 'Cipher' not in part:
+                            protocol = part.strip()
+                    if 'Cipher is' in part:
+                        cipher = part.split('Cipher is')[1].strip()
+            
+            # Alternative protocol detection
+            elif line.startswith('Protocol') and ':' in line:
+                protocol = line.split(':')[1].strip()
+            
+            # Alternative cipher detection
+            elif line.startswith('Cipher') and ':' in line:
+                cipher = line.split(':')[1].strip()
+        
+        # Create SSL certificate entity if we found info
+        if subject or issuer or protocol or cipher:
+            ssl_entity = self._create_ssl_cert_entity(
+                subject=subject or "Unknown",
+                issuer=issuer or "Unknown",
+                protocol=protocol or "Unknown",
+                cipher=cipher or "Unknown"
+            )
+            entities.append(ssl_entity)
+        
+        if not entities:
+            raise ParserException("No SSL/TLS information found in openssl output")
+        
+        return entities
+    
+    def _create_ssl_cert_entity(
+        self,
+        subject: str,
+        issuer: str,
+        protocol: str,
+        cipher: str
+    ) -> BaseEntity:
+        """Create SSL certificate entity."""
+        entity_id = self.id_generator.generate_id(
+            entity_type="ssl_cert",
+            key=f"{subject}_{issuer}"
+        )
+        
+        return BaseEntity(
+            id=entity_id,
+            type="ssl_cert",
+            properties={
+                "subject": subject,
+                "issuer": issuer,
+                "protocol": protocol,
+                "cipher": cipher
+            },
+            relationships=[]
+        )
+
+
+class GobusterDirParser(BaseParser):
+    """
+    Parser for gobuster dir mode output.
+    Extracts discovered directories and files.
+    """
+    
+    def __init__(self):
+        super().__init__()
+    
+    def parse(self, output: str) -> List[BaseEntity]:
+        """
+        Parse gobuster dir output.
+        
+        Expected output format:
+            /admin                (Status: 200) [Size: 1234]
+            /backup               (Status: 403) [Size: 567]
+            /login.php            (Status: 200) [Size: 890]
+            /api                  (Status: 301) -> http://example.com/api/
+            
+        Args:
+            output: Gobuster dir output
+            
+        Returns:
+            List of BaseEntity (web_path entities with status code and size)
+        """
+        entities = []
+        lines = output.split('\n')
+        
+        for line in lines:
+            line = line.strip()
+            
+            # Skip empty lines and headers
+            if not line or line.startswith('=') or 'Gobuster' in line:
+                continue
+            
+            # Parse gobuster output line
+            # Format: /path (Status: 200) [Size: 1234]
+            if '(Status:' in line:
+                # Extract path
+                path = line.split('(Status:')[0].strip()
+                
+                # Extract status code
+                status_code = None
+                if 'Status:' in line:
+                    status_part = line.split('Status:')[1].split(')')[0].strip()
+                    try:
+                        status_code = int(status_part)
+                    except ValueError:
+                        status_code = None
+                
+                # Extract size
+                size = None
+                if '[Size:' in line:
+                    size_part = line.split('[Size:')[1].split(']')[0].strip()
+                    try:
+                        size = int(size_part)
+                    except ValueError:
+                        size = None
+                
+                # Create web path entity
+                if path:
+                    web_path_entity = self._create_web_path_entity(
+                        path=path,
+                        status_code=status_code or 0,
+                        size=size or 0
+                    )
+                    entities.append(web_path_entity)
+        
+        if not entities:
+            raise ParserException("No web paths found in gobuster output")
+        
+        return entities
+    
+    def _create_web_path_entity(
+        self,
+        path: str,
+        status_code: int,
+        size: int
+    ) -> BaseEntity:
+        """Create web path entity."""
+        entity_id = self.id_generator.generate_id(
+            entity_type="web_path",
+            key=path
+        )
+        
+        return BaseEntity(
+            id=entity_id,
+            type="web_path",
+            properties={
+                "path": path,
+                "status_code": status_code,
+                "size": size
+            },
+            relationships=[]
+        )
+
+
+class SubdomainEnumParser(BaseParser):
+    """
+    Parser for subdomain enumeration output.
+    Extracts discovered subdomains.
+    """
+    
+    def __init__(self):
+        super().__init__()
+    
+    def parse(self, output: str) -> List[BaseEntity]:
+        """
+        Parse subdomain enumeration output.
+        
+        Expected output format:
+            FOUND: www.example.com
+            FOUND: mail.example.com
+            FOUND: api.example.com
+            
+        Args:
+            output: Subdomain enumeration output
+            
+        Returns:
+            List of BaseEntity (subdomain entities)
+        """
+        entities = []
+        lines = output.split('\n')
+        
+        for line in lines:
+            line = line.strip()
+            
+            # Look for "FOUND: subdomain.domain.com" pattern
+            if line.startswith('FOUND:'):
+                subdomain = line.split('FOUND:')[1].strip()
+                
+                if subdomain:
+                    subdomain_entity = self._create_subdomain_entity(subdomain)
+                    entities.append(subdomain_entity)
+        
+        if not entities:
+            raise ParserException("No subdomains found in enumeration output")
+        
+        return entities
+    
+    def _create_subdomain_entity(self, subdomain: str) -> BaseEntity:
+        """Create subdomain entity."""
+        entity_id = self.id_generator.generate_id(
+            entity_type="subdomain",
+            key=subdomain
+        )
+        
+        return BaseEntity(
+            id=entity_id,
+            type="subdomain",
+            properties={
+                "subdomain": subdomain
+            },
+            relationships=[]
+        )
+
+
+class WebAppScanParser(BaseParser):
+    """
+    Parser for web application scanner output.
+    Extracts server info and detected technologies.
+    """
+    
+    def __init__(self):
+        super().__init__()
+    
+    def parse(self, output: str) -> List[BaseEntity]:
+        """
+        Parse web app scan output.
+        
+        Expected output format:
+            SERVER: Apache/2.4.41
+            POWERED-BY: PHP/7.4.3
+            CONTENT-TYPE: text/html; charset=UTF-8
+            TECH: WordPress
+            TECH: jQuery
+            STATUS: 200
+            
+        Args:
+            output: Web app scan output
+            
+        Returns:
+            List of BaseEntity (web_app entities with detected technologies)
+        """
+        entities = []
+        lines = output.split('\n')
+        
+        server = None
+        powered_by = None
+        content_type = None
+        technologies = []
+        status_code = None
+        
+        for line in lines:
+            line = line.strip()
+            
+            if line.startswith('SERVER:'):
+                server = line.split('SERVER:')[1].strip()
+            
+            elif line.startswith('POWERED-BY:'):
+                powered_by = line.split('POWERED-BY:')[1].strip()
+            
+            elif line.startswith('CONTENT-TYPE:'):
+                content_type = line.split('CONTENT-TYPE:')[1].strip()
+            
+            elif line.startswith('TECH:'):
+                tech = line.split('TECH:')[1].strip()
+                technologies.append(tech)
+            
+            elif line.startswith('STATUS:'):
+                try:
+                    status_code = int(line.split('STATUS:')[1].strip())
+                except ValueError:
+                    status_code = None
+        
+        # Create web app entity
+        if server or powered_by or technologies:
+            web_app_entity = self._create_web_app_entity(
+                server=server or "Unknown",
+                powered_by=powered_by or "Unknown",
+                content_type=content_type or "Unknown",
+                technologies=technologies,
+                status_code=status_code or 0
+            )
+            entities.append(web_app_entity)
+        
+        if not entities:
+            raise ParserException("No web application information found")
+        
+        return entities
+    
+    def _create_web_app_entity(
+        self,
+        server: str,
+        powered_by: str,
+        content_type: str,
+        technologies: list,
+        status_code: int
+    ) -> BaseEntity:
+        """Create web application entity."""
+        entity_id = self.id_generator.generate_id(
+            entity_type="web_app",
+            key=f"{server}_{powered_by}"
+        )
+        
+        return BaseEntity(
+            id=entity_id,
+            type="web_app",
+            properties={
+                "server": server,
+                "powered_by": powered_by,
+                "content_type": content_type,
+                "technologies": ", ".join(technologies) if technologies else "None",
+                "status_code": status_code
+            },
+            relationships=[]
+        )
+
+
+class NmapOsDetectionParser(BaseParser):
+    """Parser for nmap OS detection output."""
+
+    def parse(self, output: str) -> List[BaseEntity]:
+        lines = [line.strip() for line in output.splitlines() if line.strip()]
+        ip_address = None
+        os_hints: List[str] = []
+        for line in lines:
+            if line.startswith("Nmap scan report for "):
+                ip_address = line.replace("Nmap scan report for ", "", 1).strip()
+            if line.startswith("Running:") or line.startswith("OS details:"):
+                os_hints.append(line)
+
+        if not os_hints:
+            raise ParserException("No OS detection data found")
+
+        os_type = " | ".join(os_hints)
+        return [
+            self._create_host_entity(
+                ip=ip_address or "unknown",
+                os_type=os_type,
+                os_details=os_type,
+                confidence=0.9,
+            )
+        ]
+
+
+class WhoisLookupParser(BaseParser):
+    """Parser for whois output."""
+
+    def parse(self, output: str) -> List[BaseEntity]:
+        lines = [line.strip() for line in output.splitlines() if line.strip()]
+        key_values: Dict[str, str] = {}
+        for line in lines:
+            if ":" in line:
+                key, value = line.split(":", 1)
+                if key and value:
+                    key_values[key.strip().lower()] = value.strip()
+
+        if not key_values:
+            raise ParserException("No whois data found")
+
+        domain_key = key_values.get("domain name") or key_values.get("domain") or "unknown"
+        entities: List[BaseEntity] = []
+
+        registrar = key_values.get("registrar")
+        if registrar:
+            entities.append(
+                self._create_dns_entity(
+                    domain_key,
+                    "TXT",
+                    registrar,
+                    field="registrar",
+                )
+            )
+
+        creation_date = key_values.get("creation date")
+        if creation_date:
+            entities.append(
+                self._create_dns_entity(
+                    domain_key,
+                    "TXT",
+                    creation_date,
+                    field="creation_date",
+                )
+            )
+
+        expiry_date = key_values.get("registry expiry date") or key_values.get("expiry date")
+        if expiry_date:
+            entities.append(
+                self._create_dns_entity(
+                    domain_key,
+                    "TXT",
+                    expiry_date,
+                    field="expiry_date",
+                )
+            )
+
+        name_server = key_values.get("name server")
+        if name_server:
+            entities.append(
+                self._create_dns_entity(
+                    domain_key,
+                    "NS",
+                    name_server,
+                    field="name_server",
+                )
+            )
+
+        if not entities:
+            entities.append(
+                self._create_dns_entity(
+                    domain_key,
+                    "TXT",
+                    domain_key,
+                    field="domain",
+                )
+            )
+
+        return entities
+
+
+class HydraSshParser(BaseParser):
+    """Parser for hydra ssh output."""
+
+    def parse(self, output: str) -> List[BaseEntity]:
+        lines = [line.strip() for line in output.splitlines() if line.strip()]
+        findings: List[BaseEntity] = []
+
+        for line in lines:
+            if "login:" in line.lower() and "password:" in line.lower():
+                entity_id = self.id_generator.generate_id(entity_type="credential", key=line)
+                findings.append(
+                    BaseEntity(
+                        id=entity_id,
+                        type="credential",
+                        properties={"raw": line, "protocol": "ssh"},
+                        relationships=[],
+                    )
+                )
+
+        if not findings:
+            raise ParserException("No hydra ssh credentials found")
+
+        return findings
+
+
+class HydraHttpParser(BaseParser):
+    """Parser for hydra http output."""
+
+    def parse(self, output: str) -> List[BaseEntity]:
+        lines = [line.strip() for line in output.splitlines() if line.strip()]
+        findings: List[BaseEntity] = []
+
+        for line in lines:
+            if "login:" in line.lower() and "password:" in line.lower():
+                entity_id = self.id_generator.generate_id(entity_type="credential", key=line)
+                findings.append(
+                    BaseEntity(
+                        id=entity_id,
+                        type="credential",
+                        properties={"raw": line, "protocol": "http"},
+                        relationships=[],
+                    )
+                )
+
+        if not findings:
+            raise ParserException("No hydra http credentials found")
+
+        return findings
+
+
+class SqlmapScanParser(BaseParser):
+    """Parser for sqlmap output."""
+
+    def parse(self, output: str) -> List[BaseEntity]:
+        lines = [line.strip() for line in output.splitlines() if line.strip()]
+        vuln_lines = [line for line in lines if "inject" in line.lower() or "vulnerable" in line.lower()]
+
+        if not vuln_lines:
+            raise ParserException("No sqlmap findings found")
+
+        entity_id = self.id_generator.generate_id(entity_type="sql_injection", key="|".join(vuln_lines))
+        return [
+            BaseEntity(
+                id=entity_id,
+                type="sql_injection",
+                properties={"evidence": " | ".join(vuln_lines)},
+                relationships=[],
+            )
+        ]

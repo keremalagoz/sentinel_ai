@@ -1,8 +1,12 @@
 # SENTINEL AI - Python Dependencies
-# Sprint 0: Initial setup (Adım 0.3)
+# v0.4.0-alpha
 
 PyQt6>=6.6.0
 pydantic>=2.5.0
 openai>=1.6.0
-python-dotenv>=1.0.0
 defusedxml>=0.7.1
+pytest>=8.0.0
+
+# API Server
+fastapi>=0.109.0
+uvicorn[standard]>=0.27.0
