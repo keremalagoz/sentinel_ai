@@ -11,7 +11,7 @@
 
 - Proje altyapısı, Docker servisleri ve temel UI/Core iskeleti tamamlandı.
 - Action Planner v2.1 deterministic akışı devreye alındı.
-- Local AI (WhiteRabbitNeo → Qwen 2.5 3B) ile intent çözümleme stabilize edildi.
+- Local AI (Qwen 2.5 3B / Ollama) ile intent çözümleme stabilize edildi.
 
 ---
 
@@ -172,7 +172,7 @@
 | 3.3.6 | Orchestrator feature flag | Kerem | [OK] |
 | 3.3.7 | Flat vs Hierarchical benchmark | Kerem | [OK] |
 | 3.3.8 | Unit testler (57 test) | Kerem | [OK] |
-| 3.3.9 | Model değişimi: WhiteRabbitNeo 7B → Qwen 2.5 3B | Kerem | [OK] |
+| 3.3.9 | Model: Qwen 2.5 3B Instruct entegrasyonu | Kerem | [OK] |
 | 3.3.10 | Docker/doküman güncellemesi | Kerem | [OK] |
 
 ---

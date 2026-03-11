@@ -86,7 +86,7 @@ class AIOrchestrator:
         Orchestrator'i baslat.
         
         Args:
-            model: Kullanilacak LLM modeli (qwen2.5:3b, whiterabbitneo, llama3:8b)
+            model: Kullanilacak LLM modeli (qwen2.5:3b, llama3:8b, vb.)
             coordinator: SentinelCoordinator instance (tool execution için)
         """
         self._model = model

@@ -19,15 +19,6 @@ bağımsızdır ve ilgili sağlayıcının lisans şartlarına tabidir.
   - `docker/ollama/setup_model.sh`
   - `models/Modelfile.qwen2.5`
 
-### 2) WhiteRabbitNeo V3 7B GGUF
-
-- Kaynak URL:
-  - `https://huggingface.co/bartowski/WhiteRabbitNeo_WhiteRabbitNeo-V3-7B-GGUF/resolve/main/WhiteRabbitNeo_WhiteRabbitNeo-V3-7B-Q4_K_M.gguf`
-- Referanslandığı dosyalar:
-  - `docker/ollama/setup_model.sh`
-  - `docker/whiterabbitneo/setup_model.sh`
-  - `models/Modelfile.whiterabbitneo`
-
 ## Dağıtım politikası
 
 - Model ağırlıklarını repoda veya release artefaktında paylaşıyorsanız, ilgili modelin

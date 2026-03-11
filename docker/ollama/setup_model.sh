@@ -1,20 +1,15 @@
 #!/bin/bash
 # SENTINEL AI - Model Setup Script
-# Configures Ollama with the selected model(s)
-#
-# Environment:
-#   SENTINEL_MODEL  - qwen2.5 (default) | whiterabbitneo | both
+# Configures Ollama with Qwen 2.5 3B Instruct model
 #
 # Usage (standalone):
-#   SENTINEL_MODEL=qwen2.5 ./setup_model.sh
+#   ./setup_model.sh
 
 set -e
 
-SENTINEL_MODEL="${SENTINEL_MODEL:-qwen2.5}"
-
 echo "=========================================="
 echo "SENTINEL AI - Ollama Model Setup"
-echo "Model: ${SENTINEL_MODEL}"
+echo "Model: Qwen 2.5 3B Instruct"
 echo "=========================================="
 
 # -----------------------------------------------------------
@@ -64,41 +59,14 @@ setup_model() {
 }
 
 # -----------------------------------------------------------
-# 2) Setup requested model(s)
+# 2) Setup Qwen 2.5 3B Instruct (Q4_K_M)
 # -----------------------------------------------------------
-
-# Qwen 2.5 3B Instruct (Q4_K_M) — primary model
 QWEN_URL="https://huggingface.co/Qwen/Qwen2.5-3B-Instruct-GGUF/resolve/main/qwen2.5-3b-instruct-q4_k_m.gguf"
 
-# WhiteRabbitNeo 7B (Q4_K_M) — legacy / fallback
-WRN_URL="https://huggingface.co/bartowski/WhiteRabbitNeo_WhiteRabbitNeo-V3-7B-GGUF/resolve/main/WhiteRabbitNeo_WhiteRabbitNeo-V3-7B-Q4_K_M.gguf"
-
-case "$SENTINEL_MODEL" in
-    qwen2.5)
-        setup_model "sentinel-qwen" "/Modelfile.qwen2.5" "$QWEN_URL" "1.9GB"
-        ;;
-    whiterabbitneo)
-        # Legacy: requires Modelfile.whiterabbitneo in container
-        if [ -f /Modelfile.whiterabbitneo ]; then
-            setup_model "whiterabbitneo" "/Modelfile.whiterabbitneo" "$WRN_URL" "4.5GB"
-        else
-            echo "[WARN] Modelfile.whiterabbitneo not found, skipping."
-        fi
-        ;;
-    both)
-        setup_model "sentinel-qwen" "/Modelfile.qwen2.5" "$QWEN_URL" "1.9GB"
-        if [ -f /Modelfile.whiterabbitneo ]; then
-            setup_model "whiterabbitneo" "/Modelfile.whiterabbitneo" "$WRN_URL" "4.5GB"
-        fi
-        ;;
-    *)
-        echo "[ERROR] Unknown SENTINEL_MODEL='${SENTINEL_MODEL}'. Use: qwen2.5 | whiterabbitneo | both"
-        exit 1
-        ;;
-esac
+setup_model "sentinel-qwen" "/Modelfile.qwen2.5" "$QWEN_URL" "1.9GB"
 
 echo "=========================================="
-echo "SENTINEL AI - Model(s) Ready!"
+echo "SENTINEL AI - Model Ready!"
 echo "API: http://localhost:11434"
 echo "=========================================="
 

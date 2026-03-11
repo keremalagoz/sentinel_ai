@@ -158,7 +158,7 @@ Katmanlı mimari doğru uygulanmış. `AGENT_RULES.md`'deki "iş mantığı `src
 ### 4.1 AI Modül Değerlendirmesi
 
 **IntentResolver (LLM Entegrasyonu):**
-- Model: WhiteRabbitNeo (7B, Q4 quantize) — Siber güvenlik domain'ine özel, doğru tercih
+- Model: Qwen 2.5 3B (Ollama) -- Local-only LLM
 - Temperature: 0.1 — Tutarlı çıktı için ideal
 - Timeout: 20s, max 2 deneme, lineer backoff (0.2s * attempt) — Makul
 - JSON parse: Markdown code block + bracket counting ile robust extraction — İyi
@@ -184,7 +184,7 @@ Katmanlı mimari doğru uygulanmış. `AGENT_RULES.md`'deki "iş mantığı `src
 ### 4.3 Kaynak Tüketimi
 
 - **Developer Mode:** ~2-4 GB RAM (Native Ollama + PyQt6)
-- **Production Mode:** ~8-16 GB RAM (Docker + WhiteRabbitNeo + tools)
+- **Production Mode:** ~4-8 GB RAM (Docker + Qwen 2.5 3B + tools)
 - **Runtime telemetry (tarihsel not):** Bu rapor yazıldığı tarihte UI görünürlüğü yoktu; güncel durumda status bar yüzeyi aktiftir.
 
 ---
@@ -284,7 +284,7 @@ Proje takvime **%90 uyumlu** ilerlemiş; kalan eksilikler (UI security indicator
 
 > **Kullanıcı Soruları:**
 > 1. Uygulama linux tabanlı olacak. Bu proje yapısında uygulamayı linux build alırken ne tür sıkıntılarla karşılaşabiliriz, düzenlememiz gereken yerler var mı?
-> 2. Model olarak whiterabbitneo kullanıyoruz. Ancak intent'i daha hızlı algılayabilecek bir model önerir misin yoksa whiterabbitneo şimdilik kalsın mı?
+> 2. Model olarak Qwen 2.5 3B kullaniyoruz (onceki modelden gecis yapildi).
 > 3. Mevcut tool sayımıza göre uygulamanın yanıt verme süresi testlerde oldukça iyi duruyor. Ancak ilerleyen zamanlarda tool sayımız ve komut çeşitliliğini arttırdığımızda yanıt süresinin artmasından ve false yanıt dönmesinden korkuyorum bunun için nasıl bir önlem mekanizması önerir misin?
 
 ---
@@ -340,34 +340,29 @@ PowerShell tool'ları (`SubdomainEnumTool`, `WebAppScanTool`) tamamen yeniden ya
 
 ---
 
-## Soru 2: Model Önerisi — WhiteRabbitNeo vs Alternatifler
+## Soru 2: Model Gecisi -- Qwen 2.5 3B Entegrasyonu
 
-Mevcut kullanım: LLM **sadece intent belirliyor** (tool, argüman, risk üretmiyor). Bu çok dar bir scope — ve bu avantaj. Bu task için 7B model aşırı kalıyor.
+> **Not:** Bu bolum tarihsel referans amaclidir. Proje artik Qwen 2.5 3B Instruct kullanmaktadir.
+
+Mevcut kullanım: LLM **sadece intent belirliyor** (tool, argüman, risk üretmiyor). Bu çok dar bir scope — ve bu avantaj.
 
 ### Değerlendirme Tablosu
 
 | Model | Boyut | Intent Speed (CPU) | Intent Speed (GPU) | Accuracy | Önerim |
 |-------|-------|-------|-------|----------|--------|
-| **WhiteRabbitNeo 7B Q4** (mevcut) | ~4 GB | 4-8s | 1-3s | İyi (cybersec domain) | Şimdilik kalabilir |
-| **Phi-3.5-mini 3.8B Q4** | ~2.2 GB | 1-3s | <1s | Çok iyi (structured output) | **En iyi alternatif** |
-| **Qwen2.5-3B Q4** | ~1.8 GB | 1-2s | <1s | Çok iyi (JSON mode) | Hız birincil ise |
+| **Qwen 2.5 3B Q4** (aktif) | ~1.8 GB | 1-2s | <1s | Cok iyi (JSON mode) | **Aktif model** |
+| **Phi-3.5-mini 3.8B Q4** | ~2.2 GB | 1-3s | <1s | Çok iyi (structured output) | Alternatif |
 | **Gemma-2 2B Q4** | ~1.5 GB | <1s | <0.5s | İyi (basit intent) | Ultra-hız istiyorsanız |
-| **Llama3.1-8B Q4** | ~4.7 GB | 4-8s | 1-3s | Çok iyi (generalist) | Hız farkı yok, domain farkı yok |
 
 ### Net Öneri
 
-**Kısa vadede WhiteRabbitNeo kalsın**, ama bir **dual-model stratejisi** planlanmalı:
+**Qwen 2.5 3B** intent resolver için aktif model olarak kullanilmaktadir.
 
-1. **Intent resolver için**: Phi-3.5-mini veya Qwen2.5-3B — küçük, hızlı, JSON output'ta güçlü. Intent detection gibi dar-kapsamlı classification task'ları için 3B model yeterli ve 2-4x daha hızlı.
-
-2. **Suggestion engine için** (Sprint 5): WhiteRabbitNeo — cybersec domain bilgisi burada gerçekten lazım olacak. Bulguları yorumlamak, sonraki adım önermek, bağlam analizi yapmak büyük model gerektirir.
-
-Bu strateji Ollama'da `ollama pull phi3.5` ile test edilebilir. `IntentResolver.__init__` zaten `model` parametresi alıyor, değişiklik minimal:
+Suggestion engine (Sprint 5) için daha büyük bir model degerlendirilebilir.
 
 ```python
-# intent için küçük model, suggestion için büyük model
-intent_resolver = IntentResolver(model="phi3.5")
-suggestion_engine = SuggestionEngine(model="whiterabbitneo")
+# intent için küçük model
+intent_resolver = IntentResolver(model="qwen2.5:3b")
 ```
 
 Geçiş öncesi mutlaka mevcut intent test case'leri (prompt örnekleri) her iki modelle karşılaştırılmalı. Bir `intent_benchmark.py` script'i yazıp 20-30 örnek girdiyle accuracy + latency ölçülmeli.

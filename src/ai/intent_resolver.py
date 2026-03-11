@@ -282,7 +282,7 @@ class IntentResolver:
         IntentResolver'i baslat.
         
         Args:
-            model: Kullanilacak local model (qwen2.5:3b, whiterabbitneo, llama3:8b, vb.)
+            model: Kullanilacak local model (qwen2.5:3b, llama3:8b, vb.)
             base_url: Ollama endpoint (default: localhost:11434)
             request_timeout: Her LLM istegi icin timeout (saniye)
             max_attempts: LLM istegi icin max deneme sayisi

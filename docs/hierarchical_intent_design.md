@@ -83,7 +83,7 @@ SENTINEL_CATEGORIES = {
 
 2. **Stage 2 — Sub-Intent Resolver**
    - Prompt sadece secilen kategorinin intent'lerini icerir
-   - Model: Ana model (model2 / whiterabbitneo)
+   - Model: Ana model (Qwen 2.5 3B)
    - Cikti: `{ "intent": "port_scan", "target": "...", "confidence": 0.92 }`
 
 3. **Keyword Pre-Filter Integration**

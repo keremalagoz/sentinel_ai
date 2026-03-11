@@ -1,5 +1,5 @@
 # SENTINEL AI - Docker Compose Configuration
-# Sprint 3.3: Qwen 2.5 3B (primary) + legacy WhiteRabbitNeo support
+# Qwen 2.5 3B (Ollama) + Security Tools + API Backend
 # Usage: docker-compose up -d
 
 services:
@@ -19,7 +19,7 @@ services:
     environment:
       - OLLAMA_HOST=0.0.0.0
       - OLLAMA_GPU_LAYERS=99
-      - SENTINEL_MODEL=qwen2.5          # qwen2.5 | whiterabbitneo | both
+      - SENTINEL_MODEL=qwen2.5
       - NVIDIA_VISIBLE_DEVICES=all
       - NVIDIA_DRIVER_CAPABILITIES=compute,utility
     restart: unless-stopped

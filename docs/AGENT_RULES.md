@@ -27,7 +27,7 @@ Bu doküman, Sentinel AI projesinde görev alan Yapay Zeka Asistanı (Agent) iç
 
 Backend servisleri için "Lokalde çalışsın" teklifi kesinlikle yasaktır.
 
-* **AI Engine:** WhiteRabbitNeo servisi `docker/whiterabbitneo/Dockerfile` içinde yaşar.
+* **AI Engine:** Ollama LLM servisi `docker/ollama/Dockerfile` içinde yaşar.
 * **API:** Orchestrator servisi `docker/api/Dockerfile` içinde yaşar.
 * **Kural:** Agent, backend kodu yazarken daima konteyner bağlamını (volume paths, network aliases) kontrol etmek zorundadır.
 
@@ -69,7 +69,7 @@ Agent, şu an hangi branch üzerinde çalıştığını bağlamdan (context) anl
 Kullanıcı "bunu commitle" dediğinde, Agent otomatik olarak Conventional Commits formatında mesaj hazırlar.
 
 * `feat(ui): add dark mode toggle to terminal view`
-* `fix(docker): resolve whiterabbitneo service connection timeout`
+* `fix(docker): resolve ollama service connection timeout`
 * `refactor (core): optimize nmap xml parsing logic`
 * `docs(sprint2): update orchestrator sequence diagrams`
 

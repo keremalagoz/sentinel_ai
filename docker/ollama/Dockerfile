@@ -1,6 +1,5 @@
 # SENTINEL AI - Ollama LLM Service
-# Primary: Qwen 2.5 3B (intent classification)
-# Fallback: WhiteRabbitNeo 7B (legacy, optional)
+# Model: Qwen 2.5 3B Instruct (intent classification)
 
 FROM ollama/ollama:latest
 
@@ -18,7 +17,6 @@ COPY models/Modelfile.qwen2.5 /Modelfile.qwen2.5
 # Expose Ollama port
 EXPOSE 11434
 
-# Environment: which model to set up (qwen2.5 | whiterabbitneo | both)
 ENV SENTINEL_MODEL=qwen2.5
 
 # Use shell entrypoint

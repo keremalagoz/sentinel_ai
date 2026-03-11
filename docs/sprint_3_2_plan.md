@@ -229,7 +229,7 @@ Audit raporunda ve takip konuşmalarında belirlenen tüm konuların sprint kar�
 | **Ölçeklenme — Hierarchical intent (2 aşamalı)** | C6 (forward-ref) | ✅ Tamamlandı (tasarım dokümanı) |
 | **Ölçeklenme — Tool selection policy (aynı intent → çoklu tool)** | C7 (forward-ref) | ✅ Tamamlandı (priority/condition eklendi) |
 | **Sprint 4 — Pydantic veri modeli + nmap adapter** | Sprint 4'e kalır | ⏭️ Sonraki sprint |
-| **Sprint 5 — Suggestion engine (WhiteRabbitNeo)** | Sprint 5'e kalır | ⏭️ Sonraki sprint |
+| **Sprint 5 — Suggestion engine** | Sprint 5'e kalır | ⏭️ Sonraki sprint |
 
 ---
 

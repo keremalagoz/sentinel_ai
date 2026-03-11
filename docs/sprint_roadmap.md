@@ -173,7 +173,7 @@ Temel akış:
 | 3.3.6 | Orchestrator feature flag | Kerem | ✅ | `USE_HIERARCHICAL = True/False`, flat/hierarchical geçiş |
 | 3.3.7 | Flat vs Hierarchical benchmark | Kerem | ✅ | `intent_benchmark.py` genişlet, accuracy/latency karşılaştırma |
 | 3.3.8 | Unit testler | Kerem | ✅ | HierarchicalResolver, category routing, fallback senaryoları (57 test) |
-| 3.3.9 | Model değişimi: WhiteRabbitNeo 7B → Qwen 2.5 3B | Kerem | ✅ | %50 daha az VRAM, %59 daha az disk, %100 benchmark |
+| 3.3.9 | Model: Qwen 2.5 3B Instruct entegrasyonu | Kerem | ✅ | %50 daha az VRAM, %59 daha az disk, %100 benchmark |
 | 3.3.10 | Docker/doküman güncellemesi | Kerem | ✅ | ollama-service, Qwen 2.5 3B default, README/PROJECT_STRUCTURE güncel |
 
 **Sprint 3.3 Toplam: 10/10 görev ✅**

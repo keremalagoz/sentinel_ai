@@ -1,7 +1,7 @@
 # SENTINEL AI - Proje Yapısı (Sadeleştirilmiş)
 
-**Versiyon**: Action Planner v2.1 + Yigit Stabilization Hotfix  
-**Tarih**: 7 Mart 2026  
+**Versiyon**: v0.4.0-alpha (Action Planner v2.1 + Hierarchical Intent Resolution)  
+**Tarih**: 11 Mart 2026  
 **Mimari**: Local-Only LLM (Qwen 2.5 3B) + 2-Asamali Intent Resolution + Deterministic Execution + Backend Session Memory + Structured AI Command Execution
 
 > Not: Bu doküman sadeleştirme sürecindedir. Öncelik, mevcut çalışma mimarisi ve aktif modüllerin net gösterimidir.
@@ -145,14 +145,11 @@ sentinel_root/
 ├── docker/                      # Docker Konfigürasyonları
 │   ├── api/                    # API container
 │   ├── tools/                  # Security tools container
-│   ├── ollama/                 # Ollama LLM container (Qwen 2.5 + legacy WRN)
-│   └── whiterabbitneo/         # (Legacy) WhiteRabbitNeo container
+│   └── ollama/                 # Ollama LLM container (Qwen 2.5 3B)
 │
 ├── models/                      # AI Model Dosyaları (.gitignore ile korunur)
 │   ├── qwen2.5-3b-instruct-q4.gguf  # Qwen 2.5 3B (~1.84 GB) - Ana model
-│   ├── Modelfile.qwen2.5             # Qwen Modelfile (SENTINEL system prompt)
-│   ├── whiterabbitneo-7b-q4.gguf     # WhiteRabbitNeo 7B (~4.47 GB) - Yedek
-│   └── Modelfile.whiterabbitneo      # WhiteRabbitNeo Modelfile
+│   └── Modelfile.qwen2.5             # Qwen Modelfile (SENTINEL system prompt)
 └── ...
 
 ```
@@ -730,10 +727,10 @@ Docker orchestration
 ---
 
 ### **docker/ollama/Dockerfile**
-Ollama LLM container (Sprint 3.3)
+Ollama LLM container
 
-**İçerik**: Ollama + Qwen 2.5 3B (primary) + WhiteRabbitNeo (legacy, optional)
-**Env**: `SENTINEL_MODEL=qwen2.5` (qwen2.5 | whiterabbitneo | both)
+**İçerik**: Ollama + Qwen 2.5 3B Instruct
+**Env**: `SENTINEL_MODEL=qwen2.5`
 
 ---
 
@@ -744,12 +741,7 @@ Security tools container
 
 ---
 
-### **docker/whiterabbitneo/** (Legacy)
-Eski WhiteRabbitNeo container — geriye uyumluluk için korunuyor
-
----
-
-## Bağımlılıklar
+## Bagimliliklar
 
 ### **requirements.txt**
 Python paketleri
@@ -828,7 +820,7 @@ python main.py
 
 **Sprint 3.3 - Hybrid LLM Motoru** (10/10 gorev, +57 test):
 - 2-Asamali Intent Resolution (Category -> Sub-Intent)
-- Model degisimi: WhiteRabbitNeo 7B -> Qwen 2.5 3B
+- Qwen 2.5 3B Instruct model entegrasyonu
 - Keyword override: LLM sadece NER, intent keyword'den gelir
 - Benchmark: %100 dogruluk (30/30), hierarchical mod
 

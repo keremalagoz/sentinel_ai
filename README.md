@@ -1,6 +1,6 @@
 # SENTINEL AI
 
-> Son Senkronizasyon: 5 Mart 2026 (Sprint 3.5 hotfix güncellemeleri dahil)
+> Versiyon: v0.4.0-alpha | 11 Mart 2026
 
 <div align="center">
 
@@ -10,9 +10,9 @@
 ![Qwen 2.5](https://img.shields.io/badge/Qwen_2.5_3B-Local_AI-FF6F00?style=for-the-badge&logo=huggingface&logoColor=white)
 ![License](https://img.shields.io/badge/License-Source--Available-orange?style=for-the-badge)
 
-**Local AI Destekli Güvenlik Test Aracı**
+**Local AI Destekli Guvenlik Test Araci**
 
-*Local AI | PyQt6 GUI | Docker Backend | Linux Target*
+*Local AI | PyQt6 GUI | Docker Backend | Cross-Platform*
 
 </div>
 
@@ -85,75 +85,6 @@ Backend Chat Pipeline (Sprint 3.6):
 
 ---
 
-## 7 Mart 2026 Stabilization Notu
-
-Bu turda Yiğit alanındaki stabilizasyon/hotfix çalışmaları tamamlandı:
-
-- AI tarafından üretilen structured komutlar artık tekrar flat string'e çevrilip parse edilmez.
-- Raw terminal komutları mevcut güvenlik kapısında kalır; structured AI komutları typed validation ile çalıştırılır.
-- Backend session id, chat history metadata'sından ayrıştırıldı ve `MainWindow` içinde tek otorite haline getirildi.
-- `BaseTool` failed-start yarışı kapatıldı; başlatılamayan process ikinci kez timeout üretmez.
-- Windows native komut çalıştırmada executable resolution ve subprocess fallback eklendi.
-
-Bu turda bilinçli olarak kodda büyütülmeyen ortak alan sorunları için `docs/kerem_handoff_issues.md` dosyasına bakın.
-
-## Proje Yapısı
-
-```
-sentinel_root/
-├── main.py                   # Production giriş noktası
-├── requirements.txt          # Python bağımlılıkları
-├── docker-compose.yml        # Docker servis tanımları
-├── PROJECT_STRUCTURE.md      # Proje yapısı rehberi
-├── README.md                 # Bu dosya
-├── docs/son_durum.md         # Durum raporu
-├── data/                     # Veri klasörü
-│   └── databases/            # SQLite veritabanı dosyaları
-├── docker/                   # Docker yapılandırmaları
-│   ├── api/                  # API servisi
-│   │   └── Dockerfile
-│   ├── ollama/               # Ollama LLM servisi (Qwen 2.5 3B)
-│   │   ├── Dockerfile
-│   │   └── setup_model.sh
-│   ├── tools/                # Security tools servisi
-│   │   └── Dockerfile
-│   └── whiterabbitneo/       # (Legacy) WhiteRabbitNeo servisi
-│       └── Dockerfile
-├── docs/                     # Dokümantasyon
-│   ├── AGENT_RULES.md
-│   ├── entity_id_strategy.md
-│   ├── execution_history_model.md
-│   ├── execution_state_model.md
-│   ├── sprint_roadmap.md
-│   ├── sprint_3_6_plan.md
-│   ├── sprint1_ready.md
-│   ├── sqlite_schema.md
-│   ├── ui_regression_checklist.md
-│   ├── sprint_3_5_plan.md
-│   └── changelog_sprint35_hotfix.md
-├── models/                   # Model dosyaları ve modelfile'lar
-│   ├── qwen2.5-3b-instruct-q4.gguf  # Primary (1.84 GB)
-│   ├── Modelfile.qwen2.5            # SENTINEL system prompt
-│   ├── Modelfile.whiterabbitneo      # Legacy modelfile
-│   └── whiterabbitneo-7b-q4.gguf     # Legacy model (4.47 GB)
-├── src/                      # Kaynak kodlar
-│   ├── ai/                   # Yapay zeka modülleri
-│   ├── application/          # Uygulama katmanı (API dahil)
-│   ├── core/                 # Backend mantığı
-│   ├── ui/                   # PyQt6 arayüz + i18n + settings
-│   │   ├── i18n.py           # 11 dil çeviri sistemi
-│   │   └── settings_dialog.py # Ayarlar diyalogu
-│   ├── plugins/              # Harici araç eklentileri
-│   └── tests/                # Odakli regression ve kontrat testleri
-├── scripts/                  # Yardımcı scriptler
-│   └── validate_ui.py
-├── temp/                     # Geçici dosyalar
-│  └── sentinel_safe/
-└── ...
-```
-
----
-
 ## Kurulum
 
 ### Çalışma Modu
@@ -162,11 +93,11 @@ SENTINEL AI production modda çalışır:
 
 ### Gereksinimler
 
-- **İşletim Sistemi:** Linux (Ubuntu 20.04+ önerilir)
+- **Isletim Sistemi:** Windows 10+ veya Linux (Ubuntu 20.04+ onerilir)
 - **Python:** 3.10+
-- **Docker:** 20.10+ & Docker Compose
-- **RAM:** Minimum 4GB (8GB önerilir)
-- **Disk:** ~3GB (Qwen 2.5 3B model + bağımlılıklar)
+- **Docker:** 20.10+ ve Docker Compose (guvenlik araclari icin zorunlu)
+- **RAM:** Minimum 4GB (8GB onerilir)
+- **Disk:** ~3GB (Qwen 2.5 3B model + bagimliliklar)
 
 ### 1. Projeyi Klonlayın
 
@@ -385,10 +316,10 @@ Model lisansları için: [MODEL_LICENSES.md](MODEL_LICENSES.md)
 
 ---
 
-## İletişim
+## Iletisim
 
-- **GitHub:** [keremalagoz/sentinel_ai](https://github.com/keremalagoz/sentinel_ai)
-- **Issues:** [GitHub Issues](https://github.com/keremalagoz/sentinel_ai/issues)
+- **GitHub:** [macsclub/sentinel_ai](https://github.com/macsclub/sentinel_ai)
+- **Issues:** [GitHub Issues](https://github.com/macsclub/sentinel_ai/issues)
 
 ---
 

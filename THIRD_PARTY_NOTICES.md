@@ -25,7 +25,7 @@ kilitlenen sürüm metadata'sı (`pip show` / PyPI) release öncesi kontrol edil
 |---|---|---|
 | python:3.11-slim | `docker/api/Dockerfile` | Debian tabanlı, çoklu lisans içerir |
 | ubuntu:22.04 | `docker/tools/Dockerfile` | Ubuntu paket lisansları paket bazlıdır |
-| ollama/ollama:latest | `docker/ollama/Dockerfile`, `docker/whiterabbitneo/Dockerfile` | Tag sabitlenmeden lisans/SBOM takibi zorlaşır |
+| ollama/ollama:latest | `docker/ollama/Dockerfile` | Tag sabitlenmeden lisans/SBOM takibi zorlaşır |
 
 ## 3) Tools container içinde kurulan paketler
 
